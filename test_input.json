@@ -1,0 +1,9 @@
+{"commands": [
+    {"cmd": "clear"},
+    {"cmd": "create_sphere", "name": "Sphere1", "position": [0, 500, 0], "radius": 500, "material": "metal"},
+    {"cmd": "create_cylinder", "name": "Cyl1", "position": [1500, 0, 0], "radius": 400, "height": 1200, "material": "concrete"},
+    {"cmd": "create_sphere", "name": "Sphere2", "position": [3000, 300, 0], "radius": 300, "material": "brick"},
+    {"cmd": "create_cylinder", "name": "Cyl2", "position": [-1200, 0, 1000], "radius": 250, "height": 2000, "material": "wood"},
+    {"cmd": "set_camera", "target": [1000, 500, 300], "distance": 5000, "yaw": 0.5, "pitch": -0.3},
+    {"cmd": "screenshot", "path": "smooth_test.png"}
+]}

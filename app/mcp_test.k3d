@@ -1,0 +1,71 @@
+{
+  "version": "1.0",
+  "app": "Kolibri_Ai3D",
+  "objects": [
+    {
+      "id": "cd7f4507",
+      "name": "北牆",
+      "shape": {
+        "type": "box",
+        "width": 5000.0,
+        "height": 2800.0,
+        "depth": 200.0
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material": "concrete",
+      "rotation_y": 0.0,
+      "tag": "預設",
+      "visible": true,
+      "roughness": 0.5,
+      "metallic": 0.0
+    },
+    {
+      "id": "e0b037bd",
+      "name": "東牆",
+      "shape": {
+        "type": "box",
+        "width": 200.0,
+        "height": 2800.0,
+        "depth": 4000.0
+      },
+      "position": [
+        4800.0,
+        0.0,
+        0.0
+      ],
+      "material": "brick",
+      "rotation_y": 0.0,
+      "tag": "預設",
+      "visible": true,
+      "roughness": 0.5,
+      "metallic": 0.0
+    },
+    {
+      "id": "761fcc92",
+      "name": "柱子",
+      "shape": {
+        "type": "cylinder",
+        "radius": 200.0,
+        "height": 2800.0,
+        "segments": 48
+      },
+      "position": [
+        2500.0,
+        0.0,
+        2000.0
+      ],
+      "material": "marble",
+      "rotation_y": 0.0,
+      "tag": "預設",
+      "visible": true,
+      "roughness": 0.5,
+      "metallic": 0.0
+    }
+  ],
+  "groups": [],
+  "component_defs": []
+}

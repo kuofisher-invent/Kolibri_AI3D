@@ -1,0 +1,187 @@
+use eframe::egui;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MenuAction {
+    None,
+    // File
+    NewScene,
+    OpenScene,
+    SaveScene,
+    SaveAs,
+    // Edit
+    Undo,
+    Redo,
+    Delete,
+    SelectAll,
+    // View
+    ViewFront,
+    ViewBack,
+    ViewLeft,
+    ViewRight,
+    ViewTop,
+    ViewBottom,
+    ViewIso,
+    ZoomExtents,
+    // Import/Export
+    ExportObj,
+    ImportObj,
+    ExportStl,
+    ImportStl,
+    ExportGltf,
+    ImportGltf,
+    ExportDxf,
+    ImportDxf,
+    // CSG boolean
+    CsgUnion,
+    CsgSubtract,
+    CsgIntersect,
+    // Recent / Revert / Template
+    OpenRecent(String),
+    Revert,
+    SaveTemplate,
+    // 2D export / import
+    ExportPng,
+    ExportJpg,
+    ExportPdf,
+    ImportImage,
+    // Context menu
+    Duplicate,
+    GroupSelected,
+    ComponentSelected,
+    Properties,
+    // Render mode & background
+    SetRenderMode(u32),
+    ToggleBackground,
+    // Camera modes
+    ToggleOrtho,
+    SaveCamera,
+    SplitObject,
+    ImportDxfSmart,
+    SmartImport,
+    ToggleConsole,
+}
+
+/// Draw the top menu bar. Returns the action to execute.
+pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can_redo: bool, _obj_count: usize, recent_files: &[String], has_current_file: bool, use_ortho: bool, saved_camera_count: usize) -> MenuAction {
+    let mut action = MenuAction::None;
+
+    egui::menu::bar(ui, |ui| {
+        ui.menu_button("檔案", |ui| {
+            if ui.button("新建場景").clicked() { action = MenuAction::NewScene; ui.close_menu(); }
+            if ui.button("開啟 (Ctrl+O)").clicked() { action = MenuAction::OpenScene; ui.close_menu(); }
+            ui.menu_button("最近檔案", |ui| {
+                if recent_files.is_empty() {
+                    ui.label("(無)");
+                } else {
+                    for path in recent_files {
+                        let short = path.rsplit(['\\', '/']).next().unwrap_or(path);
+                        if ui.button(short).on_hover_text(path).clicked() {
+                            action = MenuAction::OpenRecent(path.clone());
+                            ui.close_menu();
+                        }
+                    }
+                }
+            });
+            if ui.button("儲存 (Ctrl+S)").clicked() { action = MenuAction::SaveScene; ui.close_menu(); }
+            if ui.button("另存新檔").clicked() { action = MenuAction::SaveAs; ui.close_menu(); }
+            if ui.add_enabled(has_current_file, egui::Button::new("回復上次儲存")).clicked() {
+                action = MenuAction::Revert;
+                ui.close_menu();
+            }
+            if ui.button("存為範本").clicked() { action = MenuAction::SaveTemplate; ui.close_menu(); }
+            ui.separator();
+            ui.menu_button("匯出", |ui| {
+                ui.label("3D 模型");
+                if ui.button("OBJ 模型").clicked() { action = MenuAction::ExportObj; ui.close_menu(); }
+                if ui.button("STL 模型").clicked() { action = MenuAction::ExportStl; ui.close_menu(); }
+                if ui.button("GLTF 模型").clicked() { action = MenuAction::ExportGltf; ui.close_menu(); }
+                if ui.button("DXF 圖面").clicked() { action = MenuAction::ExportDxf; ui.close_menu(); }
+                ui.separator();
+                ui.label("2D 截圖");
+                if ui.button("PNG 截圖").clicked() { action = MenuAction::ExportPng; ui.close_menu(); }
+                if ui.button("JPG 截圖").clicked() { action = MenuAction::ExportJpg; ui.close_menu(); }
+                if ui.button("PDF 文件").clicked() { action = MenuAction::ExportPdf; ui.close_menu(); }
+            });
+            ui.menu_button("匯入", |ui| {
+                if ui.button("OBJ 模型").clicked() { action = MenuAction::ImportObj; ui.close_menu(); }
+                if ui.button("STL 模型").clicked() { action = MenuAction::ImportStl; ui.close_menu(); }
+                if ui.button("DXF 圖面").clicked() { action = MenuAction::ImportDxf; ui.close_menu(); }
+                if ui.button("GLTF 模型").clicked() { action = MenuAction::ImportGltf; ui.close_menu(); }
+                ui.separator();
+                if ui.button("DXF 智慧匯入 (解析軸線/柱梁)").clicked() { action = MenuAction::ImportDxfSmart; ui.close_menu(); }
+                ui.separator();
+                if ui.button("智慧匯入 (DXF/DWG/SKP/OBJ/PDF)").clicked() { action = MenuAction::SmartImport; ui.close_menu(); }
+                ui.separator();
+                if ui.button("參考圖片").clicked() { action = MenuAction::ImportImage; ui.close_menu(); }
+            });
+        });
+        ui.menu_button("編輯", |ui| {
+            if ui.add_enabled(can_undo, egui::Button::new("復原 (Ctrl+Z)")).clicked() { action = MenuAction::Undo; ui.close_menu(); }
+            if ui.add_enabled(can_redo, egui::Button::new("重做 (Ctrl+Y)")).clicked() { action = MenuAction::Redo; ui.close_menu(); }
+            ui.separator();
+            if ui.add_enabled(has_selection, egui::Button::new("刪除 (Delete)")).clicked() { action = MenuAction::Delete; ui.close_menu(); }
+            if ui.button("全選 (Ctrl+A)").clicked() { action = MenuAction::SelectAll; ui.close_menu(); }
+        });
+        ui.menu_button("工具", |ui| {
+            ui.label("布林運算 (需選取2個方塊)");
+            if ui.button("聯集 (A+B)").clicked() { action = MenuAction::CsgUnion; ui.close_menu(); }
+            if ui.button("差集 (A-B)").clicked() { action = MenuAction::CsgSubtract; ui.close_menu(); }
+            if ui.button("交集 (A∩B)").clicked() { action = MenuAction::CsgIntersect; ui.close_menu(); }
+            ui.separator();
+            ui.label("分割");
+            if ui.button("分割物件 (沿最長軸)").clicked() { action = MenuAction::SplitObject; ui.close_menu(); }
+        });
+        ui.menu_button("檢視", |ui| {
+            if ui.button("前視圖 (1)").clicked() { action = MenuAction::ViewFront; ui.close_menu(); }
+            if ui.button("後視圖").clicked() { action = MenuAction::ViewBack; ui.close_menu(); }
+            if ui.button("左視圖").clicked() { action = MenuAction::ViewLeft; ui.close_menu(); }
+            if ui.button("右視圖").clicked() { action = MenuAction::ViewRight; ui.close_menu(); }
+            if ui.button("上視圖 (2)").clicked() { action = MenuAction::ViewTop; ui.close_menu(); }
+            if ui.button("下視圖").clicked() { action = MenuAction::ViewBottom; ui.close_menu(); }
+            ui.separator();
+            if ui.button("等角視圖 (3)").clicked() { action = MenuAction::ViewIso; ui.close_menu(); }
+            if ui.button("全部顯示 (Z)").clicked() { action = MenuAction::ZoomExtents; ui.close_menu(); }
+            ui.separator();
+            ui.label("顯示模式");
+            if ui.button("著色").clicked() { action = MenuAction::SetRenderMode(0); ui.close_menu(); }
+            if ui.button("線框").clicked() { action = MenuAction::SetRenderMode(1); ui.close_menu(); }
+            if ui.button("X光").clicked() { action = MenuAction::SetRenderMode(2); ui.close_menu(); }
+            if ui.button("隱藏線").clicked() { action = MenuAction::SetRenderMode(3); ui.close_menu(); }
+            if ui.button("單色").clicked() { action = MenuAction::SetRenderMode(4); ui.close_menu(); }
+            ui.separator();
+            if ui.button("切換背景 (明/暗)").clicked() { action = MenuAction::ToggleBackground; ui.close_menu(); }
+            ui.separator();
+            let ortho_label = if use_ortho { "\u{2713} 平行投影 (5)" } else { "平行投影 (5)" };
+            if ui.button(ortho_label).clicked() { action = MenuAction::ToggleOrtho; ui.close_menu(); }
+            ui.separator();
+            ui.label("場景");
+            if ui.button("儲存目前視角").clicked() { action = MenuAction::SaveCamera; ui.close_menu(); }
+            if saved_camera_count > 0 {
+                ui.label(format!("已儲存 {} 個視角", saved_camera_count));
+            }
+            ui.separator();
+            if ui.button("Console (F12)").clicked() { action = MenuAction::ToggleConsole; ui.close_menu(); }
+        });
+    });
+
+    action
+}
+
+/// Draw context menu for right-click. Returns action to execute.
+pub fn draw_context_menu(ui: &mut egui::Ui, has_selection: bool) -> MenuAction {
+    let mut action = MenuAction::None;
+
+    if has_selection {
+        if ui.button("刪除").clicked() { action = MenuAction::Delete; ui.close_menu(); }
+        if ui.button("複製").clicked() { action = MenuAction::Duplicate; ui.close_menu(); }
+        ui.separator();
+        if ui.button("建立群組").clicked() { action = MenuAction::GroupSelected; ui.close_menu(); }
+        if ui.button("建立元件").clicked() { action = MenuAction::ComponentSelected; ui.close_menu(); }
+        ui.separator();
+        if ui.button("屬性").clicked() { action = MenuAction::Properties; ui.close_menu(); }
+    } else {
+        ui.label("(無選取物件)");
+    }
+
+    action
+}

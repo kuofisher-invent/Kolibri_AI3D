@@ -1,0 +1,30 @@
+# Rust build artifacts
+app/target/
+**/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Test artifacts
+app/test_input.json
+app/test_output.json
+app/*.png
+!app/icon.png
+
+# Auto-save
+app/autosave.k3d
+
+# Temp
+*.tmp
+*.bak
