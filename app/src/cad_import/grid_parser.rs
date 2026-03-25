@@ -402,6 +402,13 @@ fn clean_mtext(s: &str) -> String {
 
 fn is_x_grid_label(s: &str) -> bool {
     // A, B, C, ..., Z, AB, AC, etc.
+    // Exclude known non-grid labels (floor levels, directions, abbreviations)
+    const EXCLUDED: &[&str] = &[
+        "GL", "FL", "RFL", "EL", "DN", "BFL", "TFL", "SFL",
+        "UP", "DW", "FH", "CH", "WH", "TH", "OK", "NO", "NA",
+        "NE", "NW", "SE", "SW", "G", "X", "Y", "Z", "R", "L",
+    ];
+    if EXCLUDED.contains(&s) { return false; }
     !s.is_empty() && s.len() <= 3 && s.chars().all(|c| c.is_ascii_uppercase())
 }
 
