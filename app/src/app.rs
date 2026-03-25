@@ -376,6 +376,9 @@ pub struct KolibriApp {
     pub(crate) inference_ctx: crate::inference::InferenceContext,
     pub(crate) inference_label: Option<(String, crate::inference::InferenceSource)>,
 
+    // Inference Engine 2.0: formal scoring pipeline
+    pub(crate) inference_engine: crate::inference_engine::InferenceEngine,
+
     // Custom material picker
     pub(crate) show_custom_color_picker: bool,
     pub(crate) custom_color: [f32; 4],
@@ -574,6 +577,7 @@ impl KolibriApp {
             last_action_name: String::new(),
             inference_ctx: crate::inference::InferenceContext::default(),
             inference_label: None,
+            inference_engine: crate::inference_engine::InferenceEngine::new(),
             show_custom_color_picker: false,
             custom_color: [0.8, 0.8, 0.8, 1.0],
             mat_search: String::new(),
@@ -1415,6 +1419,45 @@ impl eframe::App for KolibriApp {
                             if *source != crate::inference::InferenceSource::Geometry {
                                 self.cursor_hint.chips.push((format!("\u{1f916} {}", label), true));
                                 self.cursor_hint.ai_suggestion = Some(label.clone());
+                            }
+                        }
+
+                        // ── Inference Engine 2.0: score snap through formal pipeline ──
+                        if let Some(ref snap) = self.snap_result {
+                            let engine_ctx = crate::inference_engine::InferenceContext {
+                                current_tool: crate::inference_engine::tool_to_kind(self.tool),
+                                current_mode: if self.work_mode == WorkMode::Steel {
+                                    crate::inference_engine::AppMode::Steel
+                                } else {
+                                    crate::inference_engine::AppMode::Modeling
+                                },
+                                selected_ids: self.selected_ids.clone(),
+                                hover_id: self.hovered_id.clone(),
+                                last_direction: self.last_line_dir,
+                                last_action: self.last_action_name.clone(),
+                                working_plane_y: 0.0,
+                                locked_axis: self.locked_axis,
+                                is_drawing: !matches!(self.draw_state, DrawState::Idle),
+                                consecutive_same_tool: 1,
+                            };
+
+                            let candidate = crate::inference_engine::InferenceCandidate {
+                                id: "snap_0".into(),
+                                inference_type: crate::inference_engine::snap_type_to_inference_type(&snap.snap_type),
+                                position: snap.position,
+                                source_object_id: None,
+                                raw_distance: 5.0,
+                            };
+
+                            let scored = self.inference_engine.score_candidates(&[candidate], &engine_ctx);
+                            if let Some(top) = scored.first() {
+                                if let Some(reason) = top.breakdown.reasons.first() {
+                                    self.cursor_hint.inference_label = format!(
+                                        "{} [S:{:.0}]",
+                                        reason,
+                                        top.breakdown.total,
+                                    );
+                                }
                             }
                         }
 

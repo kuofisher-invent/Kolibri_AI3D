@@ -19,6 +19,7 @@ mod hybrid;
 mod import;
 mod import_review;
 mod inference;
+mod inference_engine;
 mod icons;
 mod layout;
 mod mcp_server;
