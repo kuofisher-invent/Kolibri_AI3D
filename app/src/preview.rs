@@ -220,12 +220,16 @@ impl KolibriApp {
 
             DrawState::FollowPath { ref source_id, ref path_points } => {
                 // Show path line preview during Follow Me extrusion
-                if path_points.len() >= 2 {
-                    let path_color = [0.9, 0.5, 0.2, 0.6]; // orange path preview
-                    crate::renderer::push_line_pub(&mut v, &mut idx, path_points, 15.0, path_color);
+                let path_color = [0.9, 0.5, 0.2, 0.6]; // orange path preview
+                let mut all_pts: Vec<[f32; 3]> = path_points.clone();
+                if let Some(p) = self.ground_snapped() {
+                    all_pts.push(p);
                 }
-                // Show ghost of source object at last path point
-                if let Some(last_pt) = path_points.last() {
+                if all_pts.len() >= 2 {
+                    crate::renderer::push_line_pub(&mut v, &mut idx, &all_pts, 15.0, path_color);
+                }
+                // Show ghost of source object at last path point (or cursor)
+                if let Some(last_pt) = all_pts.last() {
                     if let Some(obj) = self.scene.objects.get(source_id) {
                         let follow_ghost = [0.9, 0.6, 0.3, 0.3];
                         match &obj.shape {

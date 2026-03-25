@@ -1833,7 +1833,11 @@ impl KolibriApp {
             }
             DrawState::PullingFreeMesh { .. } => "推拉自由面 — 拖曳拉伸, 放開確認".into(),
             DrawState::FollowPath { path_points, .. } => {
-                format!("路徑 {} 點 — 點擊加入路徑點, ESC 完成擠出", path_points.len())
+                if path_points.is_empty() {
+                    "跟隨 — 點擊地面定義路徑".into()
+                } else {
+                    format!("跟隨 — 已定義 {} 個路徑點 | Enter 完成", path_points.len())
+                }
             }
         };
 

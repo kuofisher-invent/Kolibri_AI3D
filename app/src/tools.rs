@@ -485,8 +485,10 @@ impl KolibriApp {
                             };
                             let name = format!("{}_offset", obj.name);
                             let new_id = self.scene.add_box(name, new_pos, new_w, new_h, new_d, mat);
-                            self.selected_ids = vec![new_id];
-                            self.file_message = Some((format!("偏移 {:.0}mm — 可用推拉工具拉伸", d), std::time::Instant::now()));
+                            self.selected_ids = vec![new_id.clone()];
+                            self.selected_face = Some((new_id, face));
+                            self.tool = Tool::PushPull;
+                            self.file_message = Some((format!("偏移 {:.0}mm — 可推拉", d), std::time::Instant::now()));
                         }
                     }
                 }
@@ -698,60 +700,9 @@ impl KolibriApp {
                     // FollowPath: ESC finishes the path and creates extrusion
                     if let DrawState::FollowPath { ref source_id, ref path_points } = self.draw_state.clone() {
                         if path_points.len() >= 2 {
-                            self.scene.snapshot();
-                            if let Some(source) = self.scene.objects.get(&source_id.clone()).cloned() {
-                                let mut new_ids = Vec::new();
-                                for idx in 1..path_points.len() {
-                                    let delta = [
-                                        path_points[idx][0] - path_points[0][0],
-                                        path_points[idx][1] - path_points[0][1],
-                                        path_points[idx][2] - path_points[0][2],
-                                    ];
-                                    let new_pos = [
-                                        source.position[0] + delta[0],
-                                        source.position[1] + delta[1],
-                                        source.position[2] + delta[2],
-                                    ];
-                                    match &source.shape {
-                                        Shape::Box { width, height, depth } => {
-                                            let nid = self.scene.add_box(
-                                                format!("{}_{}", source.name, idx),
-                                                new_pos, *width, *height, *depth, source.material,
-                                            );
-                                            new_ids.push(nid);
-                                        }
-                                        Shape::Cylinder { radius, height, segments } => {
-                                            let nid = self.scene.add_cylinder(
-                                                format!("{}_{}", source.name, idx),
-                                                new_pos, *radius, *height, *segments, source.material,
-                                            );
-                                            new_ids.push(nid);
-                                        }
-                                        Shape::Sphere { radius, segments } => {
-                                            let nid = self.scene.add_sphere(
-                                                format!("{}_{}", source.name, idx),
-                                                new_pos, *radius, *segments, source.material,
-                                            );
-                                            new_ids.push(nid);
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                // Connect path with thin line objects
-                                for idx in 0..path_points.len() - 1 {
-                                    let p1 = path_points[idx];
-                                    let p2 = path_points[idx + 1];
-                                    self.scene.add_line(
-                                        format!("path_{}", idx),
-                                        vec![p1, p2], 5.0, source.material,
-                                    );
-                                }
-                                self.selected_ids = new_ids;
-                                self.file_message = Some((
-                                    format!("沿路徑擠出 {} 個副本", path_points.len() - 1),
-                                    std::time::Instant::now(),
-                                ));
-                            }
+                            let pid = source_id.clone();
+                            let pts = path_points.clone();
+                            self.extrude_along_path(&pid, &pts);
                         }
                         self.draw_state = DrawState::Idle;
                     } else {
@@ -766,6 +717,15 @@ impl KolibriApp {
                         // Inference 2.0: reset context on ESC
                         crate::inference::reset_context(&mut self.inference_ctx);
                         self.inference_ctx.current_tool = Tool::Select;
+                    }
+                }
+                // Enter key: finish FollowPath extrusion
+                if let DrawState::FollowPath { ref source_id, ref path_points } = self.draw_state.clone() {
+                    if i.key_pressed(egui::Key::Enter) && path_points.len() >= 2 {
+                        let pid = source_id.clone();
+                        let pts = path_points.clone();
+                        self.extrude_along_path(&pid, &pts);
+                        self.draw_state = DrawState::Idle;
                     }
                 }
                 // Undo / Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
@@ -1364,6 +1324,9 @@ impl KolibriApp {
                             // Try to split a box face if line lies on it
                             self.try_split_face(p1, p2);
 
+                            // Also try crossing-based split (line crosses box footprint)
+                            self.try_split_face_on_line(p1, p2);
+
                             // Chain: start new line from p2
                             self.draw_state = DrawState::LineFrom { p1: p2 };
                         }
@@ -1491,13 +1454,26 @@ impl KolibriApp {
                         }
                     }
                     DrawState::FollowPath { source_id, path_points } => {
+                        let src = source_id.clone();
+                        let mut pts = path_points.clone();
                         if let Some(p) = self.ground_snapped() {
-                            let mut pts = path_points.clone();
-                            let src = source_id.clone();
                             pts.push(p);
+
+                            // If this point is very close to the first point (closed path), finish
+                            if pts.len() >= 3 {
+                                let first = pts[0];
+                                let last = pts.last().unwrap();
+                                let dist = ((last[0] - first[0]).powi(2) + (last[2] - first[2]).powi(2)).sqrt();
+                                if dist < 200.0 {
+                                    self.extrude_along_path(&src, &pts);
+                                    self.draw_state = DrawState::Idle;
+                                    return;
+                                }
+                            }
+
                             self.draw_state = DrawState::FollowPath { source_id: src, path_points: pts.clone() };
                             self.file_message = Some((
-                                format!("路徑 {} 點 — 繼續點擊或按 ESC 完成擠出", pts.len()),
+                                format!("路徑 {} 點 — 繼續點擊或按 Enter/ESC 完成擠出", pts.len()),
                                 std::time::Instant::now(),
                             ));
                         }
@@ -2796,6 +2772,189 @@ impl KolibriApp {
                 self.file_message = Some(("\u{9762}\u{5df2}\u{88ab}\u{7dda}\u{6bb5}\u{5207}\u{5272}".to_string(), std::time::Instant::now()));
             }
         }
+    }
+
+    /// Check if a drawn line segment crosses any Box face, and split if so.
+    /// Unlike try_split_face (which requires endpoints ON a face), this detects
+    /// lines that pass *through* a box's footprint in the XZ or Y planes.
+    fn try_split_face_on_line(&mut self, p1: [f32; 3], p2: [f32; 3]) {
+        let dx = (p2[0] - p1[0]).abs();
+        let dz = (p2[2] - p1[2]).abs();
+
+        let ids: Vec<String> = self.scene.objects.keys().cloned().collect();
+
+        for id in &ids {
+            let obj = match self.scene.objects.get(id) {
+                Some(o) => o.clone(),
+                None => continue,
+            };
+
+            let (w, h, d) = match &obj.shape {
+                Shape::Box { width, height, depth } => (*width, *height, *depth),
+                _ => continue,
+            };
+            let p = obj.position;
+
+            let box_min_x = p[0];
+            let box_max_x = p[0] + w;
+            let box_min_z = p[2];
+            let box_max_z = p[2] + d;
+
+            // Line goes through the box in X direction (cut along Z)
+            if dx > dz * 3.0 {
+                let line_z = (p1[2] + p2[2]) / 2.0;
+                let line_x_min = p1[0].min(p2[0]);
+                let line_x_max = p1[0].max(p2[0]);
+
+                if line_z > box_min_z + 10.0 && line_z < box_max_z - 10.0
+                    && line_x_min < box_max_x && line_x_max > box_min_x
+                {
+                    self.scene.split_box(id, 2, line_z);
+                    self.file_message = Some(("線段切割：物件已沿 Z 軸分割".into(), std::time::Instant::now()));
+                    return;
+                }
+            }
+
+            // Line goes through the box in Z direction (cut along X)
+            if dz > dx * 3.0 {
+                let line_x = (p1[0] + p2[0]) / 2.0;
+                let line_z_min = p1[2].min(p2[2]);
+                let line_z_max = p1[2].max(p2[2]);
+
+                if line_x > box_min_x + 10.0 && line_x < box_max_x - 10.0
+                    && line_z_min < box_max_z && line_z_max > box_min_z
+                {
+                    self.scene.split_box(id, 0, line_x);
+                    self.file_message = Some(("線段切割：物件已沿 X 軸分割".into(), std::time::Instant::now()));
+                    return;
+                }
+            }
+
+            // Handle Y-direction cuts (vertical lines on a wall face)
+            if p1[1].abs() > 10.0 || p2[1].abs() > 10.0 {
+                let line_y = (p1[1] + p2[1]) / 2.0;
+                if line_y > p[1] + 10.0 && line_y < p[1] + h - 10.0 {
+                    let mx = (p1[0] + p2[0]) / 2.0;
+                    let mz = (p1[2] + p2[2]) / 2.0;
+                    if mx >= box_min_x - 100.0 && mx <= box_max_x + 100.0
+                        && mz >= box_min_z - 100.0 && mz <= box_max_z + 100.0
+                    {
+                        self.scene.split_box(id, 1, line_y);
+                        self.file_message = Some(("線段切割：物件已沿 Y 軸分割".into(), std::time::Instant::now()));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Extrude a profile object along a path, creating stretched copies at each segment.
+    fn extrude_along_path(&mut self, profile_id: &str, path: &[[f32; 3]]) {
+        let profile = match self.scene.objects.get(profile_id).cloned() {
+            Some(o) => o,
+            None => return,
+        };
+
+        if path.len() < 2 { return; }
+
+        self.scene.snapshot();
+        let mut created_ids = Vec::new();
+
+        let (_pw, _ph, pd) = match &profile.shape {
+            Shape::Box { width, height, depth } => (*width, *height, *depth),
+            _ => {
+                // For non-box shapes, fall back to simple copy placement
+                for (i, point) in path.iter().enumerate() {
+                    if i == 0 { continue; }
+                    let delta = [
+                        point[0] - path[0][0],
+                        point[1] - path[0][1],
+                        point[2] - path[0][2],
+                    ];
+                    let new_pos = [
+                        profile.position[0] + delta[0],
+                        profile.position[1] + delta[1],
+                        profile.position[2] + delta[2],
+                    ];
+                    match &profile.shape {
+                        Shape::Cylinder { radius, height, segments } => {
+                            let nid = self.scene.add_cylinder(
+                                format!("{}_{}", profile.name, i),
+                                new_pos, *radius, *height, *segments, profile.material,
+                            );
+                            created_ids.push(nid);
+                        }
+                        Shape::Sphere { radius, segments } => {
+                            let nid = self.scene.add_sphere(
+                                format!("{}_{}", profile.name, i),
+                                new_pos, *radius, *segments, profile.material,
+                            );
+                            created_ids.push(nid);
+                        }
+                        _ => {}
+                    }
+                }
+                if !created_ids.is_empty() {
+                    self.scene.version += 1;
+                    self.selected_ids = created_ids.clone();
+                    self.file_message = Some((
+                        format!("沿路徑擠出 {} 段", created_ids.len()),
+                        std::time::Instant::now(),
+                    ));
+                    self.tool = Tool::Select;
+                }
+                return;
+            }
+        };
+
+        // For Box profiles: create stretched boxes along each path segment
+        for (i, point) in path.iter().enumerate() {
+            if i == 0 { continue; }
+
+            let prev = path[i - 1];
+            let dir_x = point[0] - prev[0];
+            let dir_z = point[2] - prev[2];
+            let segment_len = (dir_x * dir_x + dir_z * dir_z).sqrt();
+
+            if segment_len < 1.0 { continue; }
+
+            let angle = dir_z.atan2(dir_x);
+
+            // Place stretched box at midpoint of segment
+            let mid_x = (prev[0] + point[0]) / 2.0 - segment_len / 2.0;
+            let mid_z = (prev[2] + point[2]) / 2.0 - pd / 2.0;
+
+            let mut clone = profile.clone();
+            clone.id = self.scene.next_id_pub();
+            clone.name = format!("{}_{}", profile.name, i);
+            clone.position = [mid_x, profile.position[1], mid_z];
+            clone.rotation_y = angle;
+
+            // Stretch width to fill the segment length
+            if let Shape::Box { ref mut width, .. } = clone.shape {
+                *width = segment_len;
+            }
+
+            let cid = clone.id.clone();
+            self.scene.objects.insert(cid.clone(), clone);
+            created_ids.push(cid);
+        }
+
+        // Also add path visualization lines
+        for i in 0..path.len() - 1 {
+            self.scene.add_line(
+                format!("path_{}", i),
+                vec![path[i], path[i + 1]], 5.0, profile.material,
+            );
+        }
+
+        self.scene.version += 1;
+        self.selected_ids = created_ids.clone();
+        self.file_message = Some((
+            format!("沿路徑擠出 {} 段", created_ids.len()),
+            std::time::Instant::now(),
+        ));
+        self.tool = Tool::Select;
     }
 
     /// Expand selection to include all group members for any selected object
