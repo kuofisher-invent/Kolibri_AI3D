@@ -35,12 +35,44 @@ pub fn detect_from_geometry(geom: &RawGeometry) -> SemanticResult {
         geom.texts.len()
     ));
 
+    // -- Step 0: Detect and exclude drawing frame lines --
+    // Frame lines are typically the longest lines forming the border rectangle.
+    // Exclude the top ~8 longest lines (likely frame borders) from structural detection.
+    let frame_indices: std::collections::HashSet<usize> = {
+        let mut line_lengths: Vec<(usize, f64)> = geom.lines.iter().enumerate()
+            .map(|(i, l)| {
+                let dx = l.end[0] - l.start[0];
+                let dy = l.end[1] - l.start[1];
+                (i, (dx * dx + dy * dy).sqrt())
+            })
+            .collect();
+        line_lengths.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // The top 8 longest lines are likely frame borders — use 90% of 9th longest as threshold
+        let frame_threshold = line_lengths.get(8).map(|l| l.1).unwrap_or(0.0);
+        let indices: std::collections::HashSet<usize> = line_lengths.iter()
+            .filter(|l| l.1 > frame_threshold * 0.9 && l.1 > 10000.0) // must be >10m to be a frame line
+            .map(|l| l.0)
+            .collect();
+
+        result.debug_lines.push(format!(
+            "  Frame exclusion: {} lines excluded (threshold={:.0}mm)",
+            indices.len(), frame_threshold * 0.9
+        ));
+        indices
+    };
+
     // -- Step 1: Classify all lines by orientation --
     let mut h_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
     let mut v_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
     let mut d_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
 
-    for line in &geom.lines {
+    for (i, line) in geom.lines.iter().enumerate() {
+        // Skip drawing frame lines
+        if frame_indices.contains(&i) {
+            continue;
+        }
+
         let dx = (line.end[0] - line.start[0]).abs();
         let dy = (line.end[1] - line.start[1]).abs();
         let length = (dx * dx + dy * dy).sqrt();

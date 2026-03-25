@@ -40,6 +40,81 @@ pub fn parse_grids(geom: &RawGeometry) -> GridSystem {
         log::info!("  Y label '{}' at ({:.0}, {:.0})", name, x, y);
     }
 
+    // ═══ Multi-page detection: if same labels appear at very different positions,
+    // the DXF has multiple pages (e.g. plan + elevation). Keep only one page. ═══
+    {
+        let mut label_groups: std::collections::HashMap<String, Vec<(f64, f64)>> = std::collections::HashMap::new();
+        for (name, x, y) in &x_labels {
+            label_groups.entry(name.clone()).or_default().push((*x, *y));
+        }
+
+        // Check if any label appears more than once at significantly different positions
+        let has_multi_page = label_groups.values().any(|positions| {
+            if positions.len() < 2 { return false; }
+            let y_min = positions.iter().map(|p| p.1).fold(f64::MAX, f64::min);
+            let y_max = positions.iter().map(|p| p.1).fold(f64::MIN, f64::max);
+            (y_max - y_min).abs() > 5000.0 // pages are typically >5m apart
+        });
+
+        if has_multi_page {
+            log::info!("Multi-page detected! Filtering to primary page...");
+
+            // Find the Y median of all x_labels to split into two clusters
+            let all_ys: Vec<f64> = x_labels.iter().map(|(_, _, y)| *y).collect();
+            let y_median = {
+                let mut sorted = all_ys.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted[sorted.len() / 2]
+            };
+
+            // Split into two clusters: below and above median
+            let cluster_low: Vec<_> = x_labels.iter().filter(|(_, _, y)| *y < y_median + 2000.0).cloned().collect();
+            let cluster_high: Vec<_> = x_labels.iter().filter(|(_, _, y)| *y >= y_median + 2000.0).cloned().collect();
+
+            // Use the cluster with more unique labels (likely the plan view)
+            let unique_low: std::collections::HashSet<_> = cluster_low.iter().map(|(n, _, _)| n.clone()).collect();
+            let unique_high: std::collections::HashSet<_> = cluster_high.iter().map(|(n, _, _)| n.clone()).collect();
+
+            log::info!("  Cluster low ({} labels, {} unique): Y < {:.0}", cluster_low.len(), unique_low.len(), y_median + 2000.0);
+            log::info!("  Cluster high ({} labels, {} unique): Y >= {:.0}", cluster_high.len(), unique_high.len(), y_median + 2000.0);
+
+            x_labels = if unique_low.len() >= unique_high.len() { cluster_low } else { cluster_high };
+
+            // Same for y_labels — use X position to split pages (plan vs elevation are side by side)
+            let y_all_x: Vec<f64> = y_labels.iter().map(|(_, x, _)| *x).collect();
+            if !y_all_x.is_empty() {
+                let x_median = {
+                    let mut sorted = y_all_x.clone();
+                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted[sorted.len() / 2]
+                };
+
+                // Check if y_labels also span multiple pages
+                let y_label_groups: std::collections::HashMap<String, Vec<f64>> = {
+                    let mut groups: std::collections::HashMap<String, Vec<f64>> = std::collections::HashMap::new();
+                    for (name, x, _) in &y_labels {
+                        groups.entry(name.clone()).or_default().push(*x);
+                    }
+                    groups
+                };
+                let y_has_multi = y_label_groups.values().any(|xs| {
+                    if xs.len() < 2 { return false; }
+                    let xmin = xs.iter().cloned().fold(f64::MAX, f64::min);
+                    let xmax = xs.iter().cloned().fold(f64::MIN, f64::max);
+                    (xmax - xmin).abs() > 5000.0
+                });
+
+                if y_has_multi {
+                    let y_cluster_low: Vec<_> = y_labels.iter().filter(|(_, x, _)| *x < x_median + 2000.0).cloned().collect();
+                    let y_cluster_high: Vec<_> = y_labels.iter().filter(|(_, x, _)| *x >= x_median + 2000.0).cloned().collect();
+                    y_labels = if y_cluster_low.len() >= y_cluster_high.len() { y_cluster_low } else { y_cluster_high };
+                }
+            }
+
+            log::info!("  After page filter: {} X labels, {} Y labels", x_labels.len(), y_labels.len());
+        }
+    }
+
     // Step 2: Remove duplicates — keep the one closest to the drawing's bottom/left edge
     // Sort X labels by their X position (the relevant axis)
     x_labels.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
