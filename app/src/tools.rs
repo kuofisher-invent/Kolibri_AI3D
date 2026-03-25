@@ -2586,7 +2586,13 @@ impl KolibriApp {
                                 self.console_push("INFO", format!("[DXF] Grids: X={} Y={} | Columns: {} | Beams: {} | Levels: {}",
                                     ir.grids.x_grids.len(), ir.grids.y_grids.len(),
                                     ir.columns.len(), ir.beams.len(), ir.levels.len()));
-                                self.pending_ir = Some(ir);
+                                // Show review panel for user confirmation instead of auto-building
+                                let entity_count = ir.columns.len() + ir.beams.len() + ir.base_plates.len();
+                                let debug = ir.debug_report.clone();
+                                self.import_review = Some(crate::import_review::ImportReview::from_drawing_ir(
+                                    &ir, &ps, entity_count, debug,
+                                ));
+                                self.file_message = Some(("解析完成 — 請確認偵測結果".into(), std::time::Instant::now()));
                             }
                             Err(e) => {
                                 self.console_push("ERROR", format!("[DXF] Parse failed: {}", e));

@@ -17,6 +17,7 @@ mod gltf_io;
 mod halfedge;
 mod hybrid;
 mod import;
+mod import_review;
 mod inference;
 mod icons;
 mod layout;

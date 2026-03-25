@@ -392,6 +392,9 @@ pub struct KolibriApp {
     // CAD import: pending IR awaiting user confirmation
     pub(crate) pending_ir: Option<crate::cad_import::ir::DrawingIR>,
 
+    // Import review panel (full-screen confirmation UI)
+    pub(crate) import_review: Option<crate::import_review::ImportReview>,
+
     // Unified import: pending IR from smart import (SKP/OBJ/DXF)
     pub(crate) pending_unified_ir: Option<crate::import::unified_ir::UnifiedIR>,
 
@@ -579,6 +582,7 @@ impl KolibriApp {
             cursor_hint_fade: None,
             prev_tool_for_hint: Tool::Select,
             pending_ir: None,
+            import_review: None,
             pending_unified_ir: None,
             collision_warning: None,
             work_mode: WorkMode::Modeling,
@@ -1883,70 +1887,38 @@ impl eframe::App for KolibriApp {
                     }
                 }
 
-                // ── DXF Smart Import confirmation panel ──
-                if let Some(ref ir) = self.pending_ir.clone() {
-                    let panel_w = 400.0;
-                    let panel_h = 350.0;
-                    let panel_rect = egui::Rect::from_center_size(rect.center(), egui::vec2(panel_w, panel_h));
+                // ── DXF Smart Import confirmation panel (legacy, redirects to review) ──
+                if let Some(ir) = self.pending_ir.take() {
+                    // Convert pending_ir into the new review panel
+                    let entity_count = ir.columns.len() + ir.beams.len() + ir.base_plates.len();
+                    let debug = ir.debug_report.clone();
+                    self.import_review = Some(crate::import_review::ImportReview::from_drawing_ir(
+                        &ir, &"DXF", entity_count, debug,
+                    ));
+                }
 
-                    ui.painter().rect_filled(panel_rect, 16.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 245));
-                    ui.painter().rect_stroke(panel_rect, 16.0, egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)));
-
-                    let mut y_ir = panel_rect.top() + 20.0;
-                    let x_ir = panel_rect.left() + 20.0;
-
-                    ui.painter().text(egui::pos2(panel_rect.center().x, y_ir), egui::Align2::CENTER_TOP,
-                        "DXF 解析結果", egui::FontId::proportional(16.0), egui::Color32::from_rgb(31, 36, 48));
-                    y_ir += 30.0;
-
-                    let info_lines = [
-                        format!("圖紙類型: {:?}", ir.drawing_type),
-                        format!("X 軸線: {} 條 ({})", ir.grids.x_grids.len(),
-                            ir.grids.x_grids.iter().map(|g| g.name.as_str()).collect::<Vec<_>>().join(", ")),
-                        format!("Y 軸線: {} 條 ({})", ir.grids.y_grids.len(),
-                            ir.grids.y_grids.iter().map(|g| g.name.as_str()).collect::<Vec<_>>().join(", ")),
-                        format!("柱: {} 支", ir.columns.len()),
-                        format!("梁: {} 支", ir.beams.len()),
-                        format!("標高: {}", ir.levels.iter().map(|l| format!("{}({:.0})", l.name, l.elevation)).collect::<Vec<_>>().join(", ")),
-                    ];
-
-                    for line_text in &info_lines {
-                        ui.painter().text(egui::pos2(x_ir, y_ir), egui::Align2::LEFT_TOP,
-                            line_text, egui::FontId::proportional(12.0), egui::Color32::from_rgb(60, 65, 80));
-                        y_ir += 20.0;
-                    }
-
-                    y_ir += 10.0;
-
-                    // Confirm button
-                    let btn_confirm = egui::Rect::from_min_size(egui::pos2(panel_rect.center().x - 80.0, y_ir), egui::vec2(70.0, 32.0));
-                    let btn_cancel = egui::Rect::from_min_size(egui::pos2(panel_rect.center().x + 10.0, y_ir), egui::vec2(70.0, 32.0));
-
-                    ui.painter().rect_filled(btn_confirm, 8.0, egui::Color32::from_rgb(76, 139, 245));
-                    ui.painter().text(btn_confirm.center(), egui::Align2::CENTER_CENTER, "確認建模",
-                        egui::FontId::proportional(12.0), egui::Color32::WHITE);
-
-                    ui.painter().rect_filled(btn_cancel, 8.0, egui::Color32::from_rgb(200, 200, 200));
-                    ui.painter().text(btn_cancel.center(), egui::Align2::CENTER_CENTER, "取消",
-                        egui::FontId::proportional(12.0), egui::Color32::from_rgb(60, 60, 60));
-
-                    let confirm_resp = ui.allocate_rect(btn_confirm, egui::Sense::click());
-                    let cancel_resp = ui.allocate_rect(btn_cancel, egui::Sense::click());
-
-                    if confirm_resp.clicked() {
-                        let ir_data = self.pending_ir.take().unwrap();
-                        self.scene.snapshot();
-                        let result = crate::builders::steel_builder::build_from_ir(&mut self.scene, &ir_data);
-                        self.selected_ids = result.ids;
-                        self.zoom_extents();
-                        self.file_message = Some((
-                            format!("建模完成: {} 柱 + {} 梁 + {} 底板",
-                                result.columns_created, result.beams_created, result.plates_created),
-                            std::time::Instant::now()
-                        ));
-                    }
-                    if cancel_resp.clicked() {
-                        self.pending_ir = None;
+                // ── Import Review Panel (full-screen overlay) ──
+                if let Some(ref mut review) = self.import_review {
+                    if review.active {
+                        let action = crate::import_review::draw_review_panel(ui, review, rect);
+                        match action {
+                            crate::import_review::ReviewAction::Confirm => {
+                                let ir = review.to_drawing_ir();
+                                self.scene.snapshot();
+                                let result = crate::builders::steel_builder::build_from_ir(&mut self.scene, &ir);
+                                self.selected_ids.clear();
+                                self.selected_ids.extend(result.ids);
+                                self.zoom_extents();
+                                let msg = format!("建模完成: {} 柱 + {} 梁 + {} 底板",
+                                    result.columns_created, result.beams_created, result.plates_created);
+                                self.file_message = Some((msg, std::time::Instant::now()));
+                                self.import_review = None;
+                            }
+                            crate::import_review::ReviewAction::Cancel => {
+                                self.import_review = None;
+                            }
+                            _ => {}
+                        }
                     }
                 }
 
