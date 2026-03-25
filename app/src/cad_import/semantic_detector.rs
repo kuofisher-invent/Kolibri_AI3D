@@ -1,355 +1,532 @@
-//! Semantic detector: identifies structural members from raw 2D geometry
-//! Works without grid labels -- uses geometric patterns only
+//! Semantic Detector v2 — Geometry-first with confidence scoring
 //!
-//! Pipeline: DXF/PDF raw geometry -> classify lines -> find grid patterns -> detect members
+//! Pipeline: Preprocessed geometry -> Candidate generation -> Scoring -> Ranking
 
+use super::geometry_parser::RawText;
 use super::ir::*;
-use super::geometry_parser::RawGeometry;
+use super::preprocessor::*;
 
-/// Result of semantic detection from raw geometry
+#[allow(dead_code)]
+pub struct SemanticCandidate {
+    pub kind: CandidateKind,
+    pub score: f32,           // 0-100
+    pub reasons: Vec<String>,
+    pub geometry: CandidateGeometry,
+}
+
+#[allow(dead_code)]
+pub enum CandidateKind {
+    Grid,
+    Column,
+    Beam,
+    Plate,
+    #[allow(dead_code)]
+    Brace,
+}
+
+#[allow(dead_code)]
+pub enum CandidateGeometry {
+    Line { start: [f64; 2], end: [f64; 2] },
+    Point { position: [f64; 2] },
+    #[allow(dead_code)]
+    Rect { bbox: [f64; 4] },
+}
+
 pub struct SemanticResult {
+    pub candidates: Vec<SemanticCandidate>,
+    pub grids: GridSystem,
     pub columns: Vec<ColumnDef>,
     pub beams: Vec<BeamDef>,
     pub plates: Vec<BasePlateDef>,
-    pub grids: GridSystem,
     pub levels: Vec<LevelDef>,
     pub debug_lines: Vec<String>,
 }
 
-/// Main entry point: detect structural members from raw 2D geometry
-pub fn detect_from_geometry(geom: &RawGeometry) -> SemanticResult {
+/// Legacy entry point — kept for backward compatibility.
+/// Runs the full v2 pipeline internally.
+pub fn detect_from_geometry(geom: &super::geometry_parser::RawGeometry) -> SemanticResult {
+    let prep = super::preprocessor::preprocess(geom);
+    detect_v2(&prep, &geom.texts)
+}
+
+/// New entry point: detect structural members from preprocessed geometry
+pub fn detect_v2(prep: &PreprocessResult, texts: &[RawText]) -> SemanticResult {
     let mut result = SemanticResult {
+        candidates: Vec::new(),
+        grids: GridSystem::default(),
         columns: Vec::new(),
         beams: Vec::new(),
         plates: Vec::new(),
-        grids: GridSystem::default(),
         levels: Vec::new(),
         debug_lines: Vec::new(),
     };
 
-    result.debug_lines.push("--- Semantic Detection (geometry-based) ---".into());
+    result.debug_lines.push("=== SEMANTIC DETECTOR v2 ===".into());
+    result.debug_lines.push("  Mode: Geometry-first + Text Verification".into());
+
+    // Relay preprocessor debug
+    for line in &prep.debug {
+        result.debug_lines.push(line.clone());
+    }
+
+    // -- Phase 1: Grid detection from parallel line clusters --
+    detect_grids_from_geometry(prep, texts, &mut result);
+
+    // -- Phase 2: Column detection at grid intersections --
+    detect_columns(prep, &mut result);
+
+    // -- Phase 3: Beam detection from horizontal members --
+    detect_beams(prep, &mut result);
+
+    // -- Phase 4: Plate detection from closed contours --
+    detect_plates(prep, &mut result);
+
+    // -- Phase 5: Level extraction from dimension texts --
+    detect_levels(prep, &mut result);
+
+    // Summary
+    result.debug_lines.push("-------------------------------".into());
+    result.debug_lines.push("  RESULTS:".into());
     result.debug_lines.push(format!(
-        "  Input: {} lines, {} polylines, {} texts",
-        geom.lines.len(),
-        geom.polylines.len(),
-        geom.texts.len()
-    ));
-
-    // -- Step 0: Detect and exclude drawing frame lines --
-    // Frame lines are typically the longest lines forming the border rectangle.
-    // Exclude the top ~8 longest lines (likely frame borders) from structural detection.
-    let frame_indices: std::collections::HashSet<usize> = {
-        let mut line_lengths: Vec<(usize, f64)> = geom.lines.iter().enumerate()
-            .map(|(i, l)| {
-                let dx = l.end[0] - l.start[0];
-                let dy = l.end[1] - l.start[1];
-                (i, (dx * dx + dy * dy).sqrt())
-            })
-            .collect();
-        line_lengths.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-
-        // The top 8 longest lines are likely frame borders — use 90% of 9th longest as threshold
-        let frame_threshold = line_lengths.get(8).map(|l| l.1).unwrap_or(0.0);
-        let indices: std::collections::HashSet<usize> = line_lengths.iter()
-            .filter(|l| l.1 > frame_threshold * 0.9 && l.1 > 10000.0) // must be >10m to be a frame line
-            .map(|l| l.0)
-            .collect();
-
-        result.debug_lines.push(format!(
-            "  Frame exclusion: {} lines excluded (threshold={:.0}mm)",
-            indices.len(), frame_threshold * 0.9
-        ));
-        indices
-    };
-
-    // -- Step 1: Classify all lines by orientation --
-    let mut h_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
-    let mut v_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
-    let mut d_lines: Vec<&super::geometry_parser::RawLine> = Vec::new();
-
-    for (i, line) in geom.lines.iter().enumerate() {
-        // Skip drawing frame lines
-        if frame_indices.contains(&i) {
-            continue;
-        }
-
-        let dx = (line.end[0] - line.start[0]).abs();
-        let dy = (line.end[1] - line.start[1]).abs();
-        let length = (dx * dx + dy * dy).sqrt();
-
-        if length < 100.0 {
-            continue; // skip tiny lines
-        }
-
-        if dy < dx * 0.1 {
-            h_lines.push(line);
-        } else if dx < dy * 0.1 {
-            v_lines.push(line);
-        } else {
-            d_lines.push(line);
-        }
-    }
-
-    // Also extract lines from polyline segments
-    let mut poly_h_lines: Vec<super::geometry_parser::RawLine> = Vec::new();
-    let mut poly_v_lines: Vec<super::geometry_parser::RawLine> = Vec::new();
-
-    for poly in &geom.polylines {
-        if poly.points.len() < 2 {
-            continue;
-        }
-        for w in poly.points.windows(2) {
-            let dx = (w[1][0] - w[0][0]).abs();
-            let dy = (w[1][1] - w[0][1]).abs();
-            let length = (dx * dx + dy * dy).sqrt();
-            if length < 100.0 {
-                continue;
-            }
-            let seg = super::geometry_parser::RawLine {
-                start: w[0],
-                end: w[1],
-                layer: poly.layer.clone(),
-                linetype: "CONTINUOUS".into(),
-            };
-            if dy < dx * 0.1 {
-                poly_h_lines.push(seg);
-            } else if dx < dy * 0.1 {
-                poly_v_lines.push(seg);
-            }
-        }
-    }
-
-    // Borrow polyline-derived segments into the main arrays
-    for l in &poly_h_lines {
-        h_lines.push(l);
-    }
-    for l in &poly_v_lines {
-        v_lines.push(l);
-    }
-
-    result.debug_lines.push(format!(
-        "  Classified: {} horizontal, {} vertical, {} diagonal",
-        h_lines.len(),
-        v_lines.len(),
-        d_lines.len()
-    ));
-
-    // -- Step 2: Find grid-like patterns from line positions --
-    // Group vertical lines by X position (within tolerance)
-    let mut x_positions: Vec<f64> = Vec::new();
-    for line in &v_lines {
-        let x = (line.start[0] + line.end[0]) / 2.0;
-        if !x_positions.iter().any(|&ex| (ex - x).abs() < 200.0) {
-            x_positions.push(x);
-        }
-    }
-    x_positions.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-    // Group horizontal lines by Y position
-    let mut y_positions: Vec<f64> = Vec::new();
-    for line in &h_lines {
-        let y = (line.start[1] + line.end[1]) / 2.0;
-        if !y_positions.iter().any(|&ey| (ey - y).abs() < 200.0) {
-            y_positions.push(y);
-        }
-    }
-    y_positions.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-    result.debug_lines.push(format!(
-        "  Unique positions: {} X, {} Y",
-        x_positions.len(),
-        y_positions.len()
-    ));
-
-    // -- Step 3: Build grid system from detected positions --
-    let x_offset = x_positions.first().copied().unwrap_or(0.0);
-    let y_offset = y_positions.first().copied().unwrap_or(0.0);
-
-    for (i, &x) in x_positions.iter().enumerate() {
-        let name = if i < 26 {
-            ((b'A' + i as u8) as char).to_string()
-        } else {
-            format!("X{}", i + 1)
-        };
-        result.grids.x_grids.push(GridLine {
-            name,
-            position: x - x_offset,
-        });
-    }
-    for (i, &y) in y_positions.iter().enumerate() {
-        result.grids.y_grids.push(GridLine {
-            name: format!("{}", i + 1),
-            position: y - y_offset,
-        });
-    }
-
-    result.debug_lines.push(format!(
-        "  Grid: {} X-grids, {} Y-grids",
+        "    Grid X: {} | Grid Y: {}",
         result.grids.x_grids.len(),
         result.grids.y_grids.len()
     ));
+    result.debug_lines.push(format!(
+        "    Columns: {} | Beams: {} | Plates: {}",
+        result.columns.len(),
+        result.beams.len(),
+        result.plates.len()
+    ));
+    result.debug_lines.push(format!("    Levels: {}", result.levels.len()));
 
-    // -- Step 4: Detect beams from horizontal lines --
-    for line in &h_lines {
-        let length = (line.end[0] - line.start[0]).abs();
-        if length < 500.0 {
-            continue; // too short for a beam
+    let high = result.candidates.iter().filter(|c| c.score >= 70.0).count();
+    let mid = result
+        .candidates
+        .iter()
+        .filter(|c| c.score >= 40.0 && c.score < 70.0)
+        .count();
+    let low = result.candidates.iter().filter(|c| c.score < 40.0).count();
+    result.debug_lines.push(format!(
+        "    Confidence: {} high, {} medium, {} low",
+        high, mid, low
+    ));
+    result.debug_lines.push("=== DETECTION COMPLETE ===".into());
+
+    result
+}
+
+fn detect_grids_from_geometry(
+    prep: &PreprocessResult,
+    texts: &[RawText],
+    result: &mut SemanticResult,
+) {
+    result
+        .debug_lines
+        .push("  [Grid Detection: Parallel Line Clustering]".into());
+
+    // -- Find vertical line clusters (X-axis grids) --
+    // Cluster vertical lines by their X position
+    let mut v_x_positions: Vec<(f64, f64)> = Vec::new(); // (x_position, total_length)
+    for line in &prep.long_v_lines {
+        let x = (line.start[0] + line.end[0]) / 2.0;
+        if let Some(existing) = v_x_positions.iter_mut().find(|p| (p.0 - x).abs() < 200.0) {
+            existing.1 += line.length; // accumulate length
+        } else {
+            v_x_positions.push((x, line.length));
+        }
+    }
+    v_x_positions.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Only keep clusters with significant total length
+    let avg_length = v_x_positions.iter().map(|p| p.1).sum::<f64>()
+        / v_x_positions.len().max(1) as f64;
+    let threshold = (avg_length * 0.3).max(1000.0);
+    v_x_positions.retain(|p| p.1 >= threshold);
+
+    result.debug_lines.push(format!(
+        "    Vertical clusters: {} (threshold: {:.0}mm)",
+        v_x_positions.len(),
+        threshold
+    ));
+
+    // -- Find horizontal line clusters (Y-axis grids) --
+    let mut h_y_positions: Vec<(f64, f64)> = Vec::new();
+    for line in &prep.long_h_lines {
+        let y = (line.start[1] + line.end[1]) / 2.0;
+        if let Some(existing) = h_y_positions.iter_mut().find(|p| (p.0 - y).abs() < 200.0) {
+            existing.1 += line.length;
+        } else {
+            h_y_positions.push((y, line.length));
+        }
+    }
+    h_y_positions.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    h_y_positions.retain(|p| p.1 >= threshold);
+
+    result.debug_lines.push(format!(
+        "    Horizontal clusters: {}",
+        h_y_positions.len()
+    ));
+
+    // -- Check for regular spacing (strong grid indicator) --
+    let x_spacings = compute_spacings(&v_x_positions);
+    let y_spacings = compute_spacings(&h_y_positions);
+
+    let x_regularity = spacing_regularity(&x_spacings);
+    let y_regularity = spacing_regularity(&y_spacings);
+
+    result.debug_lines.push(format!(
+        "    X spacing regularity: {:.0}% | Y: {:.0}%",
+        x_regularity * 100.0,
+        y_regularity * 100.0
+    ));
+
+    // -- Build grid from geometry clusters --
+    let x_offset = v_x_positions.first().map(|p| p.0).unwrap_or(0.0);
+    let y_offset = h_y_positions.first().map(|p| p.0).unwrap_or(0.0);
+
+    // -- Text verification: find nearby labels --
+    for (i, &(x_pos, total_len)) in v_x_positions.iter().enumerate() {
+        let mut score: f32 = 30.0; // base score for being a parallel line cluster
+        let mut reasons = vec![format!(
+            "vertical cluster at x={:.0}, length={:.0}",
+            x_pos, total_len
+        )];
+
+        if total_len > avg_length * 0.8 {
+            score += 20.0;
+            reasons.push("long line cluster".into());
+        }
+        if x_regularity > 0.5 {
+            score += 15.0;
+            reasons.push(format!("regular spacing ({:.0}%)", x_regularity * 100.0));
         }
 
-        let y = (line.start[1] + line.end[1]) / 2.0 - y_offset;
-        let x1 = line.start[0].min(line.end[0]) - x_offset;
-        let x2 = line.start[0].max(line.end[0]) - x_offset;
+        // Find nearest text label
+        let mut label = grid_name_default(i, true);
+        for text in texts {
+            let tx = text.position[0];
+            let clean = super::grid_parser::clean_mtext(&text.content);
+            if super::grid_parser::is_x_grid_label(&clean) && (tx - x_pos).abs() < 2000.0 {
+                label = clean.clone();
+                score += 25.0;
+                reasons.push(format!("text label '{}' nearby", clean));
+                break;
+            }
+        }
 
-        // Check if this line connects two grid positions
-        let near_grid = result
+        result.grids.x_grids.push(GridLine {
+            name: label,
+            position: x_pos - x_offset,
+        });
+        result.candidates.push(SemanticCandidate {
+            kind: CandidateKind::Grid,
+            score,
+            reasons,
+            geometry: CandidateGeometry::Line {
+                start: [
+                    x_pos,
+                    h_y_positions.first().map(|p| p.0).unwrap_or(0.0),
+                ],
+                end: [
+                    x_pos,
+                    h_y_positions.last().map(|p| p.0).unwrap_or(1000.0),
+                ],
+            },
+        });
+    }
+
+    for (i, &(y_pos, total_len)) in h_y_positions.iter().enumerate() {
+        let mut score: f32 = 30.0;
+        let reasons = vec![format!("horizontal cluster at y={:.0}", y_pos)];
+        if total_len > avg_length * 0.8 {
+            score += 20.0;
+        }
+        if y_regularity > 0.5 {
+            score += 15.0;
+        }
+
+        let mut label = grid_name_default(i, false);
+        for text in texts {
+            let ty = text.position[1];
+            let clean = super::grid_parser::clean_mtext(&text.content);
+            if super::grid_parser::is_y_grid_label(&clean) && (ty - y_pos).abs() < 2000.0 {
+                label = clean;
+                score += 25.0;
+                break;
+            }
+        }
+
+        result.grids.y_grids.push(GridLine {
+            name: label,
+            position: y_pos - y_offset,
+        });
+        result.candidates.push(SemanticCandidate {
+            kind: CandidateKind::Grid,
+            score,
+            reasons,
+            geometry: CandidateGeometry::Line {
+                start: [
+                    v_x_positions.first().map(|p| p.0).unwrap_or(0.0),
+                    y_pos,
+                ],
+                end: [
+                    v_x_positions.last().map(|p| p.0).unwrap_or(1000.0),
+                    y_pos,
+                ],
+            },
+        });
+    }
+
+    if !x_spacings.is_empty() {
+        result.debug_lines.push(format!(
+            "    X spacings: {:?}",
+            x_spacings
+                .iter()
+                .map(|s| format!("{:.0}", s))
+                .collect::<Vec<_>>()
+        ));
+    }
+}
+
+fn detect_columns(prep: &PreprocessResult, result: &mut SemanticResult) {
+    if result.grids.x_grids.len() < 2 || result.grids.y_grids.len() < 2 {
+        result
+            .debug_lines
+            .push("  [Columns: skipped -- insufficient grid]".into());
+        return;
+    }
+
+    result
+        .debug_lines
+        .push("  [Column Detection: Grid Intersections]".into());
+
+    let x_offset = result.grids.x_grids[0].position;
+
+    for xg in &result.grids.x_grids.clone() {
+        for yg in &result.grids.y_grids.clone() {
+            let world_x = xg.position;
+            let world_y = yg.position;
+
+            let mut score: f32 = 40.0; // base score for being at grid intersection
+            let mut reasons = vec![format!("grid intersection {}/{}", xg.name, yg.name)];
+
+            // Check for closed contour (column symbol) nearby
+            let has_contour = prep.closed_contours.iter().any(|c| {
+                (c.center[0] - (world_x + x_offset)).abs() < 500.0
+                    && (c.center[1] - (world_y + result.grids.y_grids[0].position)).abs() < 500.0
+            });
+            if has_contour {
+                score += 30.0;
+                reasons.push("closed contour at intersection".into());
+            }
+
+            // Check for line intersection (cross pattern)
+            let has_cross = prep
+                .long_v_lines
+                .iter()
+                .any(|l| (l.midpoint[0] - (world_x + x_offset)).abs() < 300.0)
+                && prep.long_h_lines.iter().any(|l| {
+                    (l.midpoint[1] - (world_y + result.grids.y_grids[0].position)).abs() < 300.0
+                });
+            if has_cross {
+                score += 20.0;
+                reasons.push("line cross at intersection".into());
+            }
+
+            if score >= 40.0 {
+                result.columns.push(ColumnDef {
+                    id: format!("COL_{}_{}", xg.name, yg.name),
+                    grid_x: xg.name.clone(),
+                    grid_y: yg.name.clone(),
+                    position: [world_x, world_y],
+                    base_level: 0.0,
+                    top_level: 4200.0,
+                    profile: None,
+                });
+                result.candidates.push(SemanticCandidate {
+                    kind: CandidateKind::Column,
+                    score,
+                    reasons,
+                    geometry: CandidateGeometry::Point {
+                        position: [world_x, world_y],
+                    },
+                });
+            }
+        }
+    }
+
+    result.debug_lines.push(format!(
+        "    Columns detected: {}",
+        result.columns.len()
+    ));
+}
+
+fn detect_beams(prep: &PreprocessResult, result: &mut SemanticResult) {
+    if result.grids.x_grids.len() < 2 {
+        return;
+    }
+
+    result
+        .debug_lines
+        .push("  [Beam Detection: Topology + Direction + Scoring]".into());
+
+    let x_offset = result.grids.x_grids[0].position;
+    let y_offset = result
+        .grids
+        .y_grids
+        .first()
+        .map(|g| g.position)
+        .unwrap_or(0.0);
+
+    // Find horizontal members that connect grid points
+    for line in &prep.long_h_lines {
+        if line.length < 1000.0 {
+            continue;
+        }
+
+        let mut score = 0.0f32;
+        let mut reasons = Vec::new();
+
+        // Score: horizontal direction
+        let abs_angle = line.angle.abs();
+        if abs_angle < 0.05 || (std::f64::consts::PI - abs_angle) < 0.05 {
+            score += 30.0;
+            reasons.push("horizontal member".into());
+        }
+
+        // Score: connects two grid X positions
+        let x1 = line.start[0].min(line.end[0]);
+        let x2 = line.start[0].max(line.end[0]);
+        let connects_grids = result
             .grids
             .x_grids
             .iter()
-            .any(|g| (g.position - x1).abs() < 200.0)
+            .any(|g| ((g.position + x_offset) - x1).abs() < 500.0)
             && result
                 .grids
                 .x_grids
                 .iter()
-                .any(|g| (g.position - x2).abs() < 200.0);
+                .any(|g| ((g.position + x_offset) - x2).abs() < 500.0);
+        if connects_grids {
+            score += 30.0;
+            reasons.push("connects two grid points".into());
+        }
 
-        if near_grid || length > 1000.0 {
-            // Avoid duplicates: check if we already have a very similar beam
-            let is_dup = result.beams.iter().any(|b| {
-                (b.start_pos[0] - x1).abs() < 100.0
-                    && (b.start_pos[1] - y).abs() < 100.0
-                    && (b.end_pos[0] - x2).abs() < 100.0
+        // Score: high aspect ratio (beam-like)
+        if line.length > 2000.0 {
+            score += 10.0;
+            reasons.push("long member".into());
+        }
+
+        // Score: consistent Y position with other beams
+        let beam_y = (line.start[1] + line.end[1]) / 2.0;
+        let similar_y_count = prep
+            .long_h_lines
+            .iter()
+            .filter(|l| {
+                let ly = (l.start[1] + l.end[1]) / 2.0;
+                (ly - beam_y).abs() < 200.0 && l.length > 1000.0
+            })
+            .count();
+        if similar_y_count >= 2 {
+            score += 20.0;
+            reasons.push(format!("{} members at similar Y", similar_y_count));
+        }
+
+        if score >= 50.0 {
+            let y = (line.start[1] + line.end[1]) / 2.0;
+
+            // Deduplicate: don't add if already have a beam at same position
+            let already_exists = result.beams.iter().any(|b| {
+                (b.start_pos[0] - (x1 - x_offset)).abs() < 100.0
+                    && (b.end_pos[0] - (x2 - x_offset)).abs() < 100.0
+                    && (b.elevation - 4200.0).abs() < 100.0
             });
-            if is_dup {
-                continue;
+
+            if !already_exists {
+                result.beams.push(BeamDef {
+                    id: format!("BM_{}", result.beams.len() + 1),
+                    from_grid: String::new(),
+                    to_grid: String::new(),
+                    elevation: 4200.0,
+                    start_pos: [x1 - x_offset, y - y_offset],
+                    end_pos: [x2 - x_offset, y - y_offset],
+                    profile: None,
+                });
+                result.candidates.push(SemanticCandidate {
+                    kind: CandidateKind::Beam,
+                    score,
+                    reasons,
+                    geometry: CandidateGeometry::Line {
+                        start: [x1, y],
+                        end: [x2, y],
+                    },
+                });
             }
-
-            let beam_id = format!("BM_{}", result.beams.len() + 1);
-            result.beams.push(BeamDef {
-                id: beam_id,
-                from_grid: String::new(),
-                to_grid: String::new(),
-                elevation: 3000.0, // default, refined by text parsing
-                start_pos: [x1, y],
-                end_pos: [x2, y],
-                profile: None,
-            });
         }
     }
 
     result.debug_lines.push(format!(
-        "  Beams detected: {}",
+        "    Beams detected: {}",
         result.beams.len()
     ));
+}
 
-    // -- Step 5: Detect columns at grid intersections --
-    if result.grids.x_grids.len() >= 2 && result.grids.y_grids.len() >= 2 {
-        for xg in &result.grids.x_grids {
-            for yg in &result.grids.y_grids {
-                // Verify there's actually geometry near this intersection
-                let has_v_line = v_lines.iter().any(|l| {
-                    let lx = (l.start[0] + l.end[0]) / 2.0 - x_offset;
-                    (lx - xg.position).abs() < 200.0
-                });
-                let has_h_line = h_lines.iter().any(|l| {
-                    let ly = (l.start[1] + l.end[1]) / 2.0 - y_offset;
-                    (ly - yg.position).abs() < 200.0
-                });
-
-                if has_v_line && has_h_line {
-                    let col_id = format!("COL_{}_{}", xg.name, yg.name);
-                    result.columns.push(ColumnDef {
-                        id: col_id,
-                        grid_x: xg.name.clone(),
-                        grid_y: yg.name.clone(),
-                        position: [xg.position, yg.position],
-                        base_level: 0.0,
-                        top_level: 3000.0,
-                        profile: None,
-                    });
-                }
-            }
-        }
-    }
-
-    result.debug_lines.push(format!(
-        "  Columns detected: {}",
-        result.columns.len()
-    ));
-
-    // -- Step 6: Detect plates from closed polylines --
-    for poly in &geom.polylines {
-        if !poly.closed || poly.points.len() < 3 {
+fn detect_plates(prep: &PreprocessResult, result: &mut SemanticResult) {
+    for contour in &prep.closed_contours {
+        if contour.area < 10000.0 {
+            continue;
+        } // < 100cm^2
+        if !contour.is_rectangular {
             continue;
         }
 
-        // Compute area using shoelace formula
-        let mut area = 0.0f64;
-        let n = poly.points.len();
-        for i in 0..n {
-            let j = (i + 1) % n;
-            area += poly.points[i][0] * poly.points[j][1];
-            area -= poly.points[j][0] * poly.points[i][1];
-        }
-        area = area.abs() / 2.0;
+        let w = contour.bbox[2] - contour.bbox[0];
+        let h = contour.bbox[3] - contour.bbox[1];
+        let x_offset = result
+            .grids
+            .x_grids
+            .first()
+            .map(|g| g.position)
+            .unwrap_or(0.0);
+        let y_offset = result
+            .grids
+            .y_grids
+            .first()
+            .map(|g| g.position)
+            .unwrap_or(0.0);
 
-        if area > 10000.0 {
-            // > 100cm^2 = meaningful plate
-            let mut min_x = f64::MAX;
-            let mut min_y = f64::MAX;
-            let mut max_x = f64::MIN;
-            let mut max_y = f64::MIN;
-            for p in &poly.points {
-                min_x = min_x.min(p[0]);
-                min_y = min_y.min(p[1]);
-                max_x = max_x.max(p[0]);
-                max_y = max_y.max(p[1]);
-            }
-            result.plates.push(BasePlateDef {
-                id: format!("PL_{}", result.plates.len() + 1),
-                position: [min_x - x_offset, min_y - y_offset],
-                width: max_x - min_x,
-                depth: max_y - min_y,
-                height: 12.0, // default plate thickness
-            });
-        }
+        result.plates.push(BasePlateDef {
+            id: format!("PL_{}", result.plates.len() + 1),
+            position: [contour.bbox[0] - x_offset, contour.bbox[1] - y_offset],
+            width: w,
+            depth: h,
+            height: 12.0,
+        });
     }
-
     result.debug_lines.push(format!(
-        "  Plates detected: {}",
+        "    Plates detected: {}",
         result.plates.len()
     ));
+}
 
-    // -- Step 7: Extract elevations from text entities --
-    for text in &geom.texts {
-        let s = text.content.trim();
-        // Look for elevation markers: +4200, -500, EL.+3000, FL.+2800
-        let clean = s
+fn detect_levels(prep: &PreprocessResult, result: &mut SemanticResult) {
+    for text in &prep.texts_dimension {
+        let s = text
+            .content
+            .replace('+', "")
             .replace("EL.", "")
             .replace("FL.", "")
-            .replace("el.", "")
-            .replace("fl.", "");
-        if let Ok(val) = clean.trim().parse::<f64>() {
-            if val.abs() < 100000.0 {
-                let name = if val.abs() < 1.0 {
-                    "GL".to_string()
-                } else {
-                    format!("EL{:+.0}", val)
-                };
-                if !result.levels.iter().any(|l| (l.elevation - val).abs() < 10.0) {
+            .replace(',', "");
+        if let Ok(v) = s.trim().parse::<f64>() {
+            if v > 100.0 && v < 50000.0 {
+                if !result.levels.iter().any(|l| (l.elevation - v).abs() < 10.0) {
                     result.levels.push(LevelDef {
-                        name,
-                        elevation: val,
+                        name: format!("{:.0}", v),
+                        elevation: v,
                     });
                 }
-            }
-        }
-        // Log dimension-like text
-        if let Ok(val) = s.parse::<f64>() {
-            if val > 100.0 && val < 50000.0 {
-                result.debug_lines.push(format!(
-                    "  Dimension text: {} @ [{:.0},{:.0}]",
-                    s, text.position[0], text.position[1]
-                ));
             }
         }
     }
@@ -357,6 +534,7 @@ pub fn detect_from_geometry(geom: &RawGeometry) -> SemanticResult {
     result
         .levels
         .sort_by(|a, b| a.elevation.partial_cmp(&b.elevation).unwrap_or(std::cmp::Ordering::Equal));
+
     if result.levels.is_empty() {
         result.levels.push(LevelDef {
             name: "GL".into(),
@@ -364,11 +542,11 @@ pub fn detect_from_geometry(geom: &RawGeometry) -> SemanticResult {
         });
         result.levels.push(LevelDef {
             name: "TOP".into(),
-            elevation: 3000.0,
+            elevation: 4200.0,
         });
     }
 
-    // Apply detected levels to columns and beams
+    // Apply levels to columns
     if let (Some(base), Some(top)) = (result.levels.first(), result.levels.last()) {
         let base_el = base.elevation;
         let top_el = top.elevation;
@@ -382,17 +560,49 @@ pub fn detect_from_geometry(geom: &RawGeometry) -> SemanticResult {
     }
 
     result.debug_lines.push(format!(
-        "  Levels: {}",
+        "    Levels: {:?}",
         result
             .levels
             .iter()
             .map(|l| format!("{}({:.0})", l.name, l.elevation))
             .collect::<Vec<_>>()
-            .join(", ")
     ));
-    result
-        .debug_lines
-        .push("--- Semantic Detection Complete ---".into());
+}
 
-    result
+// -- Helpers --
+
+fn compute_spacings(positions: &[(f64, f64)]) -> Vec<f64> {
+    if positions.len() < 2 {
+        return Vec::new();
+    }
+    positions
+        .windows(2)
+        .map(|w| (w[1].0 - w[0].0).abs())
+        .collect()
+}
+
+fn spacing_regularity(spacings: &[f64]) -> f64 {
+    if spacings.len() < 2 {
+        return 0.0;
+    }
+    let avg = spacings.iter().sum::<f64>() / spacings.len() as f64;
+    if avg < 1.0 {
+        return 0.0;
+    }
+    let variance = spacings.iter().map(|s| (s - avg).powi(2)).sum::<f64>() / spacings.len() as f64;
+    let std_dev = variance.sqrt();
+    let cv = std_dev / avg; // coefficient of variation
+    (1.0 - cv).max(0.0) // 1.0 = perfectly regular, 0.0 = random
+}
+
+fn grid_name_default(idx: usize, is_x: bool) -> String {
+    if is_x {
+        if idx < 26 {
+            ((b'A' + idx as u8) as char).to_string()
+        } else {
+            format!("X{}", idx)
+        }
+    } else {
+        format!("{}", idx + 1)
+    }
 }

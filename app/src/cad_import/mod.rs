@@ -4,6 +4,8 @@ pub mod drawing_classifier;
 pub mod grid_parser;
 pub mod steel_parser;
 pub mod elevation_parser;
+#[allow(dead_code)]
+pub mod preprocessor;
 pub mod semantic_detector;
 #[allow(dead_code)]
 pub mod dxf_importer;
@@ -72,9 +74,10 @@ fn fallback_import(path: &str) -> Result<DrawingIR, String> {
         debug_report: Vec::new(),
     };
 
-    // Fallback: if existing parsers found nothing, try geometry-based semantic detection
+    // Fallback: if existing parsers found nothing, try geometry-based semantic detection v2
     if drawing.columns.is_empty() && drawing.beams.is_empty() {
-        let semantic = semantic_detector::detect_from_geometry(&geom);
+        let prep = preprocessor::preprocess(&geom);
+        let semantic = semantic_detector::detect_v2(&prep, &geom.texts);
         for line in &semantic.debug_lines {
             eprintln!("[SemanticDetector] {}", line);
         }
@@ -193,9 +196,10 @@ fn convert_geometry_ir_to_drawing_ir(
     drawing.beams = beams;
     drawing.base_plates = base_plates;
 
-    // Fallback: if existing parsers found nothing, try geometry-based semantic detection
+    // Fallback: if existing parsers found nothing, try geometry-based semantic detection v2
     if drawing.columns.is_empty() && drawing.beams.is_empty() {
-        let semantic = semantic_detector::detect_from_geometry(&raw_geom);
+        let prep = preprocessor::preprocess(&raw_geom);
+        let semantic = semantic_detector::detect_v2(&prep, &raw_geom.texts);
         for line in &semantic.debug_lines {
             eprintln!("[SemanticDetector] {}", line);
         }

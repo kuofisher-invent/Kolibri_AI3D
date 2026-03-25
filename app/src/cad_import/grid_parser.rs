@@ -349,7 +349,7 @@ fn detect_grids_from_lines(geom: &RawGeometry) -> (Vec<GridLine>, Vec<GridLine>)
 }
 
 /// Clean MTEXT formatting codes like {\fArial|b1|i0|...; content}
-fn clean_mtext(s: &str) -> String {
+pub(crate) fn clean_mtext(s: &str) -> String {
     let mut clean = s.to_string();
 
     // Remove MTEXT formatting: {\fArial|b1|i0|...; content}
@@ -400,7 +400,7 @@ fn clean_mtext(s: &str) -> String {
     clean.trim().to_string()
 }
 
-fn is_x_grid_label(s: &str) -> bool {
+pub(crate) fn is_x_grid_label(s: &str) -> bool {
     // A, B, C, ..., Z, AB, AC, etc.
     // Exclude known non-grid labels (floor levels, directions, abbreviations)
     const EXCLUDED: &[&str] = &[
@@ -412,7 +412,7 @@ fn is_x_grid_label(s: &str) -> bool {
     !s.is_empty() && s.len() <= 3 && s.chars().all(|c| c.is_ascii_uppercase())
 }
 
-fn is_y_grid_label(s: &str) -> bool {
+pub(crate) fn is_y_grid_label(s: &str) -> bool {
     // 1, 2, 3, ..., 99
     s.parse::<u32>().map(|n| n >= 1 && n <= 99).unwrap_or(false)
 }
