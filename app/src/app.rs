@@ -2058,8 +2058,8 @@ impl eframe::App for KolibriApp {
                 // ── Floating view buttons (top-right of viewport) ──
                 {
                     let view_rect = egui::Rect::from_min_size(
-                        egui::pos2(rect.right() - 380.0, rect.top() + 16.0),
-                        egui::vec2(370.0, 44.0),
+                        egui::pos2(rect.right() - 250.0, rect.top() + 16.0),
+                        egui::vec2(240.0, 44.0),
                     );
 
                     // Background pill
@@ -2069,7 +2069,7 @@ impl eframe::App for KolibriApp {
                         egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 200)));
 
                     // View buttons
-                    let views = ["\u{900f}\u{8996}", "\u{6b63}\u{8996}", "\u{4fef}\u{8996}", "\u{5de6}\u{8996}", "\u{7dda}\u{6846}", "\u{8457}\u{8272}", "\u{8349}\u{7a3f}"];
+                    let views = ["\u{900f}\u{8996}", "\u{6b63}\u{8996}", "\u{4fef}\u{8996}", "\u{5de6}\u{8996}"];
                     let btn_w = 50.0;
                     let padding = 8.0;
                     for (i, label) in views.iter().enumerate() {
@@ -2079,12 +2079,11 @@ impl eframe::App for KolibriApp {
                             egui::vec2(btn_w, 32.0),
                         );
 
-                        let is_active = match (i, self.use_ortho, self.render_mode) {
-                            (0, false, _) => true,
-                            (1, true, _) => false,
-                            (5, _, RenderMode::Shaded) => true,
-                            (4, _, RenderMode::Wireframe) => true,
-                            (6, _, RenderMode::Sketch) => true,
+                        let is_active = match i {
+                            0 => !self.use_ortho,  // 透視
+                            1 => self.use_ortho && self.camera.pitch.abs() < 0.1, // 正視
+                            2 => self.use_ortho && self.camera.pitch < -1.0, // 俯視
+                            3 => self.use_ortho && (self.camera.yaw + std::f32::consts::FRAC_PI_2).abs() < 0.1, // 左視
                             _ => false,
                         };
 
@@ -2118,9 +2117,6 @@ impl eframe::App for KolibriApp {
                                 1 => { self.use_ortho = true; self.camera.set_front(); }
                                 2 => { self.use_ortho = true; self.camera.set_top(); }
                                 3 => { self.use_ortho = true; self.camera.set_left(); }
-                                4 => self.render_mode = RenderMode::Wireframe,
-                                5 => self.render_mode = RenderMode::Shaded,
-                                6 => self.render_mode = RenderMode::Sketch,
                                 _ => {}
                             }
                         }
