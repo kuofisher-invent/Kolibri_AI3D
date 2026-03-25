@@ -41,15 +41,14 @@ impl DwgEntityType {
         match v {
             19 => Self::Line,
             27 => Self::Point,
-            17 => Self::Circle,
+            17 | 18 => Self::Circle, // 18 per OpenDesign Spec, accept 17 as alias
             16 => Self::Arc,
-            1 => Self::Text,
+            1 | 2 => Self::Text, // type 1 or 2 depending on version
             44 => Self::MText,
-            21 => Self::Dimension,
+            20..=26 => Self::Dimension, // all dimension subtypes (ordinate/linear/aligned/ang3pt/ang2ln/radius/diameter)
             7 => Self::Insert,
             15 => Self::Polyline2d,
             28 => Self::Polyline3d,
-            20 => Self::Vertex2d,
             29 => Self::Vertex3d,
             6 => Self::Seqend,
             36 => Self::Spline,
@@ -60,6 +59,17 @@ impl DwgEntityType {
             5 => Self::EndBlock,
             51 => Self::Layer,
             other => Self::Unknown(other),
+        }
+    }
+
+    /// Check if a class name corresponds to a known entity type.
+    /// Used for non-fixed-type objects like LWPOLYLINE which are defined
+    /// in the Classes section and get variable type numbers (501+).
+    pub fn from_class_name(name: &str) -> Option<Self> {
+        match name {
+            "AcDbPolyline" | "LWPOLYLINE" => Some(Self::LwPolyline),
+            "AcDbMText" | "MTEXT" => Some(Self::MText),
+            _ => None,
         }
     }
 }
@@ -173,7 +183,11 @@ fn decode_entity(
         DwgEntityType::Circle => decode_circle(&mut reader)?,
         DwgEntityType::Arc => decode_arc(&mut reader)?,
         DwgEntityType::Text => decode_text(&mut reader, ver)?,
+        DwgEntityType::MText => decode_mtext(&mut reader, ver)?,
         DwgEntityType::Point => decode_point(&mut reader)?,
+        DwgEntityType::Insert => decode_insert(&mut reader)?,
+        DwgEntityType::Dimension => decode_dimension(&mut reader)?,
+        DwgEntityType::LwPolyline => decode_lwpolyline(&mut reader)?,
         _ => EntityData::Unknown,
     };
 
@@ -216,6 +230,65 @@ fn decode_text(reader: &mut BitReader, ver: &DwgVersionInfo) -> Result<EntityDat
 fn decode_point(reader: &mut BitReader) -> Result<EntityData, DwgReadError> {
     let position = reader.read_3bd()?;
     Ok(EntityData::Point { position })
+}
+
+fn decode_mtext(reader: &mut BitReader, ver: &DwgVersionInfo) -> Result<EntityData, DwgReadError> {
+    let position = reader.read_3bd()?;
+    let _direction = reader.read_3bd()?; // extrusion direction
+    let _width = reader.read_bd()?;
+    let _height = reader.read_bd()?;
+    let text = reader.read_text(ver.is_r2007_plus)?;
+    Ok(EntityData::MText { position, text })
+}
+
+fn decode_dimension(reader: &mut BitReader) -> Result<EntityData, DwgReadError> {
+    // Common dimension data
+    let _version = reader.read_bits(8)?;
+    let def_pt = reader.read_3bd()?;
+    let text_midpt = reader.read_2bd()?;
+    let _elevation = reader.read_bd()?;
+    let _flags = reader.read_bits(8)?;
+    let text = reader.read_text(false).unwrap_or_default();
+
+    // Additional points depend on dimension subtype, but we at least capture def_pt
+    let pt2 = reader.read_3bd().unwrap_or([0.0; 3]);
+
+    Ok(EntityData::Dimension {
+        def_points: vec![def_pt, [text_midpt[0], text_midpt[1], 0.0], pt2],
+        text,
+    })
+}
+
+fn decode_insert(reader: &mut BitReader) -> Result<EntityData, DwgReadError> {
+    let position = reader.read_3bd()?;
+    let scale_x = reader.read_bd().unwrap_or(1.0);
+    let scale_y = reader.read_bd().unwrap_or(1.0);
+    let scale_z = reader.read_bd().unwrap_or(1.0);
+    let rotation = reader.read_bd().unwrap_or(0.0);
+    // Block header handle reference
+    let block_handle = reader.read_handle().unwrap_or(super::bitreader::DwgHandle { code: 0, value: 0 });
+
+    Ok(EntityData::Insert {
+        block_handle: block_handle.value,
+        position,
+        scale: [scale_x, scale_y, scale_z],
+        rotation,
+    })
+}
+
+fn decode_lwpolyline(reader: &mut BitReader) -> Result<EntityData, DwgReadError> {
+    let flag = reader.read_bs()? as u16;
+    let num_points = reader.read_bl()? as usize;
+    let closed = (flag & 512) != 0;
+    let mut points = Vec::with_capacity(num_points.min(10000));
+
+    for _ in 0..num_points.min(10000) {
+        let x = reader.read_bd()?;
+        let y = reader.read_bd()?;
+        points.push([x, y]);
+    }
+
+    Ok(EntityData::LwPolyline { points, closed })
 }
 
 /// Scan raw data for entity patterns (fallback when object map fails)
@@ -261,6 +334,49 @@ fn scan_entities_in_data(
         }
 
         i += 8;
+    }
+
+    // Also scan for ASCII text sequences that may represent labels/dimensions
+    let mut ti = 0;
+    while ti < data.len() {
+        let mut end = ti;
+        while end < data.len() && data[end] >= 0x20 && data[end] < 0x7F {
+            end += 1;
+        }
+        let len = end - ti;
+        if len >= 2 && len <= 200 {
+            if let Ok(s) = std::str::from_utf8(&data[ti..end]) {
+                let s = s.trim();
+                if !s.is_empty() && s.len() >= 1 {
+                    // Potential grid label (e.g. "A", "B", "C1")
+                    let is_grid_label = s.len() <= 3
+                        && s.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+                        && s.chars().skip(1).all(|c| c.is_ascii_digit());
+
+                    // Potential dimension/elevation text (e.g. "+3.500", "-1.200", "12.5")
+                    let is_numeric = s.starts_with('+')
+                        || s.starts_with('-')
+                        || s.parse::<f64>().is_ok();
+
+                    if is_grid_label || is_numeric {
+                        entities.push(DwgEntity {
+                            entity_type: DwgEntityType::Text,
+                            handle,
+                            layer_handle: 0,
+                            data: EntityData::Text {
+                                position: [0.0, 0.0, 0.0],
+                                height: 2.5,
+                                text: s.to_string(),
+                                rotation: 0.0,
+                            },
+                        });
+                        *type_counts.entry("Text(scan)".into()).or_insert(0) += 1;
+                        handle += 1;
+                    }
+                }
+            }
+        }
+        ti = if end > ti { end + 1 } else { ti + 1 };
     }
 }
 
@@ -320,6 +436,15 @@ pub fn fill_geometry_ir(entities: &[DwgEntity], ir: &mut GeometryIr) {
                     color: None,
                 }));
             }
+            EntityData::MText { position, text } => {
+                ir.texts.push(TextIr {
+                    layer: "0".into(),
+                    value: text.clone(),
+                    position: [position[0] as f32, position[1] as f32, position[2] as f32],
+                    height: 2.5,
+                    rotation_deg: 0.0,
+                });
+            }
             EntityData::Insert { block_handle, position, scale, rotation } => {
                 ir.inserts.push(InsertIr {
                     layer: "0".into(),
@@ -331,5 +456,103 @@ pub fn fill_geometry_ir(entities: &[DwgEntity], ir: &mut GeometryIr) {
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::bitreader::BitReader;
+
+    /// Helper: build a byte buffer with 6 BD-encoded f64 values (code 00 = raw 64-bit each).
+    /// Each BD starts with 2-bit prefix 00, then 64 bits of IEEE 754 data.
+    fn encode_bd_raw(value: f64) -> Vec<bool> {
+        let bits_prefix = vec![false, false]; // code 00 → raw f64
+        let bytes = value.to_le_bytes();
+        let mut bits = bits_prefix;
+        for &b in &bytes {
+            for i in (0..8).rev() {
+                bits.push((b >> i) & 1 != 0);
+            }
+        }
+        bits
+    }
+
+    fn bits_to_bytes(bits: &[bool]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        for chunk in bits.chunks(8) {
+            let mut byte = 0u8;
+            for (i, &bit) in chunk.iter().enumerate() {
+                if bit {
+                    byte |= 1 << (7 - i);
+                }
+            }
+            bytes.push(byte);
+        }
+        bytes
+    }
+
+    #[test]
+    fn test_entity_type_circle_fix() {
+        assert!(matches!(DwgEntityType::from_raw(18), DwgEntityType::Circle));
+        assert!(matches!(DwgEntityType::from_raw(17), DwgEntityType::Circle));
+    }
+
+    #[test]
+    fn test_entity_type_text_fix() {
+        assert!(matches!(DwgEntityType::from_raw(1), DwgEntityType::Text));
+        assert!(matches!(DwgEntityType::from_raw(2), DwgEntityType::Text));
+    }
+
+    #[test]
+    fn test_entity_type_dimension_range() {
+        for t in 20..=26 {
+            assert!(matches!(DwgEntityType::from_raw(t), DwgEntityType::Dimension),
+                "type {} should be Dimension", t);
+        }
+    }
+
+    #[test]
+    fn test_entity_type_from_class_name() {
+        assert!(matches!(DwgEntityType::from_class_name("LWPOLYLINE"), Some(DwgEntityType::LwPolyline)));
+        assert!(matches!(DwgEntityType::from_class_name("AcDbPolyline"), Some(DwgEntityType::LwPolyline)));
+        assert!(DwgEntityType::from_class_name("UNKNOWN_CLASS").is_none());
+    }
+
+    #[test]
+    fn test_decode_line_known_bytes() {
+        // Encode two 3D points as BD values: start=(1.0, 2.0, 0.0), end=(3.0, 4.0, 0.0)
+        let mut bits = Vec::new();
+        bits.extend(encode_bd_raw(1.0));
+        bits.extend(encode_bd_raw(2.0));
+        bits.extend(encode_bd_raw(0.0));
+        bits.extend(encode_bd_raw(3.0));
+        bits.extend(encode_bd_raw(4.0));
+        bits.extend(encode_bd_raw(0.0));
+        let data = bits_to_bytes(&bits);
+        let mut reader = BitReader::new(&data);
+        let result = decode_line(&mut reader).unwrap();
+        match result {
+            EntityData::Line { start, end } => {
+                assert!((start[0] - 1.0).abs() < 1e-10);
+                assert!((start[1] - 2.0).abs() < 1e-10);
+                assert!((end[0] - 3.0).abs() < 1e-10);
+                assert!((end[1] - 4.0).abs() < 1e-10);
+            }
+            _ => panic!("Expected Line entity"),
+        }
+    }
+
+    #[test]
+    fn test_bitreader_bs_bl_bd_roundtrip() {
+        // BS code 10 → 0, BD code 01 → 1.0, BD code 10 → 0.0
+        // BS=0: bits 10
+        // BD=1.0: bits 01
+        // BD=0.0: bits 10
+        let data = [0b10_01_10_00u8]; // BS(0), BD(1.0), BD(0.0), padding
+        let mut reader = BitReader::new(&data);
+        assert_eq!(reader.read_bs().unwrap(), 0);
+        assert_eq!(reader.read_bd().unwrap(), 1.0);
+        assert_eq!(reader.read_bd().unwrap(), 0.0);
     }
 }

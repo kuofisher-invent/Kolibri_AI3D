@@ -38,7 +38,7 @@ pub fn parse_elevations(geom: &RawGeometry) -> Vec<LevelDef> {
     for dim in &geom.dimensions {
         let dx = (dim.start[0] - dim.end[0]).abs();
         let dy = (dim.start[1] - dim.end[1]).abs();
-        // Vertical dimension
+        // Vertical dimension (from value field)
         if dy > dx * 2.0 && dim.value > 100.0 {
             let _top_y = dim.start[1].max(dim.end[1]);
 
@@ -47,6 +47,18 @@ pub fn parse_elevations(geom: &RawGeometry) -> Vec<LevelDef> {
                     name: format!("H{:.0}", dim.value),
                     elevation: dim.value,
                 });
+            }
+        }
+        // Also try parsing the dimension text field for elevation values
+        if !dim.text.is_empty() {
+            let clean = dim.text.replace("+", "").replace("EL.", "").replace("FL.", "")
+                .replace("el.", "").replace("fl.", "").replace(",", "");
+            if let Ok(v) = clean.trim().parse::<f64>() {
+                if v > 100.0 && v < 20000.0 {
+                    if !levels.iter().any(|l: &LevelDef| (l.elevation - v).abs() < 10.0) {
+                        levels.push(LevelDef { name: format!("H{:.0}", v), elevation: v });
+                    }
+                }
             }
         }
     }

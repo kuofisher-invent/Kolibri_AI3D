@@ -16,10 +16,10 @@ pub fn parse_steel_elements(geom: &RawGeometry, grids: &GridSystem, levels: &[Le
         for yg in &grids.y_grids {
             let col_id = format!("COL_{}_{}", xg.name, yg.name);
 
-            // Check if there's a block/symbol near this grid intersection
+            // Check if there's a block/symbol near this grid intersection (wider 1000mm radius)
             let has_symbol = geom.blocks.iter().any(|b| {
-                (b.insert_point[0] - xg.position).abs() < 500.0 &&
-                (b.insert_point[1] - yg.position).abs() < 500.0
+                (b.insert_point[0] - xg.position).abs() < 1000.0 &&
+                (b.insert_point[1] - yg.position).abs() < 1000.0
             });
 
             // Check if there's a closed polyline (column outline) near intersection

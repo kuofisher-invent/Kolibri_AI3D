@@ -500,12 +500,17 @@ mod tests {
 
     #[test]
     fn test_read_mc() {
-        // Single byte: 0x42 (66, positive, no continue)
-        let data = [0x42u8];
+        // Single byte, positive: 0x05 → bit7=0 (no continue), bit6=0 (positive), bits0-5=5
+        let data = [0x05u8];
         let mut r = BitReader::new(&data);
-        assert_eq!(r.read_mc().unwrap(), 66);
+        assert_eq!(r.read_mc().unwrap(), 5);
 
-        // Negative: 0x41 | 0x40 = value 1, sign bit set
+        // Single byte, positive: 0x1F → bit7=0, bit6=0, bits0-5=0x1F=31
+        let data = [0x1Fu8];
+        let mut r = BitReader::new(&data);
+        assert_eq!(r.read_mc().unwrap(), 31);
+
+        // Negative: 0x41 → bit7=0 (no continue), bit6=1 (sign), bits0-5=1 → -1
         let data = [0x41u8];
         let mut r = BitReader::new(&data);
         assert_eq!(r.read_mc().unwrap(), -1);
