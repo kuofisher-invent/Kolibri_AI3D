@@ -672,20 +672,35 @@ impl KolibriApp {
     pub(crate) fn toolbar_ui(&mut self, ui: &mut egui::Ui) {
         let bsz = egui::vec2(48.0, 48.0);
 
-        // ── View mode: 建模 / 出圖 ──
+        // ── Mode switch: 建模 / 鋼構 / 出圖 (unified single row) ──
         ui.horizontal(|ui| {
             let brand = egui::Color32::from_rgb(76, 139, 245);
+            let steel_color = egui::Color32::from_rgb(220, 100, 50);
+            let layout_color = egui::Color32::from_rgb(60, 160, 100);
             let muted = egui::Color32::from_rgb(110, 118, 135);
-            let m_btn = egui::Button::new(egui::RichText::new("建模").size(11.0)
-                .color(if !self.layout_mode { egui::Color32::WHITE } else { muted }))
-                .fill(if !self.layout_mode { brand } else { egui::Color32::TRANSPARENT })
-                .rounding(8.0);
-            let l_btn = egui::Button::new(egui::RichText::new("出圖").size(11.0)
-                .color(if self.layout_mode { egui::Color32::WHITE } else { muted }))
-                .fill(if self.layout_mode { egui::Color32::from_rgb(60, 160, 100) } else { egui::Color32::TRANSPARENT })
-                .rounding(8.0);
-            if ui.add(m_btn).clicked() { self.layout_mode = false; }
-            if ui.add(l_btn).clicked() { self.layout_mode = true; }
+
+            let modeling_active = !self.layout_mode && self.work_mode == WorkMode::Modeling;
+            let steel_active = !self.layout_mode && self.work_mode == WorkMode::Steel;
+            let layout_active = self.layout_mode;
+
+            let make_btn = |label: &str, active: bool, color: egui::Color32| {
+                egui::Button::new(egui::RichText::new(label).size(11.0)
+                    .color(if active { egui::Color32::WHITE } else { muted }))
+                    .fill(if active { color } else { egui::Color32::TRANSPARENT })
+                    .rounding(8.0)
+            };
+
+            if ui.add(make_btn("建模", modeling_active, brand)).clicked() {
+                self.layout_mode = false;
+                self.work_mode = WorkMode::Modeling;
+            }
+            if ui.add(make_btn("鋼構", steel_active, steel_color)).clicked() {
+                self.layout_mode = false;
+                self.work_mode = WorkMode::Steel;
+            }
+            if ui.add(make_btn("出圖", layout_active, layout_color)).clicked() {
+                self.layout_mode = true;
+            }
         });
 
         ui.add_space(2.0);
@@ -698,23 +713,12 @@ impl KolibriApp {
             return;
         }
 
-        // ── Mode switch ──
-        ui.horizontal(|ui| {
-            let modeling_active = self.work_mode == WorkMode::Modeling;
-            let steel_active = self.work_mode == WorkMode::Steel;
-
-            let m_btn = egui::Button::new(egui::RichText::new("建模").size(10.0)
-                .color(if modeling_active { egui::Color32::WHITE } else { egui::Color32::from_rgb(110, 118, 135) }))
-                .fill(if modeling_active { egui::Color32::from_rgb(76, 139, 245) } else { egui::Color32::TRANSPARENT })
-                .rounding(8.0);
-            let s_btn = egui::Button::new(egui::RichText::new("鋼構").size(10.0)
-                .color(if steel_active { egui::Color32::WHITE } else { egui::Color32::from_rgb(110, 118, 135) }))
-                .fill(if steel_active { egui::Color32::from_rgb(220, 100, 50) } else { egui::Color32::TRANSPARENT })
-                .rounding(8.0);
-
-            if ui.add(m_btn).clicked() { self.work_mode = WorkMode::Modeling; }
-            if ui.add(s_btn).clicked() { self.work_mode = WorkMode::Steel; }
-        });
+        // Steel mode uses a different variable now (work_mode), skip the old toggle
+        let modeling_active = self.work_mode == WorkMode::Modeling;
+        let steel_active = self.work_mode == WorkMode::Steel;
+        // (The old m_btn/s_btn block below is now handled by the unified row above)
+        // Skip the duplicate toggle — just keep the steel_mode sync
+        // steel_mode is derived from work_mode (used elsewhere in the app)
 
         ui.separator();
 
