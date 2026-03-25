@@ -231,6 +231,19 @@ impl KolibriApp {
         }
         // Reset drag snapshot flag when not dragging
         if !response.dragged() {
+            // B8: Save move delta for array copy before clearing move state
+            if self.drag_snapshot_taken && self.move_is_copy {
+                if let Some(origin) = self.move_origin {
+                    if let Some(obj) = self.selected_ids.first().and_then(|id| self.scene.objects.get(id)) {
+                        self.last_move_delta = Some([
+                            obj.position[0] - origin[0],
+                            obj.position[1] - origin[1],
+                            obj.position[2] - origin[2],
+                        ]);
+                        self.last_move_was_copy = true;
+                    }
+                }
+            }
             self.drag_snapshot_taken = false;
             self.move_is_copy = false;
         }
@@ -595,6 +608,13 @@ impl KolibriApp {
                     }
                 }
                 if response.drag_stopped() {
+                    // B5: Adjust adjacent objects that were touching the pulled face
+                    {
+                        let pull_delta = self.last_pull_distance;
+                        if pull_delta.abs() > 0.1 {
+                            Self::adjust_adjacent_after_pull(&mut self.scene, &obj_id, face, pull_delta);
+                        }
+                    }
                     // Store pull face for double-click repeat (A4)
                     // last_pull_distance was accumulated during drag
                     self.last_pull_face = Some((obj_id.clone(), face));
@@ -1810,34 +1830,49 @@ impl KolibriApp {
 
     pub(crate) fn apply_measure(&mut self) {
         // Array creation: "3x" or "5X" after Ctrl+Move copy
+        // Uses persisted last_move_delta / last_move_was_copy (B8) since
+        // move_is_copy and move_origin are cleared when drag stops.
         if (self.measure_input.ends_with('x') || self.measure_input.ends_with('X'))
             && self.measure_input.len() > 1
         {
             let count_str = &self.measure_input[..self.measure_input.len() - 1];
             if let Ok(count) = count_str.parse::<usize>() {
-                if count >= 2 && count <= 100 && self.move_is_copy && !self.selected_ids.is_empty() {
-                    if let Some(orig) = self.move_origin {
-                        // Get the displacement from original to current position
-                        if let Some(first_obj) = self.scene.objects.get(&self.selected_ids[0]).cloned() {
-                            let delta = [
-                                first_obj.position[0] - orig[0],
-                                first_obj.position[1] - orig[1],
-                                first_obj.position[2] - orig[2],
-                            ];
+                // Try live drag state first, then fall back to persisted delta
+                let is_copy = self.move_is_copy || self.last_move_was_copy;
+                let delta_opt: Option<[f32; 3]> = if self.move_is_copy {
+                    // Still dragging (unlikely but handle it)
+                    self.move_origin.and_then(|orig| {
+                        self.selected_ids.first().and_then(|id| {
+                            self.scene.objects.get(id).map(|obj| [
+                                obj.position[0] - orig[0],
+                                obj.position[1] - orig[1],
+                                obj.position[2] - orig[2],
+                            ])
+                        })
+                    })
+                } else {
+                    self.last_move_delta
+                };
+
+                if count >= 2 && count <= 100 && is_copy && !self.selected_ids.is_empty() {
+                    if let Some(delta) = delta_opt {
+                        // Get current positions of selected objects as base
+                        let base_objs: Vec<_> = self.selected_ids.iter()
+                            .filter_map(|id| self.scene.objects.get(id).cloned())
+                            .collect();
+                        if !base_objs.is_empty() {
                             self.scene.snapshot();
-                            // Create (count-1) more copies at equal intervals
-                            for i in 2..=count {
-                                for id in &self.selected_ids.clone() {
-                                    if let Some(obj) = self.scene.objects.get(id).cloned() {
-                                        let mut clone = obj;
-                                        clone.id = self.scene.next_id_pub();
-                                        clone.position = [
-                                            orig[0] + delta[0] * i as f32,
-                                            orig[1] + delta[1] * i as f32,
-                                            orig[2] + delta[2] * i as f32,
-                                        ];
-                                        self.scene.objects.insert(clone.id.clone(), clone);
-                                    }
+                            // Create (count-1) more copies at equal intervals from the first copy
+                            for i in 1..count {
+                                for base in &base_objs {
+                                    let mut clone = base.clone();
+                                    clone.id = self.scene.next_id_pub();
+                                    clone.position = [
+                                        base.position[0] + delta[0] * i as f32,
+                                        base.position[1] + delta[1] * i as f32,
+                                        base.position[2] + delta[2] * i as f32,
+                                    ];
+                                    self.scene.objects.insert(clone.id.clone(), clone);
                                 }
                             }
                             self.scene.version += 1;
@@ -1845,6 +1880,8 @@ impl KolibriApp {
                                 format!("\u{5df2}\u{5efa}\u{7acb} {} \u{500b}\u{526f}\u{672c}", count),
                                 std::time::Instant::now(),
                             ));
+                            self.last_move_delta = None;
+                            self.last_move_was_copy = false;
                             self.measure_input.clear();
                             return;
                         }
@@ -2016,6 +2053,73 @@ impl KolibriApp {
             }
         }
         best.map(|(_, id)| id)
+    }
+
+    /// B5: After push/pull, move adjacent objects that were touching the pulled face
+    /// to maintain contact. Only moves (does not resize) adjacent boxes.
+    fn adjust_adjacent_after_pull(scene: &mut crate::scene::Scene, pulled_id: &str, face: PullFace, delta: f32) {
+        let pulled = match scene.objects.get(pulled_id).cloned() {
+            Some(o) => o,
+            None => return,
+        };
+        let (pw, ph, pd) = match &pulled.shape {
+            Shape::Box { width, height, depth } => (*width, *height, *depth),
+            _ => return,
+        };
+        let pp = pulled.position;
+        let tol = 5.0; // 5mm tolerance for face adjacency
+
+        let ids: Vec<String> = scene.objects.keys().cloned().collect();
+        for id in &ids {
+            if id == pulled_id { continue; }
+            if let Some(other) = scene.objects.get_mut(id) {
+                if let Shape::Box { .. } = &other.shape {
+                    match face {
+                        PullFace::Right => {
+                            // Right face of pulled obj grew rightward; push adjacent objects right
+                            // Before pull, right face was at pp[0] + pw - delta
+                            if (pp[0] + pw - delta - other.position[0]).abs() < tol {
+                                other.position[0] += delta;
+                            }
+                        }
+                        PullFace::Left => {
+                            // Left face moved leftward (position decreased)
+                            // Before pull, left face was at pp[0] + delta (since position moved by -delta)
+                            // Check objects whose right face touched original left face
+                            if let Shape::Box { width: ow, .. } = &other.shape {
+                                if (other.position[0] + ow - (pp[0] - delta)).abs() < tol {
+                                    other.position[0] += delta; // delta is negative for left pull
+                                }
+                            }
+                        }
+                        PullFace::Top => {
+                            if (pp[1] + ph - delta - other.position[1]).abs() < tol {
+                                other.position[1] += delta;
+                            }
+                        }
+                        PullFace::Bottom => {
+                            if let Shape::Box { height: oh, .. } = &other.shape {
+                                if (other.position[1] + oh - (pp[1] - delta)).abs() < tol {
+                                    other.position[1] += delta;
+                                }
+                            }
+                        }
+                        PullFace::Back => {
+                            if (pp[2] + pd - delta - other.position[2]).abs() < tol {
+                                other.position[2] += delta;
+                            }
+                        }
+                        PullFace::Front => {
+                            if let Shape::Box { depth: od, .. } = &other.shape {
+                                if (other.position[2] + od - (pp[2] - delta)).abs() < tol {
+                                    other.position[2] += delta;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Pick which face of which object the ray hits (for Push/Pull)

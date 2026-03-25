@@ -349,6 +349,10 @@ pub struct KolibriApp {
     // A5: Ctrl+Move = Copy
     pub(crate) move_is_copy: bool,
 
+    // B8: Persist move delta for array copy ("3x" syntax) after drag ends
+    pub(crate) last_move_delta: Option<[f32; 3]>,
+    pub(crate) last_move_was_copy: bool,
+
     // C3: Push/Pull reference dashed lines — original position when pull starts
     pub(crate) pull_original_pos: Option<[f32; 3]>,
     pub(crate) pull_original_dims: Option<[f32; 3]>,
@@ -551,6 +555,8 @@ impl KolibriApp {
             last_saved_version: 0,
             pending_action: None,
             move_is_copy: false,
+            last_move_delta: None,
+            last_move_was_copy: false,
             pull_original_pos: None,
             pull_original_dims: None,
             last_pull_distance: 0.0,
