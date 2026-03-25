@@ -4,6 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
 use crate::scene::{Scene, Shape};
+use crate::texture_manager::TextureManager;
 
 // ─── GPU Types ───────────────────────────────────────────────────────────────
 
@@ -669,6 +670,7 @@ impl ViewportRenderer {
         selected_face: Option<(&str, u8)>,
         edge_thickness: f32,
         show_colors: bool,
+        texture_manager: &TextureManager,
     ) {
         // Upload uniforms
         let uniforms = Uniforms {
@@ -690,6 +692,7 @@ impl ViewportRenderer {
                 scene, selected_ids, hovered_id, editing_group_id,
                 hovered_face, selected_face,
                 edge_thickness, render_mode,
+                texture_manager,
             );
             self.cached_verts = verts;
             self.cached_idx = idx;
@@ -1015,6 +1018,7 @@ fn build_scene_mesh(
     selected_face: Option<(&str, u8)>,
     edge_thickness_param: f32,
     render_mode: u32,
+    texture_manager: &TextureManager,
 ) -> (Vec<Vertex>, Vec<u32>) {
     let mut verts = Vec::new();
     let mut idx = Vec::new();
@@ -1023,7 +1027,16 @@ fn build_scene_mesh(
         // Skip invisible objects (hidden by layer/tag)
         if !obj.visible { continue; }
 
-        let mut color = obj.material.color();
+        // Use texture average color if a texture is loaded, otherwise material color
+        let mut color = if let Some(ref tex_path) = obj.texture_path {
+            if texture_manager.is_loaded(tex_path) {
+                texture_manager.average_color(tex_path)
+            } else {
+                obj.material.color()
+            }
+        } else {
+            obj.material.color()
+        };
         if selected_ids.iter().any(|s| s == &obj.id) {
             color = [0.2, 0.6, 1.0, 1.0]; // blue highlight
         } else if Some(obj.id.as_str()) == hovered {
@@ -1075,6 +1088,23 @@ fn build_scene_mesh(
                     let mesh_edge_color = if render_mode == 5 { [0.0, 0.0, 0.0, 1.0] } else { [0.15, 0.15, 0.15, 1.0] };
                     let mesh_edge_thick = if render_mode == 5 { edge_thickness_param * 1.5 } else { edge_thickness_param.max(3.0) };
                     push_line_segments(&mut verts, &mut idx, &[p1, p2], mesh_edge_thick, mesh_edge_color);
+                }
+            }
+        }
+
+        // ── Per-vertex triplanar texture sampling for textured objects ──
+        if let Some(ref tex_path) = obj.texture_path {
+            if texture_manager.is_loaded(tex_path) && !selected_ids.iter().any(|s| s == &obj.id) {
+                // Recolor face vertices with triplanar-sampled texture color
+                // Use a scale of 0.001 (1 texture repeat per 1000mm = 1m)
+                let scale = 0.001;
+                for vert in &mut verts[start_idx..] {
+                    // Skip edge line vertices (very thin quads have small normals — skip if color is dark edge)
+                    if vert.color[0] < 0.2 && vert.color[1] < 0.2 && vert.color[2] < 0.2 {
+                        continue;
+                    }
+                    let tc = texture_manager.triplanar_sample(tex_path, vert.position, vert.normal, scale);
+                    vert.color = tc;
                 }
             }
         }

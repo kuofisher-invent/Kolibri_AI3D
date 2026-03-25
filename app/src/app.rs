@@ -414,6 +414,9 @@ pub struct KolibriApp {
     // Layout/Sheet mode (出圖模式)
     pub(crate) layout_mode: bool,
     pub(crate) layout: crate::layout::Layout,
+
+    // Texture manager: CPU-side image cache for texture mapping
+    pub(crate) texture_manager: crate::texture_manager::TextureManager,
 }
 
 impl KolibriApp {
@@ -587,6 +590,7 @@ impl KolibriApp {
             show_console: false,
             layout_mode: false,
             layout: crate::layout::Layout::default(),
+            texture_manager: crate::texture_manager::TextureManager::new(),
         }
     }
 
@@ -921,6 +925,12 @@ impl eframe::App for KolibriApp {
                             self.add_recent_file(&p);
                             self.selected_ids.clear();
                             self.last_saved_version = self.scene.version;
+                            // Auto-load textures referenced by scene objects
+                            for obj in self.scene.objects.values() {
+                                if let Some(ref tex_path) = obj.texture_path {
+                                    let _ = self.texture_manager.load(tex_path);
+                                }
+                            }
                             self.console_push("INFO", format!("[File] 已載入 {} 個物件", count));
                             self.file_message = Some((format!("已載入 {} 個物件", count), std::time::Instant::now()));
                         }
@@ -984,7 +994,7 @@ impl eframe::App for KolibriApp {
                 };
                 let hf = self.hovered_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 let sf = self.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
-                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.selected_ids, self.hovered_id.as_deref(), self.editing_group_id.as_deref(), &preview, self.render_mode.as_u32(), self.sky_color, self.ground_color, hf, sf, self.edge_thickness, self.show_colors);
+                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.selected_ids, self.hovered_id.as_deref(), self.editing_group_id.as_deref(), &preview, self.render_mode.as_u32(), self.sky_color, self.ground_color, hf, sf, self.edge_thickness, self.show_colors, &self.texture_manager);
 
                 let (rect, response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
                 if let Some(tex_id) = self.viewport.texture_id {

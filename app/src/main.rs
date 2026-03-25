@@ -31,6 +31,7 @@ mod scene;
 mod snap;
 mod stl_io;
 mod test_bridge;
+mod texture_manager;
 mod tools;
 
 use eframe::egui;

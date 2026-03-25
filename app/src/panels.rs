@@ -1398,6 +1398,46 @@ impl KolibriApp {
         self.show_custom_color_picker = show_custom_local;
         ui.add_space(8.0);
 
+        // Texture mapping
+        section_frame_full(ui, |ui| {
+            section_header_text(ui, "TEXTURE");
+
+            if let Some(ref path) = obj.texture_path {
+                let filename = path.rsplit(['\\', '/']).next().unwrap_or(path);
+                ui.label(format!("  {}", filename));
+                if let Some((w, h)) = self.texture_manager.info(path) {
+                    ui.small(format!("{}x{} px", w, h));
+                }
+                if ui.button("移除紋理").clicked() {
+                    obj.texture_path = None;
+                    self.scene.version += 1;
+                }
+            } else {
+                ui.label(egui::RichText::new("無紋理").color(egui::Color32::from_rgb(110, 118, 135)));
+            }
+
+            if ui.button("載入紋理圖片...").clicked() {
+                let file = rfd::FileDialog::new()
+                    .set_title("載入紋理")
+                    .add_filter("圖片", &["png", "jpg", "jpeg", "bmp"])
+                    .pick_file();
+                if let Some(path) = file {
+                    let ps = path.to_string_lossy().to_string();
+                    match self.texture_manager.load(&ps) {
+                        Ok(_) => {
+                            obj.texture_path = Some(ps);
+                            self.scene.version += 1;
+                            self.file_message = Some(("紋理已載入".into(), std::time::Instant::now()));
+                        }
+                        Err(e) => {
+                            self.file_message = Some((e, std::time::Instant::now()));
+                        }
+                    }
+                }
+            }
+        });
+        ui.add_space(8.0);
+
         // Measurements
         section_frame_full(ui, |ui| {
             section_header_text(ui, "MEASURE");
