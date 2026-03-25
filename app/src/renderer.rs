@@ -323,6 +323,7 @@ pub struct ViewportRenderer {
     // ── Performance: dirty-flag mesh caching ──
     cached_scene_version: u64,
     cached_verts: Vec<Vertex>,
+    cached_face_vert_count: usize,  // number of face vertices (before edge lines)
     cached_idx: Vec<u32>,
     cached_edge_thickness: f32,
     cached_render_mode: u32,
@@ -490,6 +491,7 @@ impl ViewportRenderer {
             // Dirty-flag caching (version 0 forces first rebuild)
             cached_scene_version: u64::MAX,
             cached_verts: Vec::new(),
+            cached_face_vert_count: 0,
             cached_idx: Vec::new(),
             cached_edge_thickness: -1.0,
             cached_render_mode: u32::MAX,
@@ -709,21 +711,51 @@ impl ViewportRenderer {
         tri_idx.extend(preview.1.iter().map(|i| i + offset));
 
         // Apply render mode to vertex colors
+        // Edge line vertices have dark colors (rgb < 0.3) — preserve them in wireframe/sketch modes
         match render_mode {
-            1 => { // Wireframe: make faces nearly invisible so only edges show
-                for v in &mut tri_verts { v.color[3] = 0.02; }
+            1 => { // Wireframe: make faces invisible, keep edge lines visible
+                for v in &mut tri_verts {
+                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
+                    let is_selected_edge = v.color[2] > 0.8 && v.color[0] < 0.4; // blue selection edge
+                    if !is_edge && !is_selected_edge {
+                        v.color[3] = 0.0; // hide face completely
+                    }
+                }
             }
-            2 => { // X-Ray: make everything transparent
-                for v in &mut tri_verts { v.color[3] = 0.15; }
+            2 => { // X-Ray: make faces transparent, keep edges
+                for v in &mut tri_verts {
+                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
+                    if !is_edge {
+                        v.color[3] = 0.15;
+                    }
+                }
             }
             3 => { // Hidden Line: white surfaces, keep edges
-                for v in &mut tri_verts { v.color = [0.95, 0.95, 0.95, 1.0]; }
+                for v in &mut tri_verts {
+                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
+                    if !is_edge {
+                        v.color = [0.95, 0.95, 0.95, 1.0];
+                    }
+                }
             }
-            4 => { // Monochrome: uniform grey
-                for v in &mut tri_verts { v.color = [0.75, 0.75, 0.75, 1.0]; }
+            4 => { // Monochrome: uniform grey faces, keep edges
+                for v in &mut tri_verts {
+                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
+                    if !is_edge {
+                        v.color = [0.75, 0.75, 0.75, 1.0];
+                    }
+                }
             }
-            5 => { // Sketch: invisible faces (edges only, rendered as black lines)
-                for v in &mut tri_verts { v.color = [1.0, 1.0, 1.0, 0.0]; }
+            5 => { // Sketch: invisible faces, black edges only
+                for v in &mut tri_verts {
+                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
+                    let is_selected_edge = v.color[2] > 0.8 && v.color[0] < 0.4;
+                    if is_edge || is_selected_edge {
+                        v.color = [0.0, 0.0, 0.0, 1.0]; // pure black edges
+                    } else {
+                        v.color[3] = 0.0; // hide faces
+                    }
+                }
             }
             _ => {} // Shaded: default
         }
