@@ -672,6 +672,32 @@ impl KolibriApp {
     pub(crate) fn toolbar_ui(&mut self, ui: &mut egui::Ui) {
         let bsz = egui::vec2(48.0, 48.0);
 
+        // ── View mode: 建模 / 出圖 ──
+        ui.horizontal(|ui| {
+            let brand = egui::Color32::from_rgb(76, 139, 245);
+            let muted = egui::Color32::from_rgb(110, 118, 135);
+            let m_btn = egui::Button::new(egui::RichText::new("建模").size(11.0)
+                .color(if !self.layout_mode { egui::Color32::WHITE } else { muted }))
+                .fill(if !self.layout_mode { brand } else { egui::Color32::TRANSPARENT })
+                .rounding(8.0);
+            let l_btn = egui::Button::new(egui::RichText::new("出圖").size(11.0)
+                .color(if self.layout_mode { egui::Color32::WHITE } else { muted }))
+                .fill(if self.layout_mode { egui::Color32::from_rgb(60, 160, 100) } else { egui::Color32::TRANSPARENT })
+                .rounding(8.0);
+            if ui.add(m_btn).clicked() { self.layout_mode = false; }
+            if ui.add(l_btn).clicked() { self.layout_mode = true; }
+        });
+
+        ui.add_space(2.0);
+
+        // When in layout mode, don't show 3D tools
+        if self.layout_mode {
+            ui.separator();
+            ui.label(egui::RichText::new("出圖模式").size(11.0).color(egui::Color32::from_gray(130)));
+            ui.label(egui::RichText::new("右側面板可編輯\n紙張與圖框設定").size(10.0).color(egui::Color32::from_gray(160)));
+            return;
+        }
+
         // ── Mode switch ──
         ui.horizontal(|ui| {
             let modeling_active = self.work_mode == WorkMode::Modeling;
@@ -963,6 +989,15 @@ impl KolibriApp {
             });
         });
         ui.add_space(4.0);
+
+        // Layout mode: show layout properties instead of normal tabs
+        if self.layout_mode {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                crate::layout::draw_layout_properties(ui, &mut self.layout);
+            });
+            return;
+        }
+
         egui::ScrollArea::vertical().show(ui, |ui| {
             match self.right_tab {
                 RightTab::Properties => {
@@ -1066,6 +1101,7 @@ impl KolibriApp {
                         (crate::app::RenderMode::XRay, "X光"),
                         (crate::app::RenderMode::HiddenLine, "隱藏線"),
                         (crate::app::RenderMode::Monochrome, "單色"),
+                        (crate::app::RenderMode::Sketch, "草稿"),
                     ];
                     for (mode, label) in modes {
                         if ui.selectable_label(self.render_mode == mode, label).clicked() {
@@ -1073,6 +1109,12 @@ impl KolibriApp {
                         }
                     }
                 });
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label("線粗");
+                    ui.add(egui::Slider::new(&mut self.edge_thickness, 0.5..=8.0).step_by(0.5));
+                });
+                ui.checkbox(&mut self.show_colors, "顯示顏色");
             });
 
             ui.add_space(8.0);

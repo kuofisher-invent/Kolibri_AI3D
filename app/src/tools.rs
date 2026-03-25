@@ -2340,6 +2340,7 @@ impl KolibriApp {
                     1 => RenderMode::Wireframe,
                     2 => RenderMode::XRay,
                     3 => RenderMode::HiddenLine,
+                    5 => RenderMode::Sketch,
                     _ => RenderMode::Monochrome,
                 };
             }

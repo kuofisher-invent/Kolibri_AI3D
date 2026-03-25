@@ -148,6 +148,7 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
             if ui.button("X光").clicked() { action = MenuAction::SetRenderMode(2); ui.close_menu(); }
             if ui.button("隱藏線").clicked() { action = MenuAction::SetRenderMode(3); ui.close_menu(); }
             if ui.button("單色").clicked() { action = MenuAction::SetRenderMode(4); ui.close_menu(); }
+            if ui.button("草稿").clicked() { action = MenuAction::SetRenderMode(5); ui.close_menu(); }
             ui.separator();
             if ui.button("切換背景 (明/暗)").clicked() { action = MenuAction::ToggleBackground; ui.close_menu(); }
             ui.separator();

@@ -218,6 +218,7 @@ pub(crate) enum RenderMode {
     XRay,        // X光 (transparent)
     HiddenLine,  // 隱藏線
     Monochrome,  // 單色
+    Sketch,      // 草稿 — black edges on white, no fill
 }
 
 impl RenderMode {
@@ -228,6 +229,7 @@ impl RenderMode {
             Self::XRay => 2,
             Self::HiddenLine => 3,
             Self::Monochrome => 4,
+            Self::Sketch => 5,
         }
     }
 }
@@ -321,6 +323,10 @@ pub struct KolibriApp {
     // Render mode (face style)
     pub(crate) render_mode: RenderMode,
 
+    // Sketch rendering controls
+    pub(crate) edge_thickness: f32,  // default 2.0, range 0.5-8.0
+    pub(crate) show_colors: bool,    // true = normal colors, false = all white/grey
+
     // Configurable background colors
     pub(crate) sky_color: [f32; 3],
     pub(crate) ground_color: [f32; 3],
@@ -400,6 +406,10 @@ pub struct KolibriApp {
     // Console/Log panel
     pub(crate) console_log: Vec<(String, String, std::time::Instant)>,  // (level, message, time)
     pub(crate) show_console: bool,
+
+    // Layout/Sheet mode (出圖模式)
+    pub(crate) layout_mode: bool,
+    pub(crate) layout: crate::layout::Layout,
 }
 
 impl KolibriApp {
@@ -529,6 +539,8 @@ impl KolibriApp {
             cursor_dimension: None,
             move_origin: None,
             render_mode: RenderMode::Shaded,
+            edge_thickness: 2.0,
+            show_colors: true,
             sky_color: [0.53, 0.72, 0.9],
             ground_color: [0.65, 0.63, 0.60],
             use_ortho: false,
@@ -567,6 +579,8 @@ impl KolibriApp {
             show_help: false,
             console_log: Vec::new(),
             show_console: false,
+            layout_mode: false,
+            layout: crate::layout::Layout::default(),
         }
     }
 
@@ -936,6 +950,14 @@ impl eframe::App for KolibriApp {
                 .fill(egui::Color32::from_rgb(245, 246, 250))
                 .inner_margin(egui::Margin::same(0.0)))
             .show(ctx, |ui| {
+                // ── Layout mode: 2D paper view ──
+                if self.layout_mode {
+                    let avail = ui.available_size();
+                    let (rect, _response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
+                    crate::layout::draw_layout(ui, &self.layout, rect);
+                    return;
+                }
+
                 let avail = ui.available_size();
                 let w = (avail.x.ceil() as u32).max(1);
                 let h = (avail.y.ceil() as u32).max(1);
@@ -956,7 +978,7 @@ impl eframe::App for KolibriApp {
                 };
                 let hf = self.hovered_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 let sf = self.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
-                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.selected_ids, self.hovered_id.as_deref(), self.editing_group_id.as_deref(), &preview, self.render_mode.as_u32(), self.sky_color, self.ground_color, hf, sf);
+                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.selected_ids, self.hovered_id.as_deref(), self.editing_group_id.as_deref(), &preview, self.render_mode.as_u32(), self.sky_color, self.ground_color, hf, sf, self.edge_thickness, self.show_colors);
 
                 let (rect, response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
                 if let Some(tex_id) = self.viewport.texture_id {
@@ -2016,7 +2038,7 @@ impl eframe::App for KolibriApp {
                         egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 200)));
 
                     // View buttons
-                    let views = ["\u{900f}\u{8996}", "\u{6b63}\u{8996}", "\u{4fef}\u{8996}", "\u{5de6}\u{8996}", "\u{7dda}\u{6846}", "\u{8457}\u{8272}"];
+                    let views = ["\u{900f}\u{8996}", "\u{6b63}\u{8996}", "\u{4fef}\u{8996}", "\u{5de6}\u{8996}", "\u{7dda}\u{6846}", "\u{8457}\u{8272}", "\u{8349}\u{7a3f}"];
                     let btn_w = 50.0;
                     let padding = 8.0;
                     for (i, label) in views.iter().enumerate() {
@@ -2031,6 +2053,7 @@ impl eframe::App for KolibriApp {
                             (1, true, _) => false,
                             (5, _, RenderMode::Shaded) => true,
                             (4, _, RenderMode::Wireframe) => true,
+                            (6, _, RenderMode::Sketch) => true,
                             _ => false,
                         };
 
@@ -2066,6 +2089,7 @@ impl eframe::App for KolibriApp {
                                 3 => { self.use_ortho = true; self.camera.set_left(); }
                                 4 => self.render_mode = RenderMode::Wireframe,
                                 5 => self.render_mode = RenderMode::Shaded,
+                                6 => self.render_mode = RenderMode::Sketch,
                                 _ => {}
                             }
                         }

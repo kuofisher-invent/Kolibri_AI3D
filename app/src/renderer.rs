@@ -323,6 +323,8 @@ pub struct ViewportRenderer {
     cached_scene_version: u64,
     cached_verts: Vec<Vertex>,
     cached_idx: Vec<u32>,
+    cached_edge_thickness: f32,
+    cached_render_mode: u32,
     // ── Performance: pre-allocated GPU buffers ──
     scene_vb: Option<wgpu::Buffer>,
     scene_ib: Option<wgpu::Buffer>,
@@ -488,6 +490,8 @@ impl ViewportRenderer {
             cached_scene_version: u64::MAX,
             cached_verts: Vec::new(),
             cached_idx: Vec::new(),
+            cached_edge_thickness: -1.0,
+            cached_render_mode: u32::MAX,
             // Pre-allocated GPU buffers (None = not yet created)
             scene_vb: None,
             scene_ib: None,
@@ -663,6 +667,8 @@ impl ViewportRenderer {
         ground_color: [f32; 3],
         hovered_face: Option<(&str, u8)>,
         selected_face: Option<(&str, u8)>,
+        edge_thickness: f32,
+        show_colors: bool,
     ) {
         // Upload uniforms
         let uniforms = Uniforms {
@@ -675,16 +681,21 @@ impl ViewportRenderer {
         // ── Dirty-flag caching: only rebuild scene mesh when scene changes ──
         let scene_dirty = scene.version != self.cached_scene_version
             || !preview.0.is_empty()   // always rebuild if there's preview geometry
-            || self.cached_verts.is_empty();
+            || self.cached_verts.is_empty()
+            || (self.cached_edge_thickness - edge_thickness).abs() > 0.01
+            || self.cached_render_mode != render_mode;
 
         if scene_dirty {
             let (verts, idx) = build_scene_mesh(
                 scene, selected_ids, hovered_id, editing_group_id,
                 hovered_face, selected_face,
+                edge_thickness, render_mode,
             );
             self.cached_verts = verts;
             self.cached_idx = idx;
             self.cached_scene_version = scene.version;
+            self.cached_edge_thickness = edge_thickness;
+            self.cached_render_mode = render_mode;
         }
 
         // Combine cached scene mesh + preview geometry
@@ -708,7 +719,17 @@ impl ViewportRenderer {
             4 => { // Monochrome: uniform grey
                 for v in &mut tri_verts { v.color = [0.75, 0.75, 0.75, 1.0]; }
             }
+            5 => { // Sketch: invisible faces (edges only, rendered as black lines)
+                for v in &mut tri_verts { v.color = [1.0, 1.0, 1.0, 0.0]; }
+            }
             _ => {} // Shaded: default
+        }
+
+        // Color removal: replace all vertex colors with light grey (keep alpha)
+        if !show_colors && render_mode != 5 {
+            for v in &mut tri_verts {
+                v.color = [0.85, 0.85, 0.85, v.color[3]];
+            }
         }
 
         // Generate ground shadow vertices (planar projection onto Y=0 plane)
@@ -772,8 +793,10 @@ impl ViewportRenderer {
                     view: &self.msaa_view,
                     resolve_target: Some(&self.color_view),
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.12, g: 0.12, b: 0.16, a: 1.0,
+                        load: wgpu::LoadOp::Clear(if render_mode == 5 {
+                            wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+                        } else {
+                            wgpu::Color { r: 0.12, g: 0.12, b: 0.16, a: 1.0 }
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -793,17 +816,21 @@ impl ViewportRenderer {
             // Set bind group for all passes (sky now uses uniform buffer too)
             pass.set_bind_group(0, &self.bind_group, &[]);
 
-            // Sky gradient (fullscreen triangle, no vertex buffer)
-            pass.set_pipeline(&self.sky_pipeline);
-            pass.draw(0..3, 0..1);
+            // Sky gradient (fullscreen triangle, no vertex buffer) — skip in Sketch mode
+            if render_mode != 5 {
+                pass.set_pipeline(&self.sky_pipeline);
+                pass.draw(0..3, 0..1);
+            }
 
-            // Grid lines
-            pass.set_pipeline(&self.line_pipeline);
-            pass.set_vertex_buffer(0, grid_buf.slice(..));
-            pass.draw(0..self.grid_verts.len() as u32, 0..1);
+            // Grid lines — skip in Sketch mode for clean output
+            if render_mode != 5 {
+                pass.set_pipeline(&self.line_pipeline);
+                pass.set_vertex_buffer(0, grid_buf.slice(..));
+                pass.draw(0..self.grid_verts.len() as u32, 0..1);
+            }
 
-            // Ground shadows (drawn before scene so objects render on top)
-            if !shadow_idx.is_empty() {
+            // Ground shadows (drawn before scene so objects render on top) — skip in Sketch mode
+            if render_mode != 5 && !shadow_idx.is_empty() {
                 if let (Some(svb), Some(sib)) = (&self.shadow_vb, &self.shadow_ib) {
                     pass.set_pipeline(&self.tri_pipeline);
                     pass.set_vertex_buffer(0, svb.slice(..));
@@ -986,6 +1013,8 @@ fn build_scene_mesh(
     editing_group_id: Option<&str>,
     hovered_face: Option<(&str, u8)>,
     selected_face: Option<(&str, u8)>,
+    edge_thickness_param: f32,
+    render_mode: u32,
 ) -> (Vec<Vertex>, Vec<u32>) {
     let mut verts = Vec::new();
     let mut idx = Vec::new();
@@ -1043,15 +1072,25 @@ fn build_scene_mesh(
                     }
                 }
                 for (p1, p2) in mesh.all_edge_segments() {
-                    push_line_segments(&mut verts, &mut idx, &[p1, p2], 3.0, [0.15, 0.15, 0.15, 1.0]);
+                    let mesh_edge_color = if render_mode == 5 { [0.0, 0.0, 0.0, 1.0] } else { [0.15, 0.15, 0.15, 1.0] };
+                    let mesh_edge_thick = if render_mode == 5 { edge_thickness_param * 1.5 } else { edge_thickness_param.max(3.0) };
+                    push_line_segments(&mut verts, &mut idx, &[p1, p2], mesh_edge_thick, mesh_edge_color);
                 }
             }
         }
 
         // ── Explicit geometric edge lines for ALL objects (SketchUp-style) ──
         {
-            let edge_color = [0.15, 0.15, 0.15, 1.0]; // dark edges
-            let edge_thickness = 2.0;
+            let edge_color = if render_mode == 5 {
+                [0.0, 0.0, 0.0, 1.0]  // pure black for sketch
+            } else {
+                [0.15, 0.15, 0.15, 1.0] // dark edges
+            };
+            let edge_thickness = if render_mode == 5 {
+                edge_thickness_param * 1.5  // thicker in sketch mode
+            } else {
+                edge_thickness_param
+            };
             match &obj.shape {
                 Shape::Box { width, height, depth } => {
                     let (w, h, d) = (*width, *height, *depth);

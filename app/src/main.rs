@@ -19,6 +19,7 @@ mod hybrid;
 mod import;
 mod inference;
 mod icons;
+mod layout;
 mod mcp_server;
 mod measure;
 mod menu;
