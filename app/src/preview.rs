@@ -117,7 +117,7 @@ impl KolibriApp {
                 }
             }
 
-            DrawState::Rotating { .. } => {}
+            DrawState::RotateRef { .. } | DrawState::RotateAngle { .. } => {}
 
             // F2: Show ghost of original shape during push/pull — not a DrawState,
             // handled below after the match

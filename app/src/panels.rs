@@ -1924,8 +1924,12 @@ impl KolibriApp {
             DrawState::ArcP2 { .. } => "移動設定弧度（半圓自動鎖定），點擊確認".into(),
             DrawState::PieCenter { .. } => "點擊設定扇形半徑終點".into(),
             DrawState::PieRadius { .. } => "移動設定扇形角度，點擊確認".into(),
-            DrawState::Rotating { accumulated, .. } => {
-                format!("\u{65cb}\u{8f49} {:.1}\u{00b0} \u{2014} \u{62d6}\u{66f3}\u{65cb}\u{8f49}, \u{8f38}\u{5165}\u{89d2}\u{5ea6}+Enter \u{78ba}\u{8a8d}", accumulated.to_degrees())
+            DrawState::RotateRef { .. } => {
+                "點擊設定參考方向（0° 線）".into()
+            }
+            DrawState::RotateAngle { ref_angle, current_angle, .. } => {
+                let delta_deg = (current_angle - ref_angle).to_degrees();
+                format!("旋轉 {:.1}° — 點擊確認, 輸入角度+Enter 精確旋轉", delta_deg)
             }
             DrawState::Scaling { handle, .. } => {
                 let axis = match handle {

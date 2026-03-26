@@ -498,6 +498,12 @@ impl Scene {
 
     pub fn create_group(&mut self, name: String, child_ids: Vec<String>) -> String {
         let id = uuid::Uuid::new_v4().to_string()[..8].to_string();
+        // 同步設定子物件的 parent_id
+        for cid in &child_ids {
+            if let Some(obj) = self.objects.get_mut(cid) {
+                obj.parent_id = Some(id.clone());
+            }
+        }
         self.groups.insert(id.clone(), GroupDef {
             id: id.clone(),
             name,
@@ -510,6 +516,15 @@ impl Scene {
     }
 
     pub fn dissolve_group(&mut self, group_id: &str) {
+        // 清除子物件的 parent_id
+        if let Some(group) = self.groups.get(group_id) {
+            let children = group.children.clone();
+            for cid in &children {
+                if let Some(obj) = self.objects.get_mut(cid) {
+                    obj.parent_id = None;
+                }
+            }
+        }
         self.groups.remove(group_id);
         self.version += 1;
     }
@@ -605,6 +620,31 @@ impl Scene {
         }
 
         self.version += 1;
+    }
+
+    /// 自動同步元件：如果 obj_id 是某個元件的實例，則更新定義並同步所有實例
+    pub fn auto_sync_component(&mut self, obj_id: &str) {
+        let tag = if let Some(obj) = self.objects.get(obj_id) {
+            obj.tag.clone()
+        } else {
+            return;
+        };
+        if !tag.starts_with("元件:") { return; }
+        let def_id = tag.trim_start_matches("元件:").to_string();
+
+        // 用此物件更新定義
+        if let Some(obj) = self.objects.get(obj_id) {
+            let obj_clone = obj.clone();
+            if let Some(def) = self.component_defs.get_mut(&def_id) {
+                if let Some(first) = def.objects.first_mut() {
+                    first.shape = obj_clone.shape;
+                    first.material = obj_clone.material;
+                }
+            }
+        }
+
+        // 同步到所有其他實例
+        self.sync_component_instances(&def_id);
     }
 
     /// Save scene to a JSON file

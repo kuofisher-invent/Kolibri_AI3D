@@ -502,6 +502,63 @@ fn draw_label(painter: &egui::Painter, pos: egui::Pos2, text: &str, style: &Dime
     painter.galley(text_rect.min, galley, style.text_egui_color());
 }
 
+// ─── Hit-testing: 返回每個標註的螢幕標籤位置 ─────────────────────────────────
+
+/// 計算每個標註的螢幕標籤中心位置（用於點擊編輯）
+pub fn dim_label_positions(
+    dims: &[Dimension],
+    view_proj: Mat4,
+    rect: &egui::Rect,
+    style: &DimensionStyle,
+) -> Vec<Option<egui::Pos2>> {
+    dims.iter().map(|dim| {
+        match &dim.kind {
+            DimensionKind::Linear { start, end } => {
+                let (s, e) = match (project(*start, view_proj, rect), project(*end, view_proj, rect)) {
+                    (Some(s), Some(e)) => (s, e),
+                    _ => return None,
+                };
+                let dx = e.x - s.x;
+                let dy = e.y - s.y;
+                let dist = (dx*dx + dy*dy).sqrt();
+                if dist < 15.0 { return None; }
+                let perp_x = -dy / dist;
+                let perp_y = dx / dist;
+                let offset = style.offset;
+                Some(egui::pos2(
+                    (s.x + e.x) * 0.5 + perp_x * offset,
+                    (s.y + e.y) * 0.5 + perp_y * offset,
+                ))
+            }
+            DimensionKind::Radius { center, radius, direction } |
+            DimensionKind::Diameter { center, radius, direction } => {
+                let mid_pt = [
+                    center[0] + direction[0] * radius * 0.5,
+                    center[1] + direction[1] * radius * 0.5,
+                    center[2] + direction[2] * radius * 0.5,
+                ];
+                project(mid_pt, view_proj, rect)
+            }
+            DimensionKind::Angle { vertex, dir_a, dir_b, radius_px } => {
+                let c = project(*vertex, view_proj, rect)?;
+                let a = glam::Vec3::from(*dir_a).normalize();
+                let b = glam::Vec3::from(*dir_b).normalize();
+                let mid = (a + b).normalize();
+                Some(egui::pos2(c.x + mid.x * radius_px * 0.7, c.y - mid.z * radius_px * 0.7))
+            }
+            DimensionKind::ArcLength { center, radius, start_angle, end_angle } => {
+                let mid_angle = (start_angle + end_angle) * 0.5;
+                let mid_world = [
+                    center[0] + (radius + 500.0) * mid_angle.cos(),
+                    center[1],
+                    center[2] + (radius + 500.0) * mid_angle.sin(),
+                ];
+                project(mid_world, view_proj, rect)
+            }
+        }
+    }).collect()
+}
+
 // ─── Auto-dimension generation for shapes ────────────────────────────────────
 
 /// Generate automatic dimensions for a selected shape (SketchUp/CAD style)

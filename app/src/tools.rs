@@ -386,48 +386,39 @@ impl KolibriApp {
                 }
             }
             if response.drag_stopped() || response.clicked() {
+                // 元件同步：縮放完成後同步所有同一元件的實例
+                let oid = obj_id.clone();
                 self.editor.draw_state = DrawState::Idle;
                 self.editor.drag_snapshot_taken = false;
+                self.scene.auto_sync_component(&oid);
             }
         }
 
-        // D1: Rotate drag handler — interactive rotation with protractor
-        if let DrawState::Rotating { ref obj_id, center, start_angle: _, ref mut accumulated } = self.editor.draw_state.clone() {
-            if response.dragged_by(egui::PointerButton::Primary) {
-                if !self.editor.drag_snapshot_taken {
-                    self.scene.snapshot();
-                    self.editor.drag_snapshot_taken = true;
-                }
-                // Horizontal drag = rotation
-                let delta_angle = response.drag_delta().x * 0.005;
-                let obj_id = obj_id.clone();
-                let new_accumulated = *accumulated + delta_angle;
+        // D1: Rotate — live preview during step 3 (hover updates rotation)
+        if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations } = self.editor.draw_state.clone() {
+            if let Some(pt) = self.editor.mouse_ground {
+                let dx = pt[0] - center[0];
+                let dz = pt[2] - center[2];
+                let mouse_angle = dz.atan2(dx);
+                let mut delta = mouse_angle - ref_angle;
 
-                // Snap to 15-degree increments when within 3 degrees
-                let mut new_rotation = {
-                    if let Some(obj) = self.scene.objects.get(&obj_id) {
-                        obj.rotation_y + delta_angle
-                    } else {
-                        0.0
-                    }
-                };
+                // Snap to 15° increments when within 3°
                 let snap_angle = 15.0_f32.to_radians();
-                let snapped = (new_rotation / snap_angle).round() * snap_angle;
-                if (new_rotation - snapped).abs() < 3.0_f32.to_radians() {
-                    new_rotation = snapped;
+                let snapped = (delta / snap_angle).round() * snap_angle;
+                if (delta - snapped).abs() < 3.0_f32.to_radians() {
+                    delta = snapped;
                 }
-                if let Some(obj) = self.scene.objects.get_mut(&obj_id) {
-                    obj.rotation_y = new_rotation;
+
+                // 即時套用旋轉到所有選取物件
+                for (i, id) in obj_ids.iter().enumerate() {
+                    let orig = original_rotations.get(i).copied().unwrap_or(0.0);
+                    if let Some(obj) = self.scene.objects.get_mut(id) {
+                        obj.rotation_y = orig + delta;
+                    }
                 }
-                // Update draw state with new accumulated
-                self.editor.draw_state = DrawState::Rotating {
-                    obj_id: obj_id.clone(), center, start_angle: 0.0,
-                    accumulated: new_accumulated,
+                self.editor.draw_state = DrawState::RotateAngle {
+                    obj_ids: obj_ids.to_vec(), center, ref_angle, current_angle: mouse_angle, original_rotations: original_rotations.to_vec(),
                 };
-            }
-            if response.drag_stopped() {
-                self.editor.draw_state = DrawState::Idle;
-                self.editor.drag_snapshot_taken = false;
             }
         }
 
@@ -617,6 +608,8 @@ impl KolibriApp {
                             Self::adjust_adjacent_after_pull(&mut self.scene, &obj_id, face, pull_delta);
                         }
                     }
+                    // 元件同步：推拉完成後同步所有同一元件的實例
+                    self.scene.auto_sync_component(&obj_id);
                     // Store pull face for double-click repeat (A4)
                     // last_pull_distance was accumulated during drag
                     self.editor.last_pull_face = Some((obj_id.clone(), face));
@@ -657,19 +650,31 @@ impl KolibriApp {
             }
         }
 
-        // Double-click: enter group isolation mode
+        // Double-click: enter/exit group isolation mode
         if response.double_clicked() {
             let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
             let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
-            if let Some(id) = self.pick(mx, my, vw, vh) {
-                let is_group = self.scene.objects.get(&id)
-                    .map(|o| o.name.contains("[群組]") || o.name.contains("[元件]"))
-                    .unwrap_or(false);
+            if self.editor.editing_group_id.is_some() {
+                // 已在群組內 → 雙擊退出
+                self.editor.editing_group_id = None;
+                self.editor.selected_ids.clear();
+            } else if let Some(id) = self.pick(mx, my, vw, vh) {
+                // 用 GroupDef 檢查是否為群組（取代字串比對）
+                let is_group = self.scene.groups.contains_key(&id)
+                    || self.scene.objects.get(&id)
+                        .map(|o| o.name.contains("[群組]") || o.name.contains("[元件]"))
+                        .unwrap_or(false);
+                // 也檢查物件的 parent_id 是否指向一個群組
+                let parent_group = self.scene.objects.get(&id)
+                    .and_then(|o| o.parent_id.clone())
+                    .filter(|pid| self.scene.groups.contains_key(pid));
                 if is_group {
                     self.editor.editing_group_id = Some(id.clone());
                     self.editor.selected_ids = vec![id];
-                } else {
-                    self.editor.editing_group_id = None;
+                } else if let Some(gid) = parent_group {
+                    // 雙擊群組成員 → 進入該群組的隔離編輯
+                    self.editor.editing_group_id = Some(gid);
+                    self.editor.selected_ids = vec![id];
                 }
             }
         }
@@ -697,8 +702,19 @@ impl KolibriApp {
                     }
                 }
                 if i.key_pressed(egui::Key::Escape) {
+                    // RotateAngle: ESC cancels — restore original rotations
+                    if let DrawState::RotateAngle { ref obj_ids, ref original_rotations, .. } = self.editor.draw_state.clone() {
+                        for (i, id) in obj_ids.iter().enumerate() {
+                            let orig = original_rotations.get(i).copied().unwrap_or(0.0);
+                            if let Some(obj) = self.scene.objects.get_mut(id) {
+                                obj.rotation_y = orig;
+                            }
+                        }
+                        self.scene.undo(); // 撤銷 snapshot
+                        self.editor.draw_state = DrawState::Idle;
+                    }
                     // FollowPath: ESC finishes the path and creates extrusion
-                    if let DrawState::FollowPath { ref source_id, ref path_points } = self.editor.draw_state.clone() {
+                    else if let DrawState::FollowPath { ref source_id, ref path_points } = self.editor.draw_state.clone() {
                         if path_points.len() >= 2 {
                             let pid = source_id.clone();
                             let pts = path_points.clone();
@@ -1260,37 +1276,67 @@ impl KolibriApp {
             // Camera tools: click does nothing (drag handled above)
             Tool::Orbit | Tool::Pan | Tool::ZoomExtents => {}
 
-            // Rotate: click on object to enter interactive rotation (D1)
+            // Rotate: 3-step SU-style protractor (D1)
+            // Step 1: click to place center (on ground or snap point)
+            // Step 2: click to set reference direction (0° line)
+            // Step 3: click to set target angle (or type degrees + Enter)
             Tool::Rotate => {
-                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
-                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
-                if let Some(id) = self.pick(mx, my, vw, vh) {
-                    self.editor.selected_ids = vec![id.clone()];
-                    if let Some(obj) = self.scene.objects.get(&id) {
-                        let center = match &obj.shape {
-                            Shape::Box { width, height, depth } =>
-                                [obj.position[0] + width / 2.0, obj.position[1] + height / 2.0, obj.position[2] + depth / 2.0],
-                            Shape::Cylinder { radius, height, .. } =>
-                                [obj.position[0] + radius, obj.position[1] + height / 2.0, obj.position[2] + radius],
-                            Shape::Sphere { radius, .. } =>
-                                [obj.position[0] + radius, obj.position[1] + radius, obj.position[2] + radius],
-                            _ => obj.position,
-                        };
-                        // Project object center to screen for correct angle calculation
-                        let vp_rect = egui::Rect::from_min_size(
-                            egui::pos2(0.0, 0.0),
-                            egui::vec2(self.viewer.viewport_size[0], self.viewer.viewport_size[1]),
-                        );
-                        let (cx, cy) = if let Some(screen_center) = self.world_to_screen(center, &vp_rect) {
-                            (screen_center.x, screen_center.y)
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        // Step 1: place rotation center
+                        // 需要先有選取物件
+                        let ids = if self.editor.selected_ids.is_empty() {
+                            let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                            let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
+                            if let Some(id) = self.pick(mx, my, vw, vh) {
+                                vec![id]
+                            } else {
+                                vec![]
+                            }
                         } else {
-                            (self.viewer.viewport_size[0] / 2.0, self.viewer.viewport_size[1] / 2.0)
+                            self.editor.selected_ids.clone()
                         };
-                        let start_angle = (mx - cx).atan2(my - cy);
-                        self.editor.draw_state = DrawState::Rotating {
-                            obj_id: id, center, start_angle, accumulated: 0.0,
-                        };
+                        if !ids.is_empty() {
+                            self.editor.selected_ids = ids.clone();
+                            if let Some(pt) = self.editor.mouse_ground {
+                                self.editor.draw_state = DrawState::RotateRef {
+                                    obj_ids: ids,
+                                    center: pt,
+                                };
+                            }
+                        }
                     }
+                    DrawState::RotateRef { obj_ids, center } => {
+                        // Step 2: set reference direction
+                        let obj_ids = obj_ids.clone();
+                        let center = *center;
+                        if let Some(pt) = self.editor.mouse_ground {
+                            let dx = pt[0] - center[0];
+                            let dz = pt[2] - center[2];
+                            let ref_angle = dz.atan2(dx);
+                            // 記錄所有物件的原始旋轉角
+                            let original_rotations: Vec<f32> = obj_ids.iter().map(|id| {
+                                self.scene.objects.get(id).map_or(0.0, |o| o.rotation_y)
+                            }).collect();
+                            self.scene.snapshot();
+                            self.editor.draw_state = DrawState::RotateAngle {
+                                obj_ids,
+                                center,
+                                ref_angle,
+                                current_angle: ref_angle,
+                                original_rotations,
+                            };
+                        }
+                    }
+                    DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations } => {
+                        // Step 3: confirm target angle
+                        let delta = *current_angle - *ref_angle;
+                        // 已經在 hover 時即時套用，直接結束
+                        let _ = (obj_ids, center, delta, original_rotations);
+                        self.editor.draw_state = DrawState::Idle;
+                        self.editor.drag_snapshot_taken = false;
+                    }
+                    _ => {}
                 }
             }
 
@@ -2181,13 +2227,15 @@ impl KolibriApp {
                     self.editor.draw_state = DrawState::Idle;
                 }
             }
-            // D1: Rotating — type angle in degrees to set precise rotation
-            DrawState::Rotating { ref obj_id, .. } => {
+            // D1: Rotate step 3 — type angle in degrees for precise rotation
+            DrawState::RotateAngle { ref obj_ids, ref_angle: _, ref original_rotations, .. } => {
                 if let Ok(angle) = self.editor.measure_input.parse::<f32>() {
-                    let obj_id = obj_id.clone();
-                    self.scene.snapshot();
-                    if let Some(obj) = self.scene.objects.get_mut(&obj_id) {
-                        obj.rotation_y = angle.to_radians();
+                    let delta = angle.to_radians();
+                    for (i, id) in obj_ids.iter().enumerate() {
+                        let orig = original_rotations.get(i).copied().unwrap_or(0.0);
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            obj.rotation_y = orig + delta;
+                        }
                     }
                     self.editor.draw_state = DrawState::Idle;
                 }
@@ -2200,7 +2248,14 @@ impl KolibriApp {
     pub(crate) fn pick(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<String> {
         let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let mut best: Option<(f32, String)> = None;
+        let editing_gid = &self.editor.editing_group_id;
         for obj in self.scene.objects.values() {
+            // 群組隔離編輯：只允許選取群組內的物件
+            if let Some(gid) = editing_gid {
+                if obj.parent_id.as_deref() != Some(gid.as_str()) && &obj.id != gid {
+                    continue;
+                }
+            }
             let pos = glam::Vec3::from(obj.position);
             let (pick_min, pick_max) = match &obj.shape {
                 Shape::Box { width, height, depth } => {

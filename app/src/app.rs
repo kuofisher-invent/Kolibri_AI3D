@@ -94,8 +94,10 @@ pub(crate) enum DrawState {
     // Pie: center, then edge point for radius, then second edge point for angle
     PieCenter { center: [f32; 3] },
     PieRadius { center: [f32; 3], edge1: [f32; 3] },
-    // Rotate: dragging with protractor
-    Rotating { obj_id: String, center: [f32; 3], start_angle: f32, accumulated: f32 },
+    // Rotate step 1: center placed, moving mouse to set reference direction
+    RotateRef { obj_ids: Vec<String>, center: [f32; 3] },
+    // Rotate step 2: reference set, sweeping to target angle
+    RotateAngle { obj_ids: Vec<String>, center: [f32; 3], ref_angle: f32, current_angle: f32, original_rotations: Vec<f32> },
     // Scale: dragging with handle type and original dimensions
     Scaling { obj_id: String, handle: ScaleHandle, original_dims: [f32; 3] },
     // Offset: face edge inset with drag distance
@@ -322,6 +324,9 @@ pub(crate) struct EditorState {
     pub(crate) steel_material: String,
     pub(crate) steel_height: f32,
     pub(crate) collision_warning: Option<String>,
+    /// 正在編輯的標註索引 + 輸入文字
+    pub(crate) editing_dim_idx: Option<usize>,
+    pub(crate) editing_dim_text: String,
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -536,6 +541,8 @@ impl KolibriApp {
                 steel_material: "SS400".into(),
                 steel_height: 4200.0,
                 collision_warning: None,
+                editing_dim_idx: None,
+                editing_dim_text: String::new(),
             },
 
             right_tab: RightTab::Properties,
@@ -1196,6 +1203,90 @@ impl eframe::App for KolibriApp {
                     }
                 }
 
+                // ── 標註點擊編輯：雙擊標註文字進入編輯模式 ──
+                if response.double_clicked() && !self.dimensions.is_empty() {
+                    let positions = crate::dimensions::dim_label_positions(
+                        &self.dimensions, vp, &rect, &self.dim_style,
+                    );
+                    let mx = self.editor.mouse_screen[0] + rect.min.x;
+                    let my = self.editor.mouse_screen[1] + rect.min.y;
+                    let hit_radius = 20.0;
+                    for (idx, pos) in positions.iter().enumerate() {
+                        if let Some(p) = pos {
+                            let dx = mx - p.x;
+                            let dy = my - p.y;
+                            if dx * dx + dy * dy < hit_radius * hit_radius {
+                                self.editor.editing_dim_idx = Some(idx);
+                                self.editor.editing_dim_text = self.dimensions[idx].label_text(&self.dim_style);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // ── 標註編輯浮動輸入框 ──
+                if let Some(dim_idx) = self.editor.editing_dim_idx {
+                    if dim_idx < self.dimensions.len() {
+                        let positions = crate::dimensions::dim_label_positions(
+                            &self.dimensions, vp, &rect, &self.dim_style,
+                        );
+                        if let Some(Some(label_pos)) = positions.get(dim_idx) {
+                            let input_rect = egui::Rect::from_center_size(
+                                *label_pos,
+                                egui::vec2(100.0, 24.0),
+                            );
+                            let mut text = self.editor.editing_dim_text.clone();
+                            let resp = ui.put(input_rect, egui::TextEdit::singleline(&mut text)
+                                .font(egui::FontId::proportional(13.0))
+                                .desired_width(90.0)
+                                .horizontal_align(egui::Align::Center));
+                            self.editor.editing_dim_text = text.clone();
+                            // 自動 focus
+                            if !resp.has_focus() {
+                                resp.request_focus();
+                            }
+                            // Enter 確認
+                            if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                                // 嘗試解析為數值並更新標註
+                                let clean: String = text.chars().filter(|c| c.is_ascii_digit() || *c == '.' || *c == '-').collect();
+                                if let Ok(val) = clean.parse::<f32>() {
+                                    match &mut self.dimensions[dim_idx].kind {
+                                        crate::dimensions::DimensionKind::Linear { start, end } => {
+                                            // 保持方向，改距離
+                                            let dir = glam::Vec3::from(*end) - glam::Vec3::from(*start);
+                                            let len = dir.length();
+                                            if len > 0.001 {
+                                                let new_end = glam::Vec3::from(*start) + dir / len * val;
+                                                *end = new_end.to_array();
+                                            }
+                                        }
+                                        crate::dimensions::DimensionKind::Radius { radius, .. } => {
+                                            *radius = val;
+                                        }
+                                        crate::dimensions::DimensionKind::Diameter { radius, .. } => {
+                                            *radius = val / 2.0;
+                                        }
+                                        _ => {
+                                            // 角度/弧長：設定 override label
+                                            self.dimensions[dim_idx].label = Some(text.clone());
+                                        }
+                                    }
+                                } else {
+                                    // 非數值：設為 override label
+                                    self.dimensions[dim_idx].label = Some(text.clone());
+                                }
+                                self.editor.editing_dim_idx = None;
+                                self.editor.editing_dim_text.clear();
+                            }
+                            // ESC 取消
+                            if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                                self.editor.editing_dim_idx = None;
+                                self.editor.editing_dim_text.clear();
+                            }
+                        }
+                    }
+                }
+
                 // ── Draw guide/construction lines ──
                 if !self.scene.guide_lines.is_empty() {
                     let guide_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(150, 50, 50, 180));
@@ -1788,94 +1879,215 @@ impl eframe::App for KolibriApp {
                     }
                 }
 
-                // ── D1: Protractor arc during Rotate ──
-                if let DrawState::Rotating { obj_id: _, center, start_angle: _, accumulated } = self.editor.draw_state {
-                    if let Some(screen_center) = Self::world_to_screen_vp(center, &vp, &rect) {
-                        let radius = 60.0;
+                // ── D1: Protractor overlay during Rotate (3-step) ──
+                // Step 1 (RotateRef): 量角器跟隨中心，虛線延伸到滑鼠
+                if let DrawState::RotateRef { center, .. } = &self.editor.draw_state {
+                    if let Some(sc) = Self::world_to_screen_vp(*center, &vp, &rect) {
+                        let radius = 70.0;
                         let segments = 48;
-                        let angle_deg = accumulated.to_degrees();
-
-                        // Draw protractor circle
-                        let circle_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(100, 150, 255, 100));
+                        // 量角器圓
+                        let circle_stroke = egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 120));
                         for i in 0..segments {
                             let a0 = (i as f32 / segments as f32) * std::f32::consts::TAU;
                             let a1 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
                             ui.painter().line_segment(
-                                [
-                                    egui::pos2(screen_center.x + radius * a0.cos(), screen_center.y + radius * a0.sin()),
-                                    egui::pos2(screen_center.x + radius * a1.cos(), screen_center.y + radius * a1.sin()),
-                                ],
+                                [egui::pos2(sc.x + radius * a0.cos(), sc.y + radius * a0.sin()),
+                                 egui::pos2(sc.x + radius * a1.cos(), sc.y + radius * a1.sin())],
                                 circle_stroke,
                             );
                         }
-
-                        // Draw tick marks at 15-degree intervals on the protractor circle
+                        // 15° 刻度
                         for tick in 0..24 {
                             let angle = tick as f32 * 15.0_f32.to_radians();
                             let inner_r = radius - 4.0;
                             let outer_r = if tick % 6 == 0 { radius + 6.0 } else { radius + 3.0 };
-                            let p1 = egui::pos2(screen_center.x + inner_r * angle.cos(), screen_center.y + inner_r * angle.sin());
-                            let p2 = egui::pos2(screen_center.x + outer_r * angle.cos(), screen_center.y + outer_r * angle.sin());
                             let tick_color = if tick % 6 == 0 {
                                 egui::Color32::from_rgba_unmultiplied(76, 139, 245, 180)
                             } else {
-                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 80)
+                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 60)
                             };
-                            ui.painter().line_segment([p1, p2], egui::Stroke::new(1.0, tick_color));
+                            ui.painter().line_segment(
+                                [egui::pos2(sc.x + inner_r * angle.cos(), sc.y + inner_r * angle.sin()),
+                                 egui::pos2(sc.x + outer_r * angle.cos(), sc.y + outer_r * angle.sin())],
+                                egui::Stroke::new(1.0, tick_color),
+                            );
                         }
+                        // 虛線到滑鼠位置（reference preview）
+                        let mouse = egui::pos2(self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                        draw_dashed_line(ui.painter(), sc, mouse,
+                            egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 150)),
+                            6.0, 4.0);
+                        // 中心十字
+                        let cs = 6.0;
+                        let cc = egui::Color32::from_rgb(76, 139, 245);
+                        ui.painter().line_segment([egui::pos2(sc.x - cs, sc.y), egui::pos2(sc.x + cs, sc.y)], egui::Stroke::new(2.0, cc));
+                        ui.painter().line_segment([egui::pos2(sc.x, sc.y - cs), egui::pos2(sc.x, sc.y + cs)], egui::Stroke::new(2.0, cc));
+                        // 提示文字
+                        ui.painter().text(
+                            egui::pos2(sc.x + radius + 10.0, sc.y - 10.0),
+                            egui::Align2::LEFT_CENTER,
+                            "設定參考方向",
+                            egui::FontId::proportional(12.0),
+                            egui::Color32::from_rgb(76, 139, 245),
+                        );
+                    }
+                }
+                // Step 2 (RotateAngle): 量角器 + 參考線 + 掃過弧 + 角度標籤
+                if let DrawState::RotateAngle { center, ref_angle, current_angle, .. } = &self.editor.draw_state {
+                    if let Some(sc) = Self::world_to_screen_vp(*center, &vp, &rect) {
+                        let radius = 70.0;
+                        let segments = 48;
+                        let delta = current_angle - ref_angle;
 
-                        // Draw swept arc from 0 to accumulated
-                        let arc_segments = 32;
-                        let arc_stroke = egui::Stroke::new(2.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 180));
-                        let sweep = accumulated;
-                        if sweep.abs() > 0.001 {
-                            let sign = if sweep > 0.0 { 1.0 } else { -1.0 };
-                            let abs_sweep = sweep.abs();
+                        // 量角器圓
+                        let circle_stroke = egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 100));
+                        for i in 0..segments {
+                            let a0 = (i as f32 / segments as f32) * std::f32::consts::TAU;
+                            let a1 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
+                            ui.painter().line_segment(
+                                [egui::pos2(sc.x + radius * a0.cos(), sc.y + radius * a0.sin()),
+                                 egui::pos2(sc.x + radius * a1.cos(), sc.y + radius * a1.sin())],
+                                circle_stroke,
+                            );
+                        }
+                        // 15° 刻度
+                        for tick in 0..24 {
+                            let angle = tick as f32 * 15.0_f32.to_radians();
+                            let inner_r = radius - 4.0;
+                            let outer_r = if tick % 6 == 0 { radius + 6.0 } else { radius + 3.0 };
+                            let tick_color = if tick % 6 == 0 {
+                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 180)
+                            } else {
+                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 60)
+                            };
+                            ui.painter().line_segment(
+                                [egui::pos2(sc.x + inner_r * angle.cos(), sc.y + inner_r * angle.sin()),
+                                 egui::pos2(sc.x + outer_r * angle.cos(), sc.y + outer_r * angle.sin())],
+                                egui::Stroke::new(1.0, tick_color),
+                            );
+                        }
+                        // 參考線（實線，灰白）— 從 center 沿 ref_angle 方向
+                        // 注意：世界空間的 atan2(dz, dx) 需要投影到螢幕空間
+                        // 簡化：用 ref_angle 在螢幕上畫（XZ 平面對應螢幕 X 方向）
+                        let ref_end = egui::pos2(sc.x + radius * ref_angle.cos(), sc.y - radius * ref_angle.sin());
+                        ui.painter().line_segment(
+                            [sc, ref_end],
+                            egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 180)),
+                        );
+                        // 目標線（實線，藍色）— 從 center 到滑鼠
+                        let mouse = egui::pos2(self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                        ui.painter().line_segment(
+                            [sc, mouse],
+                            egui::Stroke::new(2.0, egui::Color32::from_rgb(76, 139, 245)),
+                        );
+                        // 掃過弧
+                        if delta.abs() > 0.001 {
+                            let arc_segments = 32;
+                            let arc_stroke = egui::Stroke::new(3.0, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 200));
                             for i in 0..arc_segments {
-                                let t0 = (i as f32 / arc_segments as f32) * abs_sweep * sign;
-                                let t1 = ((i + 1) as f32 / arc_segments as f32) * abs_sweep * sign;
-                                // Start from top (negative Y in screen)
-                                let a0 = -std::f32::consts::FRAC_PI_2 + t0;
-                                let a1 = -std::f32::consts::FRAC_PI_2 + t1;
+                                let t0 = ref_angle + delta * (i as f32 / arc_segments as f32);
+                                let t1 = ref_angle + delta * ((i + 1) as f32 / arc_segments as f32);
                                 ui.painter().line_segment(
-                                    [
-                                        egui::pos2(screen_center.x + radius * a0.cos(), screen_center.y + radius * a0.sin()),
-                                        egui::pos2(screen_center.x + radius * a1.cos(), screen_center.y + radius * a1.sin()),
-                                    ],
+                                    [egui::pos2(sc.x + radius * t0.cos(), sc.y - radius * t0.sin()),
+                                     egui::pos2(sc.x + radius * t1.cos(), sc.y - radius * t1.sin())],
                                     arc_stroke,
                                 );
                             }
                         }
-
-                        // Reference line from center (start direction)
-                        ui.painter().line_segment(
-                            [
-                                screen_center,
-                                egui::pos2(screen_center.x, screen_center.y - radius),
-                            ],
-                            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 150)),
-                        );
-
-                        // Angle label — show snap indicator when at a 15-degree increment
-                        let snap_deg = (accumulated.to_degrees() / 15.0).round() * 15.0;
-                        let is_snapped = (accumulated.to_degrees() - snap_deg).abs() < 3.0;
+                        // 中心十字
+                        let cs = 6.0;
+                        let cc = egui::Color32::from_rgb(76, 139, 245);
+                        ui.painter().line_segment([egui::pos2(sc.x - cs, sc.y), egui::pos2(sc.x + cs, sc.y)], egui::Stroke::new(2.0, cc));
+                        ui.painter().line_segment([egui::pos2(sc.x, sc.y - cs), egui::pos2(sc.x, sc.y + cs)], egui::Stroke::new(2.0, cc));
+                        // 角度標籤
+                        let delta_deg = delta.to_degrees();
+                        let snap_deg = (delta_deg / 15.0).round() * 15.0;
+                        let is_snapped = (delta_deg - snap_deg).abs() < 3.0;
                         let label = if is_snapped {
                             format!("{:.0}\u{00b0} \u{25cf}", snap_deg)
                         } else {
-                            format!("{:.1}\u{00b0}", angle_deg)
+                            format!("{:.1}\u{00b0}", delta_deg)
                         };
                         let label_color = if is_snapped {
-                            egui::Color32::from_rgb(60, 200, 60) // green when snapped
+                            egui::Color32::from_rgb(60, 200, 60)
                         } else {
                             egui::Color32::from_rgb(76, 139, 245)
                         };
                         ui.painter().text(
-                            egui::pos2(screen_center.x + radius + 10.0, screen_center.y - 10.0),
+                            egui::pos2(sc.x + radius + 10.0, sc.y - 10.0),
                             egui::Align2::LEFT_CENTER,
                             &label,
-                            egui::FontId::proportional(if is_snapped { 14.0 } else { 13.0 }),
+                            egui::FontId::proportional(if is_snapped { 15.0 } else { 13.0 }),
                             label_color,
                         );
+                    }
+                }
+
+                // ── Scale handles: visible grip squares on bounding box ──
+                if self.editor.tool == Tool::Scale && !self.editor.selected_ids.is_empty() {
+                    if let Some(obj) = self.editor.selected_ids.first()
+                        .and_then(|id| self.scene.objects.get(id))
+                    {
+                        let pos = glam::Vec3::from(obj.position);
+                        let (sx, sy, sz) = match &obj.shape {
+                            Shape::Box { width, height, depth } => (*width, *height, *depth),
+                            Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+                            Shape::Sphere { radius, .. } => (*radius * 2.0, *radius * 2.0, *radius * 2.0),
+                            _ => (0.0, 0.0, 0.0),
+                        };
+                        if sx > 0.0 {
+                            // 8 corners + 6 face centers = 14 grip points
+                            let corners = [
+                                [0.0, 0.0, 0.0], [sx, 0.0, 0.0], [sx, 0.0, sz], [0.0, 0.0, sz],
+                                [0.0, sy, 0.0], [sx, sy, 0.0], [sx, sy, sz], [0.0, sy, sz],
+                            ];
+                            let face_centers = [
+                                [sx / 2.0, sy / 2.0, 0.0],  // Front
+                                [sx / 2.0, sy / 2.0, sz],   // Back
+                                [0.0, sy / 2.0, sz / 2.0],  // Left
+                                [sx, sy / 2.0, sz / 2.0],   // Right
+                                [sx / 2.0, 0.0, sz / 2.0],  // Bottom
+                                [sx / 2.0, sy, sz / 2.0],   // Top
+                            ];
+                            let grip_size = 4.0;
+                            let corner_color = egui::Color32::from_rgb(80, 200, 120);
+                            let face_color = egui::Color32::from_rgb(80, 200, 120);
+                            // 角落 grip
+                            for c in &corners {
+                                let wp = [pos.x + c[0], pos.y + c[1], pos.z + c[2]];
+                                if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
+                                    let r = egui::Rect::from_center_size(sp, egui::vec2(grip_size * 2.0, grip_size * 2.0));
+                                    ui.painter().rect_filled(r, 0.0, corner_color);
+                                    ui.painter().rect_stroke(r, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+                                }
+                            }
+                            // 面中心 grip（稍小）
+                            for fc in &face_centers {
+                                let wp = [pos.x + fc[0], pos.y + fc[1], pos.z + fc[2]];
+                                if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
+                                    let r = egui::Rect::from_center_size(sp, egui::vec2(grip_size * 1.5, grip_size * 1.5));
+                                    ui.painter().rect_filled(r, 0.0, face_color);
+                                    ui.painter().rect_stroke(r, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
+                                }
+                            }
+                            // 邊框連線
+                            let edges: [(usize, usize); 12] = [
+                                (0,1),(1,2),(2,3),(3,0), // bottom
+                                (4,5),(5,6),(6,7),(7,4), // top
+                                (0,4),(1,5),(2,6),(3,7), // vertical
+                            ];
+                            let edge_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(80, 200, 120, 120));
+                            for (a, b) in &edges {
+                                let wa = [pos.x + corners[*a][0], pos.y + corners[*a][1], pos.z + corners[*a][2]];
+                                let wb = [pos.x + corners[*b][0], pos.y + corners[*b][1], pos.z + corners[*b][2]];
+                                if let (Some(sa), Some(sb)) = (
+                                    Self::world_to_screen_vp(wa, &vp, &rect),
+                                    Self::world_to_screen_vp(wb, &vp, &rect),
+                                ) {
+                                    ui.painter().line_segment([sa, sb], edge_stroke);
+                                }
+                            }
+                        }
                     }
                 }
 
