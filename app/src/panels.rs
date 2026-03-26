@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use crate::app::{DrawState, KolibriApp, PullFace, RightTab, ScaleHandle, Tool, WorkMode};
+use crate::app::{DrawState, KolibriApp, PullFace, RightTab, ScaleHandle, SelectionMode, Tool, WorkMode};
 use crate::scene::{MaterialKind, Shape};
 
 /// Figma-style section header: small, muted, strong
@@ -910,6 +910,28 @@ impl KolibriApp {
                     ui.label(egui::RichText::new(format!("{}", self.editor.selected_ids.len())).size(18.0).strong());
                 });
             });
+        });
+
+        // ── Selection mode toggle ──
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            let modes = [
+                (SelectionMode::Object, "物件"),
+                (SelectionMode::Face, "面"),
+                (SelectionMode::Edge, "邊"),
+            ];
+            for (mode, label) in &modes {
+                let active = self.editor.selection_mode == *mode;
+                let btn = egui::Button::new(
+                    egui::RichText::new(*label).size(11.0)
+                        .color(if active { egui::Color32::WHITE } else { egui::Color32::from_rgb(80, 80, 100) })
+                ).fill(if active { egui::Color32::from_rgb(76, 139, 245) } else { egui::Color32::from_rgb(240, 242, 248) })
+                 .rounding(8.0)
+                 .min_size(egui::vec2(36.0, 22.0));
+                if ui.add(btn).clicked() {
+                    self.editor.selection_mode = *mode;
+                }
+            }
         });
         ui.add_space(8.0);
 

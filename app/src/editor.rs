@@ -197,6 +197,15 @@ pub(crate) enum SuggestionAction {
     SnapToGrid { obj_id: String, snapped_pos: [f32; 3] },
 }
 
+// ─── Selection mode ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum SelectionMode {
+    Object,  // 預設：選取整個物件
+    Face,    // 選取個別面
+    Edge,    // 選取個別邊
+}
+
 // ─── Right panel tabs ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -263,4 +272,6 @@ pub(crate) struct EditorState {
     pub(crate) editing_dim_text: String,
     /// 內部剪貼簿（Ctrl+C/V）
     pub(crate) clipboard: Vec<crate::scene::SceneObject>,
+    /// 選取模式（Object/Face/Edge）
+    pub(crate) selection_mode: SelectionMode,
 }

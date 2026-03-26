@@ -1,7 +1,7 @@
 use eframe::egui;
 
 use crate::app::{
-    compute_arc, DrawState, KolibriApp, PullFace, RenderMode, RightTab, ScaleHandle, Tool,
+    compute_arc, DrawState, KolibriApp, PullFace, RenderMode, RightTab, ScaleHandle, SelectionMode, Tool,
 };
 use crate::camera;
 use crate::scene::{MaterialKind, Shape};
@@ -930,30 +930,53 @@ impl KolibriApp {
             Tool::Select => {
                 let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
                 let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
-                let picked = self.pick(mx, my, vw, vh);
-                // We need shift state - store it from the last handle_viewport call
-                // Since on_click is called from handle_viewport where shift is available,
-                // we check if shift key is held via a stored flag
-                if self.editor.shift_held {
-                    if let Some(id) = picked {
-                        if let Some(pos) = self.editor.selected_ids.iter().position(|s| s == &id) {
-                            self.editor.selected_ids.remove(pos);
-                            self.clog(format!("取消選取: {}", id));
+
+                match self.editor.selection_mode {
+                    SelectionMode::Face => {
+                        // 面選取模式：選取被點擊的面
+                        if let Some((id, face)) = self.pick_face(mx, my, vw, vh) {
+                            self.editor.selected_ids = vec![id.clone()];
+                            self.editor.selected_face = Some((id.clone(), face));
+                            self.clog(format!("選取面: {:?} on {}", face, id));
                         } else {
-                            self.editor.selected_ids.push(id.clone());
-                            let name = self.scene.objects.get(&id).map(|o| o.name.as_str()).unwrap_or("?");
-                            self.clog(format!("加選: {} ({})", name, id));
+                            self.editor.selected_face = None;
+                            self.editor.selected_ids.clear();
                         }
                     }
-                } else {
-                    if let Some(ref id) = picked {
-                        let name = self.scene.objects.get(id).map(|o| o.name.as_str()).unwrap_or("?");
-                        self.clog(format!("選取: {} ({})", name, id));
+                    SelectionMode::Edge => {
+                        // 邊選取模式：選取物件（用 hovered_face 的邊指示）
+                        let picked = self.pick(mx, my, vw, vh);
+                        if let Some(ref id) = picked {
+                            self.editor.selected_ids = vec![id.clone()];
+                            self.clog(format!("選取邊: {}", id));
+                        } else {
+                            self.editor.selected_ids.clear();
+                        }
                     }
-                    self.editor.selected_ids = picked.into_iter().collect();
+                    SelectionMode::Object => {
+                        // 物件選取模式（原始行為）
+                        let picked = self.pick(mx, my, vw, vh);
+                        if self.editor.shift_held {
+                            if let Some(id) = picked {
+                                if let Some(pos) = self.editor.selected_ids.iter().position(|s| s == &id) {
+                                    self.editor.selected_ids.remove(pos);
+                                    self.clog(format!("取消選取: {}", id));
+                                } else {
+                                    self.editor.selected_ids.push(id.clone());
+                                    let name = self.scene.objects.get(&id).map(|o| o.name.as_str()).unwrap_or("?");
+                                    self.clog(format!("加選: {} ({})", name, id));
+                                }
+                            }
+                        } else {
+                            if let Some(ref id) = picked {
+                                let name = self.scene.objects.get(id).map(|o| o.name.as_str()).unwrap_or("?");
+                                self.clog(format!("選取: {} ({})", name, id));
+                            }
+                            self.editor.selected_ids = picked.into_iter().collect();
+                        }
+                        self.expand_selection_to_groups();
+                    }
                 }
-                // Expand selection to include all group members
-                self.expand_selection_to_groups();
                 if !self.editor.selected_ids.is_empty() { self.right_tab = RightTab::Properties; }
             }
 

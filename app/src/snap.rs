@@ -510,6 +510,68 @@ impl KolibriApp {
             best_type = winner.snap_type;
         }
 
+        // ── InferenceEngine 2.0: 4-layer scoring re-rank ──
+        {
+            use crate::inference_engine::{
+                InferenceCandidate as IE2Cand, InferenceType as IE2Type, ResolveConfig,
+            };
+            let snap_to_ie2 = |st: SnapType| -> IE2Type {
+                match st {
+                    SnapType::Endpoint | SnapType::FaceCenter => IE2Type::Endpoint,
+                    SnapType::Midpoint => IE2Type::Midpoint,
+                    SnapType::Origin => IE2Type::Origin,
+                    SnapType::Intersection => IE2Type::Intersection,
+                    SnapType::OnEdge => IE2Type::OnEdge,
+                    SnapType::OnFace => IE2Type::OnFace,
+                    SnapType::AxisX => IE2Type::AxisLockX,
+                    SnapType::AxisY => IE2Type::AxisLockY,
+                    SnapType::AxisZ => IE2Type::AxisLockZ,
+                    SnapType::Parallel => IE2Type::Parallel,
+                    SnapType::Perpendicular => IE2Type::Perpendicular,
+                    SnapType::Grid => IE2Type::Grid,
+                    SnapType::None => IE2Type::Custom,
+                }
+            };
+            let ie2_to_snap = |it: IE2Type| -> SnapType {
+                match it {
+                    IE2Type::Endpoint => SnapType::Endpoint,
+                    IE2Type::Midpoint => SnapType::Midpoint,
+                    IE2Type::Origin => SnapType::Origin,
+                    IE2Type::Intersection => SnapType::Intersection,
+                    IE2Type::OnEdge => SnapType::OnEdge,
+                    IE2Type::OnFace => SnapType::OnFace,
+                    IE2Type::AxisLockX => SnapType::AxisX,
+                    IE2Type::AxisLockY => SnapType::AxisY,
+                    IE2Type::AxisLockZ => SnapType::AxisZ,
+                    IE2Type::Parallel => SnapType::Parallel,
+                    IE2Type::Perpendicular => SnapType::Perpendicular,
+                    IE2Type::Grid | IE2Type::GridLine => SnapType::Grid,
+                    _ => SnapType::None,
+                }
+            };
+            let ie2_cands: Vec<IE2Cand> = candidates.iter().map(|c| {
+                IE2Cand {
+                    id: c.label.clone(),
+                    inference_type: snap_to_ie2(c.snap_type),
+                    position: c.position,
+                    source_object_id: None,
+                    raw_distance: best_screen_dist.min(100.0),
+                }
+            }).collect();
+            // 使用 EditorState 上的 inference context（已由 tools.rs 更新）
+            let ie2_ctx = &self.editor.inference_engine.context_from_editor(
+                &self.editor.inference_ctx,
+            );
+            let scored = self.editor.inference_engine.score_candidates(&ie2_cands, ie2_ctx);
+            let config = ResolveConfig::default();
+            if let Some(top) = self.editor.inference_engine.resolve_primary(&scored, &config) {
+                if top.breakdown.total > 30.0 {
+                    best_pos = top.candidate.position;
+                    best_type = ie2_to_snap(top.candidate.inference_type);
+                }
+            }
+        }
+
         // Store inference label for overlay display
         self.editor.inference_label = candidates.first().map(|c| (c.label.clone(), c.source.clone()));
 

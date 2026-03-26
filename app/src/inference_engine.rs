@@ -395,6 +395,44 @@ impl InferenceEngine {
         }
     }
 
+    /// Build InferenceContext from editor's InferenceContext (inference.rs 版本)
+    pub fn context_from_editor(&self, editor_ctx: &crate::inference::InferenceContext) -> InferenceContext {
+        let working_plane_y = match editor_ctx.working_plane {
+            crate::inference::WorkingPlane::Ground => 0.0,
+            crate::inference::WorkingPlane::FaceXZ(y) => y,
+            _ => 0.0,
+        };
+        InferenceContext {
+            current_tool: match editor_ctx.current_tool {
+                crate::app::Tool::Select => ToolKind::Select,
+                crate::app::Tool::Move => ToolKind::Move,
+                crate::app::Tool::Rotate => ToolKind::Rotate,
+                crate::app::Tool::Scale => ToolKind::Scale,
+                crate::app::Tool::Line => ToolKind::Line,
+                crate::app::Tool::Arc | crate::app::Tool::Arc3Point => ToolKind::Arc,
+                crate::app::Tool::Rectangle => ToolKind::Rectangle,
+                crate::app::Tool::Circle => ToolKind::Circle,
+                crate::app::Tool::CreateBox => ToolKind::Box,
+                crate::app::Tool::CreateCylinder => ToolKind::Cylinder,
+                crate::app::Tool::CreateSphere => ToolKind::Sphere,
+                crate::app::Tool::PushPull => ToolKind::PushPull,
+                crate::app::Tool::Offset => ToolKind::Offset,
+                crate::app::Tool::FollowMe => ToolKind::FollowMe,
+                crate::app::Tool::TapeMeasure | crate::app::Tool::Dimension => ToolKind::TapeMeasure,
+                _ => ToolKind::Select,
+            },
+            current_mode: AppMode::Modeling,
+            selected_ids: Vec::new(),
+            hover_id: None,
+            last_direction: editor_ctx.last_direction,
+            last_action: String::new(),
+            working_plane_y,
+            locked_axis: None,
+            is_drawing: editor_ctx.consecutive_lines > 0,
+            consecutive_same_tool: editor_ctx.consecutive_lines,
+        }
+    }
+
     /// Add a custom rule
     #[allow(dead_code)]
     pub fn add_rule(&mut self, rule: Box<dyn ScoreRule>) {

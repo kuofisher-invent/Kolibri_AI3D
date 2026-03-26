@@ -228,13 +228,37 @@ pub fn draw_layout(
             egui::Color32::from_gray(140),
         );
 
-        // Placeholder content (will be replaced with actual 3D render in Phase 2)
+        // 簡易 3D 預覽：繪製十字準心和視圖方向指示
+        let cx = vp_rect.center();
+        let arm = vp_rect.width().min(vp_rect.height()) * 0.15;
+        // 十字準心
+        painter.line_segment(
+            [egui::pos2(cx.x - arm, cx.y), egui::pos2(cx.x + arm, cx.y)],
+            egui::Stroke::new(0.5, egui::Color32::from_gray(200)),
+        );
+        painter.line_segment(
+            [egui::pos2(cx.x, cx.y - arm), egui::pos2(cx.x, cx.y + arm)],
+            egui::Stroke::new(0.5, egui::Color32::from_gray(200)),
+        );
+        // 軸向指示
+        let axis_len = arm * 0.5;
+        painter.line_segment(
+            [cx, egui::pos2(cx.x + axis_len, cx.y)],
+            egui::Stroke::new(1.5, egui::Color32::from_rgb(220, 60, 60)),
+        );
+        painter.text(egui::pos2(cx.x + axis_len + 4.0, cx.y), egui::Align2::LEFT_CENTER, "X", egui::FontId::proportional(9.0), egui::Color32::from_rgb(220, 60, 60));
+        painter.line_segment(
+            [cx, egui::pos2(cx.x, cx.y - axis_len)],
+            egui::Stroke::new(1.5, egui::Color32::from_rgb(60, 180, 60)),
+        );
+        painter.text(egui::pos2(cx.x, cx.y - axis_len - 8.0), egui::Align2::CENTER_BOTTOM, "Y", egui::FontId::proportional(9.0), egui::Color32::from_rgb(60, 180, 60));
+        // 視圖標籤
         painter.text(
             vp_rect.center(),
             egui::Align2::CENTER_CENTER,
-            "[3D 視圖]",
-            egui::FontId::proportional(14.0),
-            egui::Color32::from_gray(200),
+            &format!("{} — 出圖模式", vp.label),
+            egui::FontId::proportional(12.0),
+            egui::Color32::from_gray(160),
         );
     }
 

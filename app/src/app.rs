@@ -10,7 +10,7 @@ use crate::scene::{MaterialKind, Scene, Shape};
 // 保持 `use crate::app::Tool` 等既有 import 路徑不變
 pub(crate) use crate::editor::{
     Tool, WorkMode, DrawState, ScaleHandle, PullFace, SnapType, SnapResult,
-    AiSuggestion, SuggestionAction, RightTab, CursorHint, EditorState,
+    AiSuggestion, SuggestionAction, RightTab, CursorHint, EditorState, SelectionMode,
 };
 pub(crate) use crate::viewer::{RenderMode, ViewerState};
 pub(crate) use crate::overlay::{
@@ -234,6 +234,7 @@ impl KolibriApp {
                 editing_dim_idx: None,
                 editing_dim_text: String::new(),
                 clipboard: Vec::new(),
+                selection_mode: SelectionMode::Object,
             },
 
             right_tab: RightTab::Properties,
