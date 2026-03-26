@@ -683,17 +683,27 @@ impl eframe::App for KolibriApp {
                 // Draw rubber band selection rectangle
                 if let Some((start, end)) = self.editor.rubber_band {
                     let rb_rect = egui::Rect::from_two_pos(start, end);
+                    let is_crossing = start.x > end.x;
                     let painter = ui.painter();
-                    painter.rect_filled(
-                        rb_rect,
-                        0.0,
-                        egui::Color32::from_rgba_unmultiplied(60, 120, 220, 40),
-                    );
-                    painter.rect_stroke(
-                        rb_rect,
-                        0.0,
-                        egui::Stroke::new(1.5, egui::Color32::from_rgb(80, 140, 240)),
-                    );
+                    // Window = 實線藍色，Crossing = 虛線綠色
+                    let (fill_color, stroke_color) = if is_crossing {
+                        (egui::Color32::from_rgba_unmultiplied(60, 200, 80, 30),
+                         egui::Color32::from_rgb(60, 200, 80))
+                    } else {
+                        (egui::Color32::from_rgba_unmultiplied(60, 120, 220, 40),
+                         egui::Color32::from_rgb(80, 140, 240))
+                    };
+                    painter.rect_filled(rb_rect, 0.0, fill_color);
+                    if is_crossing {
+                        // 虛線邊框
+                        let corners = [rb_rect.left_top(), rb_rect.right_top(), rb_rect.right_bottom(), rb_rect.left_bottom()];
+                        for i in 0..4 {
+                            draw_dashed_line(painter, corners[i], corners[(i+1)%4],
+                                egui::Stroke::new(1.5, stroke_color), 6.0, 4.0);
+                        }
+                    } else {
+                        painter.rect_stroke(rb_rect, 0.0, egui::Stroke::new(1.5, stroke_color));
+                    }
                 }
 
                 // Draw snap indicators on top of viewport

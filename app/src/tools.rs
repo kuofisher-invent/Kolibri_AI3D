@@ -267,7 +267,8 @@ impl KolibriApp {
             if let Some((start, end)) = self.editor.rubber_band.take() {
                 let rect = egui::Rect::from_two_pos(start, end);
                 if rect.width() > 3.0 || rect.height() > 3.0 {
-                    // Find all objects whose projected AABB overlaps the rubber band rect
+                    // CAD 標準：左→右 = Window（完全包含），右→左 = Crossing（交叉）
+                    let is_crossing = start.x > end.x;
                     let viewport_rect = response.rect;
                     let mut selected = if shift { self.editor.selected_ids.clone() } else { Vec::new() };
                     for obj in self.scene.objects.values() {
@@ -293,7 +294,6 @@ impl KolibriApp {
                                 (min, max)
                             }
                         };
-                        // Project 8 AABB corners to screen, check if any is inside rubber band
                         let corners = [
                             [min_p[0], min_p[1], min_p[2]],
                             [max_p[0], min_p[1], min_p[2]],
@@ -304,14 +304,16 @@ impl KolibriApp {
                             [min_p[0], max_p[1], max_p[2]],
                             [max_p[0], max_p[1], max_p[2]],
                         ];
-                        let any_inside = corners.iter().any(|c| {
-                            if let Some(sp) = self.world_to_screen(*c, &viewport_rect) {
-                                rect.contains(sp)
-                            } else {
-                                false
-                            }
-                        });
-                        if any_inside && !selected.contains(&obj.id) {
+                        let screen_pts: Vec<bool> = corners.iter().map(|c| {
+                            self.world_to_screen(*c, &viewport_rect)
+                                .map_or(false, |sp| rect.contains(sp))
+                        }).collect();
+                        let hit = if is_crossing {
+                            screen_pts.iter().any(|&v| v) // 交叉：任一角在內
+                        } else {
+                            screen_pts.iter().all(|&v| v) // 窗選：全部角在內
+                        };
+                        if hit && !selected.contains(&obj.id) {
                             selected.push(obj.id.clone());
                         }
                     }

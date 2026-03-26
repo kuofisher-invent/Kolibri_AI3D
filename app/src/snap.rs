@@ -217,20 +217,40 @@ impl KolibriApp {
                 Shape::Cylinder { radius, height, .. } => {
                     let r = *radius;
                     let h = *height;
-                    // Center bottom, center top
-                    let center_b = [p[0] + r, p[1], p[2] + r];
-                    let center_t = [p[0] + r, p[1] + h, p[2] + r];
+                    let cx = p[0] + r;
+                    let cz = p[2] + r;
+                    let center_b = [cx, p[1], cz];
+                    let center_t = [cx, p[1] + h, cz];
                     snap_candidates.push((center_b, SnapType::Endpoint));
                     snap_candidates.push((center_t, SnapType::Endpoint));
-                    // Midpoint of axis
-                    let mid = [p[0] + r, p[1] + h / 2.0, p[2] + r];
+                    let mid = [cx, p[1] + h / 2.0, cz];
                     snap_candidates.push((mid, SnapType::Midpoint));
-                    // 4 cardinal points on top and bottom circles
                     for &dy in &[0.0, h] {
-                        snap_candidates.push(([p[0],       p[1]+dy, p[2]+r],     SnapType::Endpoint));
-                        snap_candidates.push(([p[0]+r*2.0, p[1]+dy, p[2]+r],     SnapType::Endpoint));
-                        snap_candidates.push(([p[0]+r,     p[1]+dy, p[2]],       SnapType::Endpoint));
-                        snap_candidates.push(([p[0]+r,     p[1]+dy, p[2]+r*2.0], SnapType::Endpoint));
+                        snap_candidates.push(([p[0],       p[1]+dy, cz],     SnapType::Endpoint));
+                        snap_candidates.push(([p[0]+r*2.0, p[1]+dy, cz],     SnapType::Endpoint));
+                        snap_candidates.push(([cx,         p[1]+dy, p[2]],   SnapType::Endpoint));
+                        snap_candidates.push(([cx,         p[1]+dy, p[2]+r*2.0], SnapType::Endpoint));
+                    }
+                    // 切線吸附：從 from_point 到圓的切點（XZ 平面）
+                    if let Some(from) = from_point {
+                        let dx = from[0] - cx;
+                        let dz = from[2] - cz;
+                        let dist_sq = dx * dx + dz * dz;
+                        if dist_sq > r * r * 1.01 {
+                            // 外切點公式
+                            let dist = dist_sq.sqrt();
+                            let tang_len = (dist_sq - r * r).sqrt();
+                            let angle = dz.atan2(dx);
+                            let half_angle = (r / dist).asin();
+                            for &sign in &[1.0_f32, -1.0] {
+                                let ta = angle + sign * (std::f32::consts::FRAC_PI_2 + half_angle);
+                                let tx = cx + r * ta.cos();
+                                let tz = cz + r * ta.sin();
+                                for &dy in &[0.0, h] {
+                                    snap_candidates.push(([tx, p[1]+dy, tz], SnapType::Tangent));
+                                }
+                            }
+                        }
                     }
                 }
                 Shape::Sphere { radius, .. } => {
@@ -480,6 +500,7 @@ impl KolibriApp {
                 SnapType::Perpendicular => 55.0,
                 SnapType::Parallel => 50.0,
                 SnapType::Grid => 20.0,
+                SnapType::Tangent => 72.0,
                 SnapType::None => 0.0,
             },
             label: best_type.label().to_string(),
@@ -529,6 +550,7 @@ impl KolibriApp {
                     SnapType::Parallel => IE2Type::Parallel,
                     SnapType::Perpendicular => IE2Type::Perpendicular,
                     SnapType::Grid => IE2Type::Grid,
+                    SnapType::Tangent => IE2Type::Custom,
                     SnapType::None => IE2Type::Custom,
                 }
             };

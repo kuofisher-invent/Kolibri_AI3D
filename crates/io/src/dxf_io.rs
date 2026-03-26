@@ -36,6 +36,8 @@ pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
                 let h = *height;
                 let cx = p[0] + r;
                 let cz = p[2] + r;
+                let center_b = [cx, p[1], cz];
+                let center_t = [cx, p[1]+h, cz];
                 for i in 0..segs {
                     let a0 = (i as f32 / segs as f32) * std::f32::consts::TAU;
                     let a1 = ((i+1) as f32 / segs as f32) * std::f32::consts::TAU;
@@ -47,6 +49,10 @@ pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
                     let t1 = [cx+r*c1, p[1]+h, cz+r*s1];
                     // Side quad
                     write_3dface(&mut file, &obj.name, b0, b1, t1, t0)?;
+                    // Bottom cap triangle
+                    write_3dface(&mut file, &obj.name, center_b, b0, b1, b1)?;
+                    // Top cap triangle
+                    write_3dface(&mut file, &obj.name, center_t, t1, t0, t0)?;
                 }
             }
             Shape::Sphere { radius, segments } => {
@@ -67,7 +73,26 @@ pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
                     }
                 }
             }
-            _ => {}
+            Shape::Line { points, .. } => {
+                // LINE entities for each segment
+                for pair in points.windows(2) {
+                    write!(file, "0\nLINE\n8\n{}\n", obj.name).map_err(|e| e.to_string())?;
+                    write!(file, "10\n{:.6}\n20\n{:.6}\n30\n{:.6}\n", pair[0][0], pair[0][1], pair[0][2]).map_err(|e| e.to_string())?;
+                    write!(file, "11\n{:.6}\n21\n{:.6}\n31\n{:.6}\n", pair[1][0], pair[1][1], pair[1][2]).map_err(|e| e.to_string())?;
+                }
+            }
+            Shape::Mesh(ref mesh) => {
+                // 3DFACE for each mesh face
+                for (&fid, _) in &mesh.faces {
+                    let verts = mesh.face_vertices(fid);
+                    if verts.len() >= 3 {
+                        // 三角面或四邊面
+                        let v4 = if verts.len() >= 4 { verts[3] } else { verts[2] };
+                        let pv = |v: [f32; 3]| [p[0]+v[0], p[1]+v[1], p[2]+v[2]];
+                        write_3dface(&mut file, &obj.name, pv(verts[0]), pv(verts[1]), pv(verts[2]), pv(v4))?;
+                    }
+                }
+            }
         }
     }
 

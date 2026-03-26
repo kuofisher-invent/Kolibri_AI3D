@@ -270,21 +270,28 @@ fn generate_obj_mesh(obj: &SceneObject) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<Ve
     }
 }
 
-/// Import OBJ file into scene — creates real Shape::Mesh geometry
+/// Import OBJ file into scene — creates real Shape::Mesh geometry with .mtl materials
 pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
     use kolibri_core::halfedge::HeMesh;
+    use std::collections::HashMap;
+
+    // 嘗試讀取 .mtl 材質檔
+    let mtl_materials = {
+        let mtl_path = path.replace(".obj", ".mtl");
+        parse_mtl_file(&mtl_path).unwrap_or_default()
+    };
 
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let reader = BufReader::new(file);
 
     let mut vertices: Vec<[f32; 3]> = Vec::new();
     let mut current_name = String::from("imported");
-    // 每個 object 的面（每面 = Vec<vertex indices>）
+    let mut current_material = MaterialKind::White;
     let mut object_faces: Vec<Vec<usize>> = Vec::new();
     let mut objects_created = 0usize;
 
     let flush_mesh = |scene: &mut Scene, name: &str, verts: &[[f32; 3]],
-                      faces: &[Vec<usize>], count: &mut usize| {
+                      faces: &[Vec<usize>], count: &mut usize, mat: MaterialKind| {
         if faces.is_empty() { return; }
 
         // 收集此 object 用到的頂點，建立 local index mapping
@@ -328,7 +335,7 @@ pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
             name: name.to_string(),
             shape: Shape::Mesh(mesh),
             position: min,
-            material: MaterialKind::White,
+            material: mat,
             rotation_y: 0.0,
             tag: "匯入".to_string(),
             visible: true,
@@ -353,8 +360,14 @@ pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
             if parts.len() >= 3 {
                 vertices.push([parts[0], parts[1], parts[2]]);
             }
+        } else if line.starts_with("usemtl ") {
+            // 材質切換
+            let mtl_name = line[7..].trim();
+            current_material = mtl_materials.get(mtl_name)
+                .copied()
+                .unwrap_or(MaterialKind::White);
         } else if line.starts_with("o ") || line.starts_with("g ") {
-            flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created);
+            flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created, current_material);
             object_faces.clear();
             current_name = line[2..].trim().to_string();
         } else if line.starts_with("f ") {
@@ -369,9 +382,70 @@ pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
         }
     }
 
-    flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created);
+    flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created, current_material);
 
     Ok(objects_created)
+}
+
+/// Parse .mtl file and return material name → MaterialKind mapping
+fn parse_mtl_file(path: &str) -> Result<std::collections::HashMap<String, MaterialKind>, String> {
+    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let mut materials = std::collections::HashMap::new();
+    let mut current_name = String::new();
+    let mut current_kd = [0.8_f32, 0.8, 0.8];
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with("newmtl ") {
+            // 儲存前一個材質
+            if !current_name.is_empty() {
+                materials.insert(current_name.clone(), color_to_material(current_kd));
+            }
+            current_name = line[7..].trim().to_string();
+            current_kd = [0.8, 0.8, 0.8];
+        } else if line.starts_with("Kd ") {
+            let parts: Vec<f32> = line[3..].split_whitespace()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            if parts.len() >= 3 {
+                current_kd = [parts[0], parts[1], parts[2]];
+            }
+        }
+    }
+    if !current_name.is_empty() {
+        materials.insert(current_name, color_to_material(current_kd));
+    }
+    Ok(materials)
+}
+
+/// 從 Kd 顏色推斷最接近的 MaterialKind
+fn color_to_material(kd: [f32; 3]) -> MaterialKind {
+    // 比對所有材質顏色，找最接近的
+    let candidates: &[(MaterialKind, [f32; 3])] = &[
+        (MaterialKind::Concrete, [0.55, 0.55, 0.55]),
+        (MaterialKind::Wood, [0.60, 0.40, 0.20]),
+        (MaterialKind::Metal, [0.72, 0.72, 0.78]),
+        (MaterialKind::Steel, [0.62, 0.63, 0.65]),
+        (MaterialKind::Brick, [0.72, 0.35, 0.22]),
+        (MaterialKind::Glass, [0.70, 0.85, 0.95]),
+        (MaterialKind::White, [0.95, 0.95, 0.95]),
+        (MaterialKind::Black, [0.10, 0.10, 0.10]),
+        (MaterialKind::Marble, [0.92, 0.90, 0.88]),
+        (MaterialKind::Grass, [0.35, 0.55, 0.25]),
+        (MaterialKind::Copper, [0.72, 0.45, 0.20]),
+        (MaterialKind::Gold, [0.83, 0.69, 0.22]),
+        (MaterialKind::Aluminum, [0.80, 0.81, 0.83]),
+    ];
+    let mut best = MaterialKind::White;
+    let mut best_dist = f32::MAX;
+    for (mat, c) in candidates {
+        let d = (kd[0]-c[0]).powi(2) + (kd[1]-c[1]).powi(2) + (kd[2]-c[2]).powi(2);
+        if d < best_dist {
+            best_dist = d;
+            best = *mat;
+        }
+    }
+    best
 }
 
 // ─── MTL 材質檔生成 ─────────────────────────────────────────────────────────

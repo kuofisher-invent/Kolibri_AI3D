@@ -135,6 +135,7 @@ pub(crate) enum SnapType {
     Intersection,
     OnFace,
     FaceCenter,
+    Tangent,      // 切線點（弧/圓）
 }
 
 impl SnapType {
@@ -154,6 +155,7 @@ impl SnapType {
             Self::Intersection => "交點",
             Self::OnFace => "面上",
             Self::FaceCenter => "面中心",
+            Self::Tangent => "切線",
         }
     }
     pub(crate) fn color(&self) -> egui::Color32 {
@@ -170,6 +172,7 @@ impl SnapType {
             Self::Intersection => egui::Color32::from_rgb(220, 220, 60),
             Self::OnFace => egui::Color32::from_rgb(60, 180, 220),
             Self::FaceCenter => egui::Color32::from_rgb(60, 180, 220),
+            Self::Tangent => egui::Color32::from_rgb(200, 120, 60),  // orange
             _ => egui::Color32::from_rgb(200, 200, 200),
         }
     }

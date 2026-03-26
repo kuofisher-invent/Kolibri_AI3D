@@ -618,6 +618,7 @@ pub fn snap_type_to_inference_type(snap: &crate::app::SnapType) -> InferenceType
         SnapType::OnEdge => InferenceType::OnEdge,
         SnapType::OnFace | SnapType::FaceCenter => InferenceType::OnFace,
         SnapType::Grid => InferenceType::Grid,
+        SnapType::Tangent => InferenceType::Custom,
         SnapType::None => InferenceType::Custom,
     }
 }

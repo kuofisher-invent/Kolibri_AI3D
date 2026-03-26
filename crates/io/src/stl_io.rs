@@ -74,7 +74,24 @@ pub fn export_stl(scene: &Scene, path: &str) -> Result<(), String> {
                     }
                 }
             }
-            _ => {}
+            Shape::Mesh(ref mesh) => {
+                // 匯出所有 mesh 面為三角面
+                for (&fid, face) in &mesh.faces {
+                    let verts = mesh.face_vertices(fid);
+                    if verts.len() >= 3 {
+                        let n = face.normal;
+                        // Fan triangulation
+                        for i in 1..verts.len()-1 {
+                            triangles.push((n, [
+                                [p[0]+verts[0][0], p[1]+verts[0][1], p[2]+verts[0][2]],
+                                [p[0]+verts[i][0], p[1]+verts[i][1], p[2]+verts[i][2]],
+                                [p[0]+verts[i+1][0], p[1]+verts[i+1][1], p[2]+verts[i+1][2]],
+                            ]));
+                        }
+                    }
+                }
+            }
+            Shape::Line { .. } => {} // STL 不支援線段
         }
     }
 
