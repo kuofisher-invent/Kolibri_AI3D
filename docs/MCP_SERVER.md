@@ -1,0 +1,160 @@
+# Kolibri Ai3D — MCP Server 說明
+
+## 概述
+
+Kolibri Ai3D 內建 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 伺服器，讓 AI 助手（如 Claude Desktop）能直接操控 3D 場景。
+
+傳輸協定：**JSON-RPC 2.0 over stdio**（stdin/stdout，每行一個 JSON 訊息）。
+
+## 兩種運行模式
+
+### 1. Standalone 模式（無 GUI）
+
+```bash
+cargo run -p kolibri-cad -- --mcp
+```
+
+- 不開啟視窗，純 stdio 通訊
+- 自帶獨立 Scene，直接在記憶體中操作
+- 適合 CI/CD、自動化腳本、Claude Desktop 整合
+
+### 2. GUI Bridge 模式
+
+APP 正常啟動後，MCP 在背景執行緒運行，透過 `mpsc` channel 將指令轉發給 GUI 主執行緒。等待回應最多 5 秒。
+
+## Claude Desktop 設定
+
+在 Claude Desktop 設定檔加入：
+
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "kolibri-ai3d": {
+      "command": "D:/AI_Design/Kolibri_Ai3D/app/target/debug/kolibri-cad.exe",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+> 路徑請替換為你實際的編譯產出位置。
+
+## 可用工具（17 個）
+
+### 場景查詢
+
+| 工具 | 說明 | 必填參數 |
+|------|------|----------|
+| `get_scene_state` | 取得全場景狀態（所有物件 ID、尺寸、位置、材質） | — |
+| `get_object_info` | 取得單一物件詳細資訊（shape 參數、PBR、材質） | `id` |
+
+### 建立物件
+
+| 工具 | 說明 | 必填參數 | 選填參數 |
+|------|------|----------|----------|
+| `create_box` | 建立方塊 | `width`, `height`, `depth` (mm) | `name`, `position` [x,y,z], `material` |
+| `create_cylinder` | 建立圓柱 | `radius`, `height` (mm) | `name`, `position`, `material` |
+| `create_sphere` | 建立球體 | `radius` (mm) | `name`, `position`, `material` |
+
+### 修改物件
+
+| 工具 | 說明 | 必填參數 | 選填參數 |
+|------|------|----------|----------|
+| `move_object` | 移動物件到絕對位置 | `id`, `position` [x,y,z] mm | — |
+| `rotate_object` | Y 軸旋轉（角度制） | `id`, `angle_deg` | — |
+| `scale_object` | 縮放物件 | `id`, `factor` [x,y,z] 倍率 | — |
+| `set_material` | 設定材質 | `id`, `material` | — |
+| `push_pull` | 推拉面 | `id`, `face`, `distance` (mm) | — |
+| `duplicate_object` | 複製物件 | `id` | `offset` [x,y,z] mm（預設 [500,0,0]）|
+
+### 場景管理
+
+| 工具 | 說明 | 必填參數 |
+|------|------|----------|
+| `delete_object` | 刪除物件 | `id` |
+| `clear_scene` | 清空全部物件 | — |
+| `save_scene` | 儲存場景到 .k3d 檔案 | `path` |
+| `load_scene` | 載入 .k3d 場景檔 | `path` |
+| `undo` | 撤銷上一步 | — |
+| `redo` | 重做 | — |
+| `shutdown` | 關閉應用程式 | — |
+
+## 材質名稱對照
+
+`set_material` 和建立物件的 `material` 參數接受以下值：
+
+| 名稱 | 說明 | 名稱 | 說明 |
+|------|------|------|------|
+| `concrete` | 混凝土（預設） | `marble` | 大理石 |
+| `wood` | 木材 | `steel` | 鋼 |
+| `glass` | 玻璃 | `aluminum` | 鋁 |
+| `metal` | 金屬 | `copper` | 銅 |
+| `brick` | 磚 | `gold` | 金 |
+| `white` | 白色 | `tile` | 磁磚 |
+| `black` | 黑色 | `asphalt` | 柏油 |
+| `stone` | 石材 | `grass` | 草地 |
+| `plaster` | 灰泥 | | |
+
+## Push/Pull 面名稱
+
+`push_pull` 的 `face` 參數：
+
+| 值 | 方向 |
+|----|------|
+| `top` | Y+ 上 |
+| `bottom` | Y- 下 |
+| `front` | Z- 前 |
+| `back` | Z+ 後 |
+| `left` | X- 左 |
+| `right` | X+ 右 |
+
+`distance` 正值 = 向外擴張，負值 = 向內收縮。
+
+## 使用範例
+
+### 建立一棟簡易建築
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"create_box","arguments":{"name":"地板","width":6000,"height":200,"depth":4000,"material":"concrete"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_box","arguments":{"name":"牆壁A","position":[0,200,0],"width":200,"height":3000,"depth":4000,"material":"brick"}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_box","arguments":{"name":"牆壁B","position":[5800,200,0],"width":200,"height":3000,"depth":4000,"material":"brick"}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"create_cylinder","arguments":{"name":"柱子","position":[2800,200,1800],"radius":200,"height":3000,"material":"steel"}}}
+```
+
+### 查詢 → 修改 → 儲存
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_scene_state","arguments":{}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"move_object","arguments":{"id":"abc12345","position":[1000,0,2000]}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"rotate_object","arguments":{"id":"abc12345","angle_deg":45}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"save_scene","arguments":{"path":"building.k3d"}}}
+```
+
+### 撤銷與關閉
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"undo","arguments":{}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"shutdown","arguments":{}}}
+```
+
+## 協定細節
+
+- MCP 版本：`2024-11-05`
+- Server 名稱：`kolibri-ai3d`
+- 支援的 method：
+  - `initialize` — 回傳 server info + capabilities
+  - `tools/list` — 回傳所有可用工具的 JSON Schema
+  - `tools/call` — 執行工具
+  - `notifications/initialized` — 確認初始化
+  - `resources/list` — 回傳空列表（未使用）
+  - `prompts/list` — 回傳空列表（未使用）
+
+## 單位系統
+
+所有幾何參數使用 **毫米（mm）** 為單位：
+- `1000` = 1 公尺
+- `3000` = 3 公尺（一層樓高度）
+- `200` = 20 公分（標準牆厚）
