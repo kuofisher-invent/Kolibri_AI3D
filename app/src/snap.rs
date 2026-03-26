@@ -332,6 +332,11 @@ impl KolibriApp {
                         best_pos = [raw_ground[0], 0.0, from[2]];
                         best_type = SnapType::AxisX;
                     }
+                    1 => { // Y axis (vertical)
+                        let height = self.current_height(from);
+                        best_pos = [from[0], height, from[2]];
+                        best_type = SnapType::AxisY;
+                    }
                     2 => { // Z axis
                         best_pos = [from[0], 0.0, raw_ground[2]];
                         best_type = SnapType::AxisZ;

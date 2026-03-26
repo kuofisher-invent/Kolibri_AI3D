@@ -996,6 +996,22 @@ impl KolibriApp {
                     ui.add(egui::Slider::new(&mut self.viewer.edge_thickness, 0.5..=8.0).step_by(0.5));
                 });
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
+                ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
+                ui.horizontal(|ui| {
+                    ui.label("格線間距");
+                    let options = [100.0_f32, 250.0, 500.0, 1000.0, 2000.0, 5000.0];
+                    let labels = ["100mm", "250mm", "500mm", "1m", "2m", "5m"];
+                    let current = options.iter().position(|v| (*v - self.viewer.grid_spacing).abs() < 1.0).unwrap_or(3);
+                    egui::ComboBox::from_id_source("grid_spacing")
+                        .selected_text(labels[current])
+                        .show_ui(ui, |ui| {
+                            for (i, &val) in options.iter().enumerate() {
+                                if ui.selectable_label(current == i, labels[i]).clicked() {
+                                    self.viewer.grid_spacing = val;
+                                }
+                            }
+                        });
+                });
             });
 
             ui.add_space(8.0);

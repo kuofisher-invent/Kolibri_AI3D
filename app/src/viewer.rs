@@ -44,4 +44,6 @@ pub(crate) struct ViewerState {
     pub(crate) console_log: Vec<(String, String, std::time::Instant)>,
     pub(crate) layout_mode: bool,
     pub(crate) layout: crate::layout::Layout,
+    pub(crate) show_grid: bool,
+    pub(crate) grid_spacing: f32,  // mm, default 1000.0 (1m)
 }

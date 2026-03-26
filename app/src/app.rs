@@ -185,6 +185,8 @@ impl KolibriApp {
                 console_log: Vec::new(),
                 layout_mode: false,
                 layout: Default::default(),
+                show_grid: true,
+                grid_spacing: 1000.0,
             },
 
             editor: EditorState {
@@ -231,6 +233,7 @@ impl KolibriApp {
                 collision_warning: None,
                 editing_dim_idx: None,
                 editing_dim_text: String::new(),
+                clipboard: Vec::new(),
             },
 
             right_tab: RightTab::Properties,
@@ -670,7 +673,7 @@ impl eframe::App for KolibriApp {
                 };
                 let hf = self.editor.hovered_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 let sf = self.editor.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
-                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager);
+                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, self.viewer.grid_spacing);
 
                 if let Some(tex_id) = self.viewport.texture_id {
                     ui.painter().image(tex_id, rect, egui::Rect::from_min_max(egui::pos2(0.0,0.0), egui::pos2(1.0,1.0)), egui::Color32::WHITE);
@@ -1708,6 +1711,73 @@ impl eframe::App for KolibriApp {
                             egui::FontId::proportional(if is_snapped { 15.0 } else { 13.0 }),
                             label_color,
                         );
+                    }
+                }
+
+                // ── Move gizmo: 3D XYZ arrows ──
+                if (self.editor.tool == Tool::Move || self.editor.tool == Tool::Select)
+                    && !self.editor.selected_ids.is_empty()
+                    && matches!(self.editor.draw_state, DrawState::Idle)
+                {
+                    if let Some(obj) = self.editor.selected_ids.first()
+                        .and_then(|id| self.scene.objects.get(id))
+                    {
+                        let center = match &obj.shape {
+                            Shape::Box { width, height, depth } =>
+                                [obj.position[0] + width / 2.0, obj.position[1] + height / 2.0, obj.position[2] + depth / 2.0],
+                            Shape::Cylinder { radius, height, .. } =>
+                                [obj.position[0] + radius, obj.position[1] + height / 2.0, obj.position[2] + radius],
+                            Shape::Sphere { radius, .. } =>
+                                [obj.position[0] + radius, obj.position[1] + radius, obj.position[2] + radius],
+                            _ => obj.position,
+                        };
+                        if let Some(sc) = Self::world_to_screen_vp(center, &vp, &rect) {
+                            let axis_len = 50.0; // pixels
+                            let head_sz = 8.0;
+                            let axes = [
+                                ([1.0_f32, 0.0, 0.0], egui::Color32::from_rgb(220, 60, 60), "X"),
+                                ([0.0, 1.0, 0.0], egui::Color32::from_rgb(60, 180, 60), "Y"),
+                                ([0.0, 0.0, 1.0], egui::Color32::from_rgb(60, 60, 220), "Z"),
+                            ];
+                            for (dir, color, label) in &axes {
+                                let end_world = [
+                                    center[0] + dir[0] * 800.0,
+                                    center[1] + dir[1] * 800.0,
+                                    center[2] + dir[2] * 800.0,
+                                ];
+                                if let Some(ep) = Self::world_to_screen_vp(end_world, &vp, &rect) {
+                                    // 正規化到固定像素長度
+                                    let dx = ep.x - sc.x;
+                                    let dy = ep.y - sc.y;
+                                    let len = (dx * dx + dy * dy).sqrt().max(1.0);
+                                    let nx = dx / len;
+                                    let ny = dy / len;
+                                    let tip = egui::pos2(sc.x + nx * axis_len, sc.y + ny * axis_len);
+                                    // 箭桿
+                                    ui.painter().line_segment([sc, tip], egui::Stroke::new(2.5, *color));
+                                    // 箭頭
+                                    let perp_x = -ny;
+                                    let perp_y = nx;
+                                    let h1 = egui::pos2(tip.x - nx * head_sz + perp_x * head_sz * 0.4,
+                                                        tip.y - ny * head_sz + perp_y * head_sz * 0.4);
+                                    let h2 = egui::pos2(tip.x - nx * head_sz - perp_x * head_sz * 0.4,
+                                                        tip.y - ny * head_sz - perp_y * head_sz * 0.4);
+                                    ui.painter().add(egui::Shape::convex_polygon(
+                                        vec![tip, h1, h2],
+                                        *color,
+                                        egui::Stroke::NONE,
+                                    ));
+                                    // 軸標籤
+                                    ui.painter().text(
+                                        egui::pos2(tip.x + nx * 6.0, tip.y + ny * 6.0),
+                                        egui::Align2::CENTER_CENTER,
+                                        label,
+                                        egui::FontId::proportional(10.0),
+                                        *color,
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
 

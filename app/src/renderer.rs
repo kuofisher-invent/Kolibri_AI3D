@@ -22,6 +22,7 @@ struct Uniforms {
     view_proj: [[f32; 4]; 4],
     sky_color: [f32; 4],     // rgb + padding
     ground_color: [f32; 4],  // rgb + padding
+    camera_pos: [f32; 4],    // xyz + padding (for PBR specular)
 }
 
 pub const COLOR_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -34,6 +35,7 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,
+    camera_pos: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -209,11 +211,38 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
 // ─── Fragment shader ────────────────────────────────────────────────────────
 
 @fragment fn fs_main(i: VsOut, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
-    let light = normalize(vec3<f32>(0.3, 1.0, 0.5));
+    let light_dir = normalize(vec3<f32>(0.3, 1.0, 0.5));
     let n = normalize(i.normal);
-    let ndl = max(dot(n, light), 0.0);
+    let v = normalize(u.camera_pos.xyz - i.world_pos);
+    let h = normalize(light_dir + v);
+    let ndl = max(dot(n, light_dir), 0.0);
+    let ndh = max(dot(n, h), 0.0);
+    let ndv = max(dot(n, v), 0.01);
+
+    // PBR: roughness 從 vertex color alpha 的低位元編碼（0.0-0.9 範圍）
+    // 如果 alpha > 0.9 則為程序紋理 sentinel，使用預設 roughness
+    let raw_alpha = i.color.a;
+    let roughness = select(clamp(raw_alpha * 1.1, 0.05, 1.0), 0.5, raw_alpha > 0.9);
+    let metallic = select(0.0, 0.8, raw_alpha > 0.925 && raw_alpha < 0.935); // metal pattern
+
+    // GGX distribution
+    let a = roughness * roughness;
+    let a2 = a * a;
+    let denom = ndh * ndh * (a2 - 1.0) + 1.0;
+    let D = a2 / (3.14159 * denom * denom + 0.0001);
+
+    // Schlick Fresnel
+    let f0 = mix(vec3<f32>(0.04), i.color.rgb, metallic);
+    let F = f0 + (1.0 - f0) * pow(1.0 - max(dot(h, v), 0.0), 5.0);
+
+    // Smith geometry (simplified)
+    let k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+    let G1_v = ndv / (ndv * (1.0 - k) + k);
+    let G1_l = ndl / (ndl * (1.0 - k) + k);
+    let G = G1_v * G1_l;
+
+    let specular = D * F * G / (4.0 * ndv * ndl + 0.001);
     let ambient = 0.25 + 0.1 * max(dot(n, vec3<f32>(0.0, 1.0, 0.0)), 0.0);
-    let l = ambient + 0.6 * ndl;
 
     var base_color = i.color.rgb;
 
@@ -246,7 +275,11 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
     // Resolve final alpha: sentinel values (>0.9) become opaque
     let final_alpha = select(alpha, 1.0, alpha > 0.9);
 
-    var col = vec4<f32>(base_color * l, final_alpha);
+    // PBR 合成：diffuse + specular
+    let kd = (1.0 - metallic) * base_color;
+    let diffuse_term = kd * (ambient + 0.6 * ndl);
+    let spec_term = specular * ndl;
+    var col = vec4<f32>(diffuse_term + spec_term, final_alpha);
 
     // Edge detection: subtle shader-based edges (explicit geometric edges handle most cases)
     let dx_n = dpdx(i.normal);
@@ -265,6 +298,7 @@ struct Uniforms {
     view_proj: mat4x4<f32>,
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,
+    camera_pos: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -320,6 +354,7 @@ pub struct ViewportRenderer {
     pub texture_id: Option<egui::TextureId>,
     pub size: [u32; 2],
     grid_verts: Vec<Vertex>,
+    cached_grid_spacing: f32,
     // ── Performance: dirty-flag mesh caching ──
     cached_scene_version: u64,
     cached_verts: Vec<Vertex>,
@@ -488,6 +523,7 @@ impl ViewportRenderer {
             texture_id: None,
             size: [2, 2],
             grid_verts,
+            cached_grid_spacing: 1000.0,
             // Dirty-flag caching (version 0 forces first rebuild)
             cached_scene_version: u64::MAX,
             cached_verts: Vec::new(),
@@ -673,14 +709,26 @@ impl ViewportRenderer {
         edge_thickness: f32,
         show_colors: bool,
         texture_manager: &TextureManager,
+        show_grid: bool,
+        grid_spacing: f32,
     ) {
         // Upload uniforms
+        // 從 view_proj 的逆矩陣提取相機位置
+        let inv_vp = view_proj.inverse();
+        let cam_pos = inv_vp.col(3).truncate();
         let uniforms = Uniforms {
             view_proj: view_proj.to_cols_array_2d(),
             sky_color: [sky_color[0], sky_color[1], sky_color[2], 0.0],
             ground_color: [ground_color[0], ground_color[1], ground_color[2], 0.0],
+            camera_pos: [cam_pos.x, cam_pos.y, cam_pos.z, 0.0],
         };
         queue.write_buffer(&self.uniform_buf, 0, bytemuck::bytes_of(&uniforms));
+
+        // Regenerate grid if spacing changed
+        if (grid_spacing - self.cached_grid_spacing).abs() > 0.1 {
+            self.grid_verts = generate_grid(100_000.0, grid_spacing);
+            self.cached_grid_spacing = grid_spacing;
+        }
 
         // ── Dirty-flag caching: only rebuild scene mesh when scene changes ──
         let scene_dirty = scene.version != self.cached_scene_version
@@ -857,8 +905,8 @@ impl ViewportRenderer {
                 pass.draw(0..3, 0..1);
             }
 
-            // Grid lines — skip in Sketch mode for clean output
-            if render_mode != 5 {
+            // Grid lines — skip in Sketch mode or when hidden
+            if render_mode != 5 && show_grid {
                 pass.set_pipeline(&self.line_pipeline);
                 pass.set_vertex_buffer(0, grid_buf.slice(..));
                 pass.draw(0..self.grid_verts.len() as u32, 0..1);
@@ -1090,6 +1138,12 @@ fn build_scene_mesh(
                 color[2] *= 0.3;
                 color[3] *= 0.3;
             }
+        }
+
+        // PBR: 編碼 roughness 到 alpha（非程序紋理材質時）
+        if color[3] >= 0.99 || color[3] <= 0.0 {
+            // 非 sentinel alpha → 用 roughness 值（0.0-0.89 範圍）
+            color[3] = obj.roughness.clamp(0.05, 0.89);
         }
 
         let p = obj.position;

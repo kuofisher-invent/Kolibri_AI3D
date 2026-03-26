@@ -768,6 +768,52 @@ impl KolibriApp {
                 if ctrl && i.key_pressed(egui::Key::A) {
                     self.editor.selected_ids = self.scene.objects.keys().cloned().collect();
                 }
+                // Copy (Ctrl+C)
+                if ctrl && i.key_pressed(egui::Key::C) && !self.editor.selected_ids.is_empty() {
+                    self.editor.clipboard = self.editor.selected_ids.iter()
+                        .filter_map(|id| self.scene.objects.get(id).cloned())
+                        .collect();
+                    self.file_message = Some((
+                        format!("已複製 {} 個物件", self.editor.clipboard.len()),
+                        std::time::Instant::now(),
+                    ));
+                }
+                // Paste (Ctrl+V)
+                if ctrl && i.key_pressed(egui::Key::V) && !self.editor.clipboard.is_empty() {
+                    self.scene.snapshot();
+                    let mut new_ids = Vec::new();
+                    let offset = [500.0_f32, 0.0, 500.0]; // 偏移貼上
+                    for obj in &self.editor.clipboard {
+                        let mut clone = obj.clone();
+                        clone.id = self.scene.next_id_pub();
+                        clone.name = format!("{}_paste", clone.name);
+                        clone.position[0] += offset[0];
+                        clone.position[2] += offset[2];
+                        new_ids.push(clone.id.clone());
+                        self.scene.objects.insert(clone.id.clone(), clone);
+                    }
+                    self.scene.version += 1;
+                    self.editor.selected_ids = new_ids;
+                    self.file_message = Some((
+                        format!("已貼上 {} 個物件", self.editor.clipboard.len()),
+                        std::time::Instant::now(),
+                    ));
+                }
+                // Cut (Ctrl+X)
+                if ctrl && i.key_pressed(egui::Key::X) && !self.editor.selected_ids.is_empty() {
+                    self.editor.clipboard = self.editor.selected_ids.iter()
+                        .filter_map(|id| self.scene.objects.get(id).cloned())
+                        .collect();
+                    self.scene.snapshot();
+                    let ids = std::mem::take(&mut self.editor.selected_ids);
+                    for id in &ids {
+                        self.scene.delete(id);
+                    }
+                    self.file_message = Some((
+                        format!("已剪下 {} 個物件", self.editor.clipboard.len()),
+                        std::time::Instant::now(),
+                    ));
+                }
 
                 // Unsaved changes confirmation Y/N (takes priority)
                 if self.pending_action.is_some() {

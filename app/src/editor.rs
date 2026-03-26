@@ -261,4 +261,6 @@ pub(crate) struct EditorState {
     pub(crate) collision_warning: Option<String>,
     pub(crate) editing_dim_idx: Option<usize>,
     pub(crate) editing_dim_text: String,
+    /// 內部剪貼簿（Ctrl+C/V）
+    pub(crate) clipboard: Vec<crate::scene::SceneObject>,
 }
