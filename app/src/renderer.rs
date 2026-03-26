@@ -1070,7 +1070,11 @@ fn build_scene_mesh(
             obj.material.color()
         };
         if selected_ids.iter().any(|s| s == &obj.id) {
-            color = [0.2, 0.6, 1.0, 1.0]; // blue highlight
+            // 選取高亮：材質色調 + 藍色淡化，保留材質可辨識性
+            let sel = [0.2_f32, 0.6, 1.0];
+            color[0] = color[0] * 0.45 + sel[0] * 0.55;
+            color[1] = color[1] * 0.45 + sel[1] * 0.55;
+            color[2] = color[2] * 0.45 + sel[2] * 0.55;
         } else if Some(obj.id.as_str()) == hovered {
             // lighten
             color[0] = (color[0] + 0.15).min(1.0);
@@ -1626,7 +1630,7 @@ fn push_sphere(
         for slice in 0..slices {
             let a = base + ring * (slices + 1) + slice;
             let b = a + slices + 1;
-            idx.extend_from_slice(&[a, b, a+1, a+1, b, b+1]);
+            idx.extend_from_slice(&[a, a+1, b,  b, a+1, b+1]);
         }
     }
 }

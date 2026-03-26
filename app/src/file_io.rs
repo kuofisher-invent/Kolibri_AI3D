@@ -55,7 +55,7 @@ impl KolibriApp {
             match crate::obj_io::import_obj(&mut self.scene, &path) {
                 Ok(count) => {
                     self.add_recent_file(&path);
-                    self.selected_ids.clear();
+                    self.editor.selected_ids.clear();
                     self.console_push("INFO", format!("[Import] OBJ 已匯入 {} 個物件", count));
                     self.file_message = Some((format!("已匯入 {} 個物件: {}", count, path), std::time::Instant::now()));
                 }
@@ -69,7 +69,7 @@ impl KolibriApp {
                 Ok(count) => {
                     self.current_file = Some(path.clone());
                     self.add_recent_file(&path);
-                    self.selected_ids.clear();
+                    self.editor.selected_ids.clear();
                     self.last_saved_version = self.scene.version;
                     self.console_push("INFO", format!("[File] 已載入 {} 個物件", count));
                     self.file_message = Some((format!("已載入 {} 個物件: {}", count, path), std::time::Instant::now()));
@@ -120,15 +120,15 @@ impl KolibriApp {
             };
 
             // Bridge uses Option<String> for selected_id; adapt to/from Vec
-            let mut bridge_selected: Option<String> = self.selected_ids.first().cloned();
+            let mut bridge_selected: Option<String> = self.editor.selected_ids.first().cloned();
             crate::test_bridge::execute(
                 input,
                 &mut self.scene,
-                &mut self.camera,
+                &mut self.viewer.camera,
                 &mut bridge_selected,
                 &mut screenshot_fn,
             );
-            self.selected_ids = bridge_selected.into_iter().collect();
+            self.editor.selected_ids = bridge_selected.into_iter().collect();
 
             crate::test_bridge::signal_done();
             log::info!("Test bridge: done");

@@ -54,12 +54,12 @@ fn closest_point_on_edge_to_mouse(
 
 impl KolibriApp {
     pub(crate) fn ground_snapped(&self) -> Option<[f32; 3]> {
-        self.snap_result.as_ref().map(|s| s.position)
+        self.editor.snap_result.as_ref().map(|s| s.position)
     }
 
     /// Raycast against all visible object faces and return the closest hit point.
     pub(crate) fn snap_to_face(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<[f32; 3]> {
-        let (origin, dir) = self.camera.screen_ray(mx, my, vw, vh);
+        let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let origin = glam::Vec3::new(origin.x, origin.y, origin.z);
         let dir = glam::Vec3::new(dir.x, dir.y, dir.z);
         let mut best_t = f32::MAX;
@@ -129,17 +129,17 @@ impl KolibriApp {
         let screen_threshold = 18.0_f32; // pixels
 
         // Build view-projection matrix and viewport rect for screen-space distance checks
-        let aspect = if self.viewport_size[1] > 0.0 { self.viewport_size[0] / self.viewport_size[1] } else { 1.0 };
-        let vp_mat = if self.use_ortho {
-            self.camera.proj_ortho(aspect) * self.camera.view()
+        let aspect = if self.viewer.viewport_size[1] > 0.0 { self.viewer.viewport_size[0] / self.viewer.viewport_size[1] } else { 1.0 };
+        let vp_mat = if self.viewer.use_ortho {
+            self.viewer.camera.proj_ortho(aspect) * self.viewer.camera.view()
         } else {
-            self.camera.view_proj(aspect)
+            self.viewer.camera.view_proj(aspect)
         };
         let vp_rect = egui::Rect::from_min_size(
             egui::pos2(0.0, 0.0),
-            egui::vec2(self.viewport_size[0], self.viewport_size[1]),
+            egui::vec2(self.viewer.viewport_size[0], self.viewer.viewport_size[1]),
         );
-        let mouse_screen = egui::pos2(self.mouse_screen[0], self.mouse_screen[1]);
+        let mouse_screen = egui::pos2(self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
 
         // Default: grid snap on ground
         let mut best_pos = [Self::snap(raw_ground[0], grid), 0.0, Self::snap(raw_ground[2], grid)];
@@ -326,7 +326,7 @@ impl KolibriApp {
         let has_object_snap = matches!(best_type, SnapType::Endpoint | SnapType::Midpoint | SnapType::FaceCenter | SnapType::Origin | SnapType::Intersection);
         if let Some(from) = from_point {
             // If locked axis is set, force it (even over object snaps)
-            if let Some(axis) = self.locked_axis {
+            if let Some(axis) = self.editor.locked_axis {
                 match axis {
                     0 => { // X axis
                         best_pos = [raw_ground[0], 0.0, from[2]];
@@ -362,7 +362,7 @@ impl KolibriApp {
                 };
 
                 // Sticky axis hysteresis: if already sticky, keep unless cursor is far enough away
-                if let Some(sticky) = self.sticky_axis {
+                if let Some(sticky) = self.editor.sticky_axis {
                     let release_dist = match sticky {
                         0 => dist_to_x,
                         2 => dist_to_z,
@@ -383,20 +383,20 @@ impl KolibriApp {
                         }
                     } else {
                         // Release sticky axis
-                        self.sticky_axis = None;
+                        self.editor.sticky_axis = None;
                     }
                 }
 
                 // If not sticky-locked, try to detect axis from screen distance
-                if self.sticky_axis.is_none() && !matches!(best_type, SnapType::AxisX | SnapType::AxisZ) {
+                if self.editor.sticky_axis.is_none() && !matches!(best_type, SnapType::AxisX | SnapType::AxisZ) {
                     if dist_to_x < axis_threshold_px && dist_to_x < dist_to_z {
                         best_pos = [raw_ground[0], 0.0, from[2]];
                         best_type = SnapType::AxisX;
-                        self.sticky_axis = Some(0);
+                        self.editor.sticky_axis = Some(0);
                     } else if dist_to_z < axis_threshold_px {
                         best_pos = [from[0], 0.0, raw_ground[2]];
                         best_type = SnapType::AxisZ;
-                        self.sticky_axis = Some(2);
+                        self.editor.sticky_axis = Some(2);
                     }
                 }
             }
@@ -419,7 +419,7 @@ impl KolibriApp {
                     }
                 }
                 // Also check against last drawn edge direction (SketchUp-style)
-                if let Some(last_dir) = self.last_line_dir {
+                if let Some(last_dir) = self.editor.last_line_dir {
                     ref_dirs.push(last_dir);
                 }
 
@@ -493,7 +493,7 @@ impl KolibriApp {
         // Score all candidates
         crate::inference::rank_candidates(
             &mut candidates,
-            &self.inference_ctx,
+            &self.editor.inference_ctx,
             raw_ground,
             from_point,
             &self.scene,
@@ -506,7 +506,7 @@ impl KolibriApp {
         }
 
         // Store inference label for overlay display
-        self.inference_label = candidates.first().map(|c| (c.label.clone(), c.source.clone()));
+        self.editor.inference_label = candidates.first().map(|c| (c.label.clone(), c.source.clone()));
 
         SnapResult {
             position: best_pos,
@@ -516,7 +516,7 @@ impl KolibriApp {
     }
 
     pub(crate) fn get_drawing_origin(&self) -> Option<[f32; 3]> {
-        match &self.draw_state {
+        match &self.editor.draw_state {
             DrawState::BoxBase { p1 } => Some(*p1),
             DrawState::LineFrom { p1 } => Some(*p1),
             DrawState::ArcP1 { p1 } => Some(*p1),
@@ -539,10 +539,10 @@ impl KolibriApp {
 
     pub(crate) fn world_to_screen(&self, world_pos: [f32; 3], rect: &egui::Rect) -> Option<egui::Pos2> {
         let aspect = rect.width() / rect.height();
-        let vp = if self.use_ortho {
-            self.camera.proj_ortho(aspect) * self.camera.view()
+        let vp = if self.viewer.use_ortho {
+            self.viewer.camera.proj_ortho(aspect) * self.viewer.camera.view()
         } else {
-            self.camera.view_proj(aspect)
+            self.viewer.camera.view_proj(aspect)
         };
         let clip = vp * glam::Vec4::new(world_pos[0], world_pos[1], world_pos[2], 1.0);
         if clip.w <= 0.0 { return None; }
@@ -577,7 +577,7 @@ impl KolibriApp {
                         let diff = (e - oe).abs();
                         if diff > 0.1 && diff < 200.0 {
                             let axis = if i < 2 { 0 } else { 2 };
-                            self.suggestion = Some(AiSuggestion {
+                            self.editor.suggestion = Some(AiSuggestion {
                                 message: format!("是否對齊到 {} 邊? (距離 {:.0}mm)", other.name, diff),
                                 action: SuggestionAction::AlignToEdge {
                                     obj_id: id_owned.clone(),

@@ -11,78 +11,78 @@ impl KolibriApp {
 
     pub(crate) fn handle_viewport(&mut self, response: &egui::Response, ui: &egui::Ui) {
         let shift = ui.input(|i| i.modifiers.shift);
-        self.shift_held = shift;
+        self.editor.shift_held = shift;
 
         // Track mouse position on ground
         if let Some(hp) = response.hover_pos() {
             let local = hp - response.rect.min;
-            self.mouse_screen = [local.x, local.y];
-            self.viewport_size = [response.rect.width(), response.rect.height()];
-            let (origin, dir) = self.camera.screen_ray(local.x, local.y, response.rect.width(), response.rect.height());
-            self.mouse_ground = camera::ray_ground(origin, dir).map(|p| [p.x, p.y, p.z]);
+            self.editor.mouse_screen = [local.x, local.y];
+            self.viewer.viewport_size = [response.rect.width(), response.rect.height()];
+            let (origin, dir) = self.viewer.camera.screen_ray(local.x, local.y, response.rect.width(), response.rect.height());
+            self.editor.mouse_ground = camera::ray_ground(origin, dir).map(|p| [p.x, p.y, p.z]);
 
             // Shift-lock axis (SketchUp-style: hold Shift to lock detected axis)
             // Only when actively drawing or moving, not when idle (Shift+Middle = Pan)
-            let in_active_state = !matches!(self.draw_state, DrawState::Idle)
-                || (matches!(self.tool, Tool::Move) && !self.selected_ids.is_empty() && response.dragged());
+            let in_active_state = !matches!(self.editor.draw_state, DrawState::Idle)
+                || (matches!(self.editor.tool, Tool::Move) && !self.editor.selected_ids.is_empty() && response.dragged());
             if shift && in_active_state {
-                if let Some(ref snap) = self.snap_result {
+                if let Some(ref snap) = self.editor.snap_result {
                     match snap.snap_type {
-                        crate::app::SnapType::AxisX => self.locked_axis = Some(0),
-                        crate::app::SnapType::AxisZ => self.locked_axis = Some(2),
+                        crate::app::SnapType::AxisX => self.editor.locked_axis = Some(0),
+                        crate::app::SnapType::AxisZ => self.editor.locked_axis = Some(2),
                         _ => {} // keep current lock if any
                     }
                 }
             } else if !shift && !ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd) {
                 // Release Shift-lock when Shift is released (unless Ctrl-locked)
                 // Only clear if it was a Shift-lock (not a Ctrl-cycle lock)
-                if self.locked_axis.is_some() && !self.ctrl_was_down {
-                    self.locked_axis = None;
+                if self.editor.locked_axis.is_some() && !self.editor.ctrl_was_down {
+                    self.editor.locked_axis = None;
                 }
             }
 
             // Compute smart snap
             // For Line/Arc tools, try face snap first
-            let is_draw_tool = matches!(self.tool, Tool::Line | Tool::Arc);
+            let is_draw_tool = matches!(self.editor.tool, Tool::Line | Tool::Arc);
             if is_draw_tool {
                 if let Some(face_pt) = self.snap_to_face(local.x, local.y, response.rect.width(), response.rect.height()) {
-                    self.mouse_ground = Some(face_pt);
-                    self.snap_result = Some(crate::app::SnapResult {
+                    self.editor.mouse_ground = Some(face_pt);
+                    self.editor.snap_result = Some(crate::app::SnapResult {
                         position: face_pt,
                         snap_type: crate::app::SnapType::OnFace,
                         from_point: self.get_drawing_origin(),
                     });
-                } else if let Some(raw) = self.mouse_ground {
+                } else if let Some(raw) = self.editor.mouse_ground {
                     let from = self.get_drawing_origin();
                     let result = self.smart_snap(raw, from);
-                    self.mouse_ground = Some(result.position);
-                    self.snap_result = Some(result);
+                    self.editor.mouse_ground = Some(result.position);
+                    self.editor.snap_result = Some(result);
                 } else {
-                    self.snap_result = None;
+                    self.editor.snap_result = None;
                 }
             } else {
                 // Run snap for ALL tools (not just drawing) — use ground point or fallback
-                let raw = self.mouse_ground.unwrap_or([0.0, 0.0, 0.0]);
+                let raw = self.editor.mouse_ground.unwrap_or([0.0, 0.0, 0.0]);
                 let from = self.get_drawing_origin();
                 let result = self.smart_snap(raw, from);
                 if result.snap_type != crate::app::SnapType::None {
-                    self.mouse_ground = Some(result.position);
+                    self.editor.mouse_ground = Some(result.position);
                 }
-                self.snap_result = Some(result);
+                self.editor.snap_result = Some(result);
             }
 
             // Hover pick — highlight objects/faces for all interactive tools
-            let interactive = matches!(self.tool,
+            let interactive = matches!(self.editor.tool,
                 Tool::Select | Tool::PushPull | Tool::Move | Tool::Rotate |
                 Tool::Scale | Tool::Eraser | Tool::PaintBucket | Tool::Offset |
                 Tool::FollowMe
             );
-            if interactive && matches!(self.draw_state, DrawState::Idle) {
-                self.hovered_id = self.pick(local.x, local.y, response.rect.width(), response.rect.height());
-                self.hovered_face = self.pick_face(local.x, local.y, response.rect.width(), response.rect.height());
+            if interactive && matches!(self.editor.draw_state, DrawState::Idle) {
+                self.editor.hovered_id = self.pick(local.x, local.y, response.rect.width(), response.rect.height());
+                self.editor.hovered_face = self.pick_face(local.x, local.y, response.rect.width(), response.rect.height());
             } else {
-                self.hovered_id = None;
-                self.hovered_face = None;
+                self.editor.hovered_id = None;
+                self.editor.hovered_face = None;
             }
         }
 
@@ -91,49 +91,49 @@ impl KolibriApp {
         if response.dragged_by(egui::PointerButton::Middle) {
             let d = response.drag_delta();
             if shift {
-                self.camera.pan(d.x, d.y);
+                self.viewer.camera.pan(d.x, d.y);
             } else {
-                self.camera.orbit(d.x, d.y);
+                self.viewer.camera.orbit(d.x, d.y);
             }
         }
         // Middle click (no drag) = center view on cursor point
         if response.clicked_by(egui::PointerButton::Middle) {
-            if let Some(ground) = self.mouse_ground {
-                self.camera.target = glam::Vec3::new(ground[0], ground[1], ground[2]);
+            if let Some(ground) = self.editor.mouse_ground {
+                self.viewer.camera.target = glam::Vec3::new(ground[0], ground[1], ground[2]);
                 self.file_message = Some(("視角已居中".to_string(), std::time::Instant::now()));
             }
         }
         // Right-drag no longer orbits (right-click is for context menu)
-        if response.dragged_by(egui::PointerButton::Primary) && matches!(self.draw_state, DrawState::Idle) {
+        if response.dragged_by(egui::PointerButton::Primary) && matches!(self.editor.draw_state, DrawState::Idle) {
             let d = response.drag_delta();
-            match self.tool {
-                Tool::Orbit => self.camera.orbit(d.x, d.y),
-                Tool::Pan => self.camera.pan(d.x, d.y),
+            match self.editor.tool {
+                Tool::Orbit => self.viewer.camera.orbit(d.x, d.y),
+                Tool::Pan => self.viewer.camera.pan(d.x, d.y),
                 Tool::Select => {
                     if shift {
-                        self.camera.pan(d.x, d.y);
-                    } else if self.rubber_band.is_some() {
+                        self.viewer.camera.pan(d.x, d.y);
+                    } else if self.editor.rubber_band.is_some() {
                         // Continue rubber band drag (don't break on hover)
                         if let Some(hp) = response.hover_pos() {
-                            if let Some((_, ref mut end)) = self.rubber_band {
+                            if let Some((_, ref mut end)) = self.editor.rubber_band {
                                 *end = hp;
                             }
                         }
-                    } else if self.hovered_id.is_none() {
-                        self.camera.orbit(d.x, d.y);
+                    } else if self.editor.hovered_id.is_none() {
+                        self.viewer.camera.orbit(d.x, d.y);
                     }
                 }
                 Tool::Move => {
                     // Move selected objects by dragging
                     // Ctrl held at drag START: duplicate objects first, then move clones
-                    if !self.selected_ids.is_empty() {
-                        if !self.drag_snapshot_taken {
+                    if !self.editor.selected_ids.is_empty() {
+                        if !self.editor.drag_snapshot_taken {
                             self.scene.snapshot();
                             // If Ctrl held at drag start, duplicate objects first
                             let ctrl_at_start = ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd);
                             if ctrl_at_start {
                                 let mut new_ids = Vec::new();
-                                for id in &self.selected_ids.clone() {
+                                for id in &self.editor.selected_ids.clone() {
                                     if let Some(obj) = self.scene.objects.get(id).cloned() {
                                         let mut clone = obj;
                                         clone.id = self.scene.next_id_pub();
@@ -144,18 +144,18 @@ impl KolibriApp {
                                     }
                                 }
                                 if !new_ids.is_empty() {
-                                    self.selected_ids = new_ids;
-                                    self.move_is_copy = true;
+                                    self.editor.selected_ids = new_ids;
+                                    self.editor.move_is_copy = true;
                                 }
                             }
-                            self.drag_snapshot_taken = true;
+                            self.editor.drag_snapshot_taken = true;
                         }
 
                         // Detect Ctrl press EDGE to cycle axis lock (only when not in copy mode)
                         let ctrl_now = ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd);
-                        if ctrl_now && !self.ctrl_was_down {
+                        if ctrl_now && !self.editor.ctrl_was_down {
                             // Ctrl just pressed → cycle: None → X(red) → Y(green) → Z(blue) → None
-                            self.locked_axis = match self.locked_axis {
+                            self.editor.locked_axis = match self.editor.locked_axis {
                                 None => Some(0),
                                 Some(0) => Some(1),
                                 Some(1) => Some(2),
@@ -163,24 +163,24 @@ impl KolibriApp {
                                 Some(_) => None,
                             };
                         }
-                        self.ctrl_was_down = ctrl_now;
+                        self.editor.ctrl_was_down = ctrl_now;
 
-                        let scale = self.camera.distance * 0.001;
-                        let (sy, cy) = self.camera.yaw.sin_cos();
+                        let scale = self.viewer.camera.distance * 0.001;
+                        let (sy, cy) = self.viewer.camera.yaw.sin_cos();
                         let right = glam::Vec3::new(-sy, 0.0, cy);
                         let fwd = glam::Vec3::new(-cy, 0.0, -sy);
                         let raw_delta = right * (-d.x) * scale + fwd * (d.y * scale);
                         let vert_delta = -d.y * scale;
 
                         // Apply movement based on locked axis
-                        let (dx, dy, dz) = match self.locked_axis {
+                        let (dx, dy, dz) = match self.editor.locked_axis {
                             Some(0) => (raw_delta.x, 0.0, 0.0),              // X only (red)
                             Some(1) => (0.0, vert_delta, 0.0),                // Y only (green)
                             Some(2) => (0.0, 0.0, raw_delta.z),              // Z only (blue)
                             _ => (raw_delta.x, 0.0, raw_delta.z),             // Free XZ
                         };
 
-                        let ids = self.selected_ids.clone();
+                        let ids = self.editor.selected_ids.clone();
                         // Collision check during move
                         let components = crate::scene::scene_to_collision_components(&self.scene);
                         let config = crate::collision::CollisionConfig::default();
@@ -194,12 +194,12 @@ impl KolibriApp {
                                     let note = report.blocking_pairs.first()
                                         .and_then(|p| p.note.as_deref())
                                         .unwrap_or("Illegal geometric penetration");
-                                    self.collision_warning = Some(format!("碰撞: {}", note));
+                                    self.editor.collision_warning = Some(format!("碰撞: {}", note));
                                 } else if !report.warning_pairs.is_empty() {
                                     let note = report.warning_pairs.first()
                                         .and_then(|p| p.note.as_deref())
                                         .unwrap_or("Contact detected");
-                                    self.collision_warning = Some(format!("警告: {}", note));
+                                    self.editor.collision_warning = Some(format!("警告: {}", note));
                                 }
                             }
                             // Always apply the move (warning only, never block)
@@ -210,20 +210,20 @@ impl KolibriApp {
                             }
                         }
                     } else {
-                        self.camera.orbit(d.x, d.y);
+                        self.viewer.camera.orbit(d.x, d.y);
                     }
                 }
                 Tool::Eraser => {
                     // Drag over objects to continuously delete them
-                    if let Some(id) = self.hovered_id.clone() {
-                        if !self.drag_snapshot_taken {
+                    if let Some(id) = self.editor.hovered_id.clone() {
+                        if !self.editor.drag_snapshot_taken {
                             self.scene.snapshot();
-                            self.drag_snapshot_taken = true;
+                            self.editor.drag_snapshot_taken = true;
                         }
                         self.scene.objects.remove(&id);
                         self.scene.version += 1;
-                        self.selected_ids.retain(|s| s != &id);
-                        self.hovered_id = None;
+                        self.editor.selected_ids.retain(|s| s != &id);
+                        self.editor.hovered_id = None;
                     }
                 }
                 _ => {} // Drawing tools handle clicks, not drags
@@ -232,42 +232,42 @@ impl KolibriApp {
         // Reset drag snapshot flag when not dragging
         if !response.dragged() {
             // B8: Save move delta for array copy before clearing move state
-            if self.drag_snapshot_taken && self.move_is_copy {
-                if let Some(origin) = self.move_origin {
-                    if let Some(obj) = self.selected_ids.first().and_then(|id| self.scene.objects.get(id)) {
-                        self.last_move_delta = Some([
+            if self.editor.drag_snapshot_taken && self.editor.move_is_copy {
+                if let Some(origin) = self.editor.move_origin {
+                    if let Some(obj) = self.editor.selected_ids.first().and_then(|id| self.scene.objects.get(id)) {
+                        self.editor.last_move_delta = Some([
                             obj.position[0] - origin[0],
                             obj.position[1] - origin[1],
                             obj.position[2] - origin[2],
                         ]);
-                        self.last_move_was_copy = true;
+                        self.editor.last_move_was_copy = true;
                     }
                 }
             }
-            self.drag_snapshot_taken = false;
-            self.move_is_copy = false;
+            self.editor.drag_snapshot_taken = false;
+            self.editor.move_is_copy = false;
         }
 
         // Rubber band selection: start on drag start in Select mode when nothing hovered
         if response.drag_started_by(egui::PointerButton::Primary)
-            && matches!(self.tool, Tool::Select)
-            && matches!(self.draw_state, DrawState::Idle)
+            && matches!(self.editor.tool, Tool::Select)
+            && matches!(self.editor.draw_state, DrawState::Idle)
             && !shift
-            && self.hovered_id.is_none()
+            && self.editor.hovered_id.is_none()
         {
             if let Some(hp) = response.interact_pointer_pos() {
-                self.rubber_band = Some((hp, hp));
+                self.editor.rubber_band = Some((hp, hp));
             }
         }
 
         // Rubber band selection: finish on drag stop
         if response.drag_stopped_by(egui::PointerButton::Primary) {
-            if let Some((start, end)) = self.rubber_band.take() {
+            if let Some((start, end)) = self.editor.rubber_band.take() {
                 let rect = egui::Rect::from_two_pos(start, end);
                 if rect.width() > 3.0 || rect.height() > 3.0 {
                     // Find all objects whose projected AABB overlaps the rubber band rect
                     let viewport_rect = response.rect;
-                    let mut selected = if shift { self.selected_ids.clone() } else { Vec::new() };
+                    let mut selected = if shift { self.editor.selected_ids.clone() } else { Vec::new() };
                     for obj in self.scene.objects.values() {
                         let p = obj.position;
                         let (min_p, max_p) = match &obj.shape {
@@ -313,8 +313,8 @@ impl KolibriApp {
                             selected.push(obj.id.clone());
                         }
                     }
-                    self.selected_ids = selected;
-                    if !self.selected_ids.is_empty() {
+                    self.editor.selected_ids = selected;
+                    if !self.editor.selected_ids.is_empty() {
                         self.right_tab = RightTab::Properties;
                     }
                 }
@@ -325,17 +325,17 @@ impl KolibriApp {
         if response.hovered() {
             let scroll = ui.input(|i| i.smooth_scroll_delta.y);
             if scroll.abs() > 0.1 {
-                let world_point = self.mouse_ground.map(|p| glam::Vec3::new(p[0], p[1], p[2]));
-                self.camera.zoom_toward(scroll, world_point);
+                let world_point = self.editor.mouse_ground.map(|p| glam::Vec3::new(p[0], p[1], p[2]));
+                self.viewer.camera.zoom_toward(scroll, world_point);
             }
         }
 
         // Scale drag with axis-constrained handles
-        if let DrawState::Scaling { ref obj_id, handle, original_dims: _ } = self.draw_state.clone() {
+        if let DrawState::Scaling { ref obj_id, handle, original_dims: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
-                if !self.drag_snapshot_taken {
+                if !self.editor.drag_snapshot_taken {
                     self.scene.snapshot();
-                    self.drag_snapshot_taken = true;
+                    self.editor.drag_snapshot_taken = true;
                 }
                 let dy = -response.drag_delta().y;
                 let factor = 1.0 + dy * 0.005;
@@ -386,17 +386,17 @@ impl KolibriApp {
                 }
             }
             if response.drag_stopped() || response.clicked() {
-                self.draw_state = DrawState::Idle;
-                self.drag_snapshot_taken = false;
+                self.editor.draw_state = DrawState::Idle;
+                self.editor.drag_snapshot_taken = false;
             }
         }
 
         // D1: Rotate drag handler — interactive rotation with protractor
-        if let DrawState::Rotating { ref obj_id, center, start_angle: _, ref mut accumulated } = self.draw_state.clone() {
+        if let DrawState::Rotating { ref obj_id, center, start_angle: _, ref mut accumulated } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
-                if !self.drag_snapshot_taken {
+                if !self.editor.drag_snapshot_taken {
                     self.scene.snapshot();
-                    self.drag_snapshot_taken = true;
+                    self.editor.drag_snapshot_taken = true;
                 }
                 // Horizontal drag = rotation
                 let delta_angle = response.drag_delta().x * 0.005;
@@ -420,35 +420,35 @@ impl KolibriApp {
                     obj.rotation_y = new_rotation;
                 }
                 // Update draw state with new accumulated
-                self.draw_state = DrawState::Rotating {
+                self.editor.draw_state = DrawState::Rotating {
                     obj_id: obj_id.clone(), center, start_angle: 0.0,
                     accumulated: new_accumulated,
                 };
             }
             if response.drag_stopped() {
-                self.draw_state = DrawState::Idle;
-                self.drag_snapshot_taken = false;
+                self.editor.draw_state = DrawState::Idle;
+                self.editor.drag_snapshot_taken = false;
             }
         }
 
         // Offset drag — face edge inset with live preview
-        if let DrawState::Offsetting { ref obj_id, face, distance: _ } = self.draw_state.clone() {
+        if let DrawState::Offsetting { ref obj_id, face, distance: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
-                if !self.drag_snapshot_taken {
+                if !self.editor.drag_snapshot_taken {
                     self.scene.snapshot();
-                    self.drag_snapshot_taken = true;
+                    self.editor.drag_snapshot_taken = true;
                 }
-                let scale = self.camera.distance * 0.001;
+                let scale = self.viewer.camera.distance * 0.001;
                 let delta = response.drag_delta().x * scale;
-                let cur_d = match &self.draw_state {
+                let cur_d = match &self.editor.draw_state {
                     DrawState::Offsetting { distance, .. } => *distance,
                     _ => 0.0,
                 };
                 let new_d = (cur_d + delta).abs().max(10.0);
-                self.draw_state = DrawState::Offsetting { obj_id: obj_id.clone(), face, distance: new_d };
+                self.editor.draw_state = DrawState::Offsetting { obj_id: obj_id.clone(), face, distance: new_d };
             }
             if response.drag_stopped() {
-                let d = match &self.draw_state {
+                let d = match &self.editor.draw_state {
                     DrawState::Offsetting { distance, .. } => *distance,
                     _ => 0.0,
                 };
@@ -485,38 +485,38 @@ impl KolibriApp {
                             };
                             let name = format!("{}_offset", obj.name);
                             let new_id = self.scene.add_box(name, new_pos, new_w, new_h, new_d, mat);
-                            self.selected_ids = vec![new_id.clone()];
-                            self.selected_face = Some((new_id, face));
-                            self.tool = Tool::PushPull;
+                            self.editor.selected_ids = vec![new_id.clone()];
+                            self.editor.selected_face = Some((new_id, face));
+                            self.editor.tool = Tool::PushPull;
                             self.file_message = Some((format!("偏移 {:.0}mm — 可推拉", d), std::time::Instant::now()));
                         }
                     }
                 }
-                self.draw_state = DrawState::Idle;
-                self.drag_snapshot_taken = false;
+                self.editor.draw_state = DrawState::Idle;
+                self.editor.drag_snapshot_taken = false;
             }
         }
 
         // Push/Pull drag — only when a face is click-selected (selected_face)
-        if self.tool == Tool::PushPull {
-            if let Some((ref obj_id, face)) = self.selected_face.clone() {
+        if self.editor.tool == Tool::PushPull {
+            if let Some((ref obj_id, face)) = self.editor.selected_face.clone() {
                 if response.dragged_by(egui::PointerButton::Primary) {
-                    if !self.drag_snapshot_taken {
+                    if !self.editor.drag_snapshot_taken {
                         self.scene.snapshot();
-                        self.last_pull_distance = 0.0; // reset accumulator at drag start
+                        self.editor.last_pull_distance = 0.0; // reset accumulator at drag start
                         // C3: Save original position & dims for dashed reference lines
                         if let Some(obj) = self.scene.objects.get(&*obj_id) {
-                            self.pull_original_pos = Some(obj.position);
-                            self.pull_original_dims = match &obj.shape {
+                            self.editor.pull_original_pos = Some(obj.position);
+                            self.editor.pull_original_dims = match &obj.shape {
                                 Shape::Box { width, height, depth } => Some([*width, *height, *depth]),
                                 Shape::Cylinder { radius, height, .. } => Some([*radius * 2.0, *height, *radius * 2.0]),
                                 _ => None,
                             };
                         }
-                        self.drag_snapshot_taken = true;
+                        self.editor.drag_snapshot_taken = true;
                     }
                     let d = response.drag_delta();
-                    let scale = self.camera.distance * 0.0015;
+                    let scale = self.viewer.camera.distance * 0.0015;
 
                     // Get face normal in world space
                     let normal = match face {
@@ -539,7 +539,7 @@ impl KolibriApp {
                         }
                     } else { glam::Vec3::ZERO };
 
-                    let vp = self.camera.view_proj(self.viewport_size[0] / self.viewport_size[1].max(1.0));
+                    let vp = self.viewer.camera.view_proj(self.viewer.viewport_size[0] / self.viewer.viewport_size[1].max(1.0));
 
                     // Project center and center+normal to clip space
                     let p0_clip = vp * glam::Vec4::from((obj_center, 1.0));
@@ -561,7 +561,7 @@ impl KolibriApp {
                             // Project drag delta onto screen normal direction
                             let amount = (d.x * sn_x + d.y * sn_y) * scale;
 
-                            self.last_pull_distance += amount;
+                            self.editor.last_pull_distance += amount;
 
                             if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
                                 match (&mut obj.shape, face) {
@@ -603,7 +603,7 @@ impl KolibriApp {
                                 let components = crate::scene::scene_to_collision_components(&self.scene);
                                 let report = crate::collision::can_place_component(&moving, &components, &crate::collision::CollisionConfig::default());
                                 if !report.is_allowed || !report.warning_pairs.is_empty() {
-                                    self.collision_warning = Some("推拉導致碰撞".to_string());
+                                    self.editor.collision_warning = Some("推拉導致碰撞".to_string());
                                 }
                             }
                         }
@@ -612,34 +612,34 @@ impl KolibriApp {
                 if response.drag_stopped() {
                     // B5: Adjust adjacent objects that were touching the pulled face
                     {
-                        let pull_delta = self.last_pull_distance;
+                        let pull_delta = self.editor.last_pull_distance;
                         if pull_delta.abs() > 0.1 {
                             Self::adjust_adjacent_after_pull(&mut self.scene, &obj_id, face, pull_delta);
                         }
                     }
                     // Store pull face for double-click repeat (A4)
                     // last_pull_distance was accumulated during drag
-                    self.last_pull_face = Some((obj_id.clone(), face));
-                    self.last_pull_click_time = std::time::Instant::now();
-                    self.drag_snapshot_taken = false;
+                    self.editor.last_pull_face = Some((obj_id.clone(), face));
+                    self.editor.last_pull_click_time = std::time::Instant::now();
+                    self.editor.drag_snapshot_taken = false;
                     // C3: clear original pos/dims
-                    self.pull_original_pos = None;
-                    self.pull_original_dims = None;
-                    self.ai_log.log(&self.current_actor.clone(), "\u{63a8}\u{62c9}\u{9762}", &format!("{:?} {:.0}mm", face, self.last_pull_distance), vec![obj_id.clone()]);
+                    self.editor.pull_original_pos = None;
+                    self.editor.pull_original_dims = None;
+                    self.ai_log.log(&self.current_actor.clone(), "\u{63a8}\u{62c9}\u{9762}", &format!("{:?} {:.0}mm", face, self.editor.last_pull_distance), vec![obj_id.clone()]);
                     // Face stays selected after drag — user can pull again or click to deselect
                 }
             }
         }
 
         // Push/Pull drag on free mesh face
-        if let DrawState::PullingFreeMesh { face_id } = self.draw_state {
+        if let DrawState::PullingFreeMesh { face_id } = self.editor.draw_state {
             if response.dragged_by(egui::PointerButton::Primary) {
-                if !self.drag_snapshot_taken {
+                if !self.editor.drag_snapshot_taken {
                     self.scene.snapshot();
-                    self.drag_snapshot_taken = true;
+                    self.editor.drag_snapshot_taken = true;
                 }
                 let drag = response.drag_delta();
-                let scale = self.camera.distance * 0.002;
+                let scale = self.viewer.camera.distance * 0.002;
                 // Use vertical drag mapped to face normal direction
                 let amount = -drag.y * scale;
                 if amount.abs() > 0.1 {
@@ -648,8 +648,8 @@ impl KolibriApp {
                 }
             }
             if response.drag_stopped() || response.clicked() {
-                self.draw_state = DrawState::Idle;
-                self.drag_snapshot_taken = false;
+                self.editor.draw_state = DrawState::Idle;
+                self.editor.drag_snapshot_taken = false;
                 self.file_message = Some((
                     "\u{9762}\u{5df2}\u{63a8}\u{62c9}\u{5b8c}\u{6210}".to_string(),
                     std::time::Instant::now(),
@@ -659,17 +659,17 @@ impl KolibriApp {
 
         // Double-click: enter group isolation mode
         if response.double_clicked() {
-            let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-            let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+            let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+            let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
             if let Some(id) = self.pick(mx, my, vw, vh) {
                 let is_group = self.scene.objects.get(&id)
                     .map(|o| o.name.contains("[群組]") || o.name.contains("[元件]"))
                     .unwrap_or(false);
                 if is_group {
-                    self.editing_group_id = Some(id.clone());
-                    self.selected_ids = vec![id];
+                    self.editor.editing_group_id = Some(id.clone());
+                    self.editor.selected_ids = vec![id];
                 } else {
-                    self.editing_group_id = None;
+                    self.editor.editing_group_id = None;
                 }
             }
         }
@@ -681,7 +681,7 @@ impl KolibriApp {
 
         // Right-click context menu
         response.context_menu(|ui| {
-            let has_sel = !self.selected_ids.is_empty();
+            let has_sel = !self.editor.selected_ids.is_empty();
             let action = crate::menu::draw_context_menu(ui, has_sel);
             self.handle_menu_action(action);
         });
@@ -690,7 +690,7 @@ impl KolibriApp {
         if response.has_focus() || response.hovered() {
             ui.input(|i| {
                 if i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace) {
-                    let ids = std::mem::take(&mut self.selected_ids);
+                    let ids = std::mem::take(&mut self.editor.selected_ids);
                     for id in &ids {
                         self.ai_log.log(&self.current_actor.clone(), "\u{522a}\u{9664}\u{7269}\u{4ef6}", id, vec![id.clone()]);
                         self.scene.delete(id);
@@ -698,34 +698,34 @@ impl KolibriApp {
                 }
                 if i.key_pressed(egui::Key::Escape) {
                     // FollowPath: ESC finishes the path and creates extrusion
-                    if let DrawState::FollowPath { ref source_id, ref path_points } = self.draw_state.clone() {
+                    if let DrawState::FollowPath { ref source_id, ref path_points } = self.editor.draw_state.clone() {
                         if path_points.len() >= 2 {
                             let pid = source_id.clone();
                             let pts = path_points.clone();
                             self.extrude_along_path(&pid, &pts);
                         }
-                        self.draw_state = DrawState::Idle;
+                        self.editor.draw_state = DrawState::Idle;
                     } else {
-                        self.tool = Tool::Select;
-                        self.draw_state = DrawState::Idle;
-                        self.selected_ids.clear();
-                        self.selected_face = None;
-                        self.locked_axis = None;
-                        self.sticky_axis = None;
-                        self.editing_group_id = None;
-                        self.suggestion = None;
+                        self.editor.tool = Tool::Select;
+                        self.editor.draw_state = DrawState::Idle;
+                        self.editor.selected_ids.clear();
+                        self.editor.selected_face = None;
+                        self.editor.locked_axis = None;
+                        self.editor.sticky_axis = None;
+                        self.editor.editing_group_id = None;
+                        self.editor.suggestion = None;
                         // Inference 2.0: reset context on ESC
-                        crate::inference::reset_context(&mut self.inference_ctx);
-                        self.inference_ctx.current_tool = Tool::Select;
+                        crate::inference::reset_context(&mut self.editor.inference_ctx);
+                        self.editor.inference_ctx.current_tool = Tool::Select;
                     }
                 }
                 // Enter key: finish FollowPath extrusion
-                if let DrawState::FollowPath { ref source_id, ref path_points } = self.draw_state.clone() {
+                if let DrawState::FollowPath { ref source_id, ref path_points } = self.editor.draw_state.clone() {
                     if i.key_pressed(egui::Key::Enter) && path_points.len() >= 2 {
                         let pid = source_id.clone();
                         let pts = path_points.clone();
                         self.extrude_along_path(&pid, &pts);
-                        self.draw_state = DrawState::Idle;
+                        self.editor.draw_state = DrawState::Idle;
                     }
                 }
                 // Undo / Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
@@ -748,7 +748,7 @@ impl KolibriApp {
                     self.open_scene();
                 }
                 if ctrl && i.key_pressed(egui::Key::A) {
-                    self.selected_ids = self.scene.objects.keys().cloned().collect();
+                    self.editor.selected_ids = self.scene.objects.keys().cloned().collect();
                 }
 
                 // Unsaved changes confirmation Y/N (takes priority)
@@ -763,19 +763,23 @@ impl KolibriApp {
                     }
                 }
                 // AI suggestion Y/N
-                else if self.suggestion.is_some() {
+                else if self.editor.suggestion.is_some() {
                     if i.key_pressed(egui::Key::Y) {
-                        if let Some(suggestion) = self.suggestion.take() {
+                        if let Some(suggestion) = self.editor.suggestion.take() {
                             self.apply_suggestion(suggestion.action);
                         }
                     }
                     if i.key_pressed(egui::Key::N) {
-                        self.suggestion = None;
+                        self.editor.suggestion = None;
                     }
                 }
 
                 // Shortcut keys (SketchUp-style) — only when Ctrl is NOT held
-                let set = |tool: Tool, this: &mut Self| { this.tool = tool; this.draw_state = DrawState::Idle; };
+                let set = |tool: Tool, this: &mut Self| {
+                    this.console_push("TOOL", format!("切換工具: {:?}", tool));
+                    this.editor.tool = tool;
+                    this.editor.draw_state = DrawState::Idle;
+                };
                 if !ctrl {
                     if i.key_pressed(egui::Key::Space) { set(Tool::Select, self); }
                     if i.key_pressed(egui::Key::M) { set(Tool::Move, self); }
@@ -797,25 +801,25 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::E) { set(Tool::Eraser, self); }
 
                     // Standard view shortcuts
-                    if i.key_pressed(egui::Key::Num1) { self.camera.set_front(); }
-                    if i.key_pressed(egui::Key::Num2) { self.camera.set_top(); }
-                    if i.key_pressed(egui::Key::Num3) { self.camera.set_iso(); }
+                    if i.key_pressed(egui::Key::Num1) { self.viewer.camera.set_front(); }
+                    if i.key_pressed(egui::Key::Num2) { self.viewer.camera.set_top(); }
+                    if i.key_pressed(egui::Key::Num3) { self.viewer.camera.set_iso(); }
 
                     // Axis locking
                     if i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowRight) {
-                        self.locked_axis = if self.locked_axis == Some(0) { None } else { Some(0) };
+                        self.editor.locked_axis = if self.editor.locked_axis == Some(0) { None } else { Some(0) };
                     }
                     if i.key_pressed(egui::Key::ArrowUp) || i.key_pressed(egui::Key::ArrowDown) {
-                        self.locked_axis = if self.locked_axis == Some(2) { None } else { Some(2) };
+                        self.editor.locked_axis = if self.editor.locked_axis == Some(2) { None } else { Some(2) };
                     }
                 }
 
                 // Collect digit input for measurement
-                if !matches!(self.draw_state, DrawState::Idle) {
+                if !matches!(self.editor.draw_state, DrawState::Idle) {
                     for ev in &i.events {
                         if let egui::Event::Text(t) = ev {
                             if t.chars().all(|c| c.is_ascii_digit() || c == ',' || c == '.' || c == 'x') {
-                                self.measure_input.push_str(t);
+                                self.editor.measure_input.push_str(t);
                             }
                         }
                         if let egui::Event::Key { key: egui::Key::Enter, pressed: true, .. } = ev {
@@ -828,41 +832,57 @@ impl KolibriApp {
     }
 
     pub(crate) fn on_click(&mut self) {
-        match self.tool {
+        // ── Console: log every click with tool + position ──
+        {
+            let tool_name = format!("{:?}", self.editor.tool);
+            let pos = self.editor.mouse_ground.map(|p| format!("[{:.0}, {:.0}, {:.0}]", p[0], p[1], p[2])).unwrap_or("(no ground)".into());
+            let state = format!("{:?}", self.editor.draw_state).chars().take(40).collect::<String>();
+            let hover = self.editor.hovered_id.as_deref().unwrap_or("none");
+            self.console_push("CLICK", format!("{} @ {} | state={} | hover={}", tool_name, pos, state, hover));
+        }
+
+        match self.editor.tool {
             Tool::Select => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                 let picked = self.pick(mx, my, vw, vh);
                 // We need shift state - store it from the last handle_viewport call
                 // Since on_click is called from handle_viewport where shift is available,
                 // we check if shift key is held via a stored flag
-                if self.shift_held {
+                if self.editor.shift_held {
                     if let Some(id) = picked {
-                        if let Some(pos) = self.selected_ids.iter().position(|s| s == &id) {
-                            self.selected_ids.remove(pos);
+                        if let Some(pos) = self.editor.selected_ids.iter().position(|s| s == &id) {
+                            self.editor.selected_ids.remove(pos);
+                            self.clog(format!("取消選取: {}", id));
                         } else {
-                            self.selected_ids.push(id);
+                            self.editor.selected_ids.push(id.clone());
+                            let name = self.scene.objects.get(&id).map(|o| o.name.as_str()).unwrap_or("?");
+                            self.clog(format!("加選: {} ({})", name, id));
                         }
                     }
                 } else {
-                    self.selected_ids = picked.into_iter().collect();
+                    if let Some(ref id) = picked {
+                        let name = self.scene.objects.get(id).map(|o| o.name.as_str()).unwrap_or("?");
+                        self.clog(format!("選取: {} ({})", name, id));
+                    }
+                    self.editor.selected_ids = picked.into_iter().collect();
                 }
                 // Expand selection to include all group members
                 self.expand_selection_to_groups();
-                if !self.selected_ids.is_empty() { self.right_tab = RightTab::Properties; }
+                if !self.editor.selected_ids.is_empty() { self.right_tab = RightTab::Properties; }
             }
 
             Tool::CreateBox => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::BoxBase { p1: p };
+                            self.editor.draw_state = DrawState::BoxBase { p1: p };
                         }
                     }
                     DrawState::BoxBase { p1 } => {
                         if let Some(p2) = self.ground_snapped() {
                             let p1 = *p1;
-                            self.draw_state = DrawState::BoxHeight { p1, p2 };
+                            self.editor.draw_state = DrawState::BoxHeight { p1, p2 };
                         }
                     }
                     DrawState::BoxHeight { p1, p2 } => {
@@ -875,7 +895,8 @@ impl KolibriApp {
                         let center = [(p1[0]+p2[0])*0.5, 0.0, (p1[2]+p2[2])*0.5];
                         let h = self.current_height(center).max(10.0);
                         let name = self.next_name("Box");
-                        let id = self.scene.add_box(name, [x0, 0.0, z0], w, h, d, self.create_mat);
+                        let id = self.scene.add_box(name.clone(), [x0, 0.0, z0], w, h, d, self.create_mat);
+                        self.console_push("ACTION", format!("建立方塊 {} ({:.0}x{:.0}x{:.0}) mat={}", name, w, h, d, self.create_mat.label()));
                         // Collision check on creation (warning only)
                         {
                             let components = crate::scene::scene_to_collision_components(&self.scene);
@@ -883,12 +904,12 @@ impl KolibriApp {
                             let new_comp = crate::collision::Component::new(id.clone(), crate::collision::ComponentKind::Generic, col_center, [w, h, d]);
                             let report = crate::collision::can_place_component(&new_comp, &components, &crate::collision::CollisionConfig::default());
                             if !report.is_allowed || !report.warning_pairs.is_empty() {
-                                self.collision_warning = Some("放置位置與現有物件碰撞".to_string());
+                                self.editor.collision_warning = Some("放置位置與現有物件碰撞".to_string());
                             }
                         }
                         self.ai_log.log(&self.current_actor.clone(), "\u{5efa}\u{7acb}\u{65b9}\u{584a}", &format!("{:.0}\u{00d7}{:.0}\u{00d7}{:.0}", w, h, d), vec![id.clone()]);
-                        self.selected_ids = vec![id.clone()];
-                        self.draw_state = DrawState::Idle;
+                        self.editor.selected_ids = vec![id.clone()];
+                        self.editor.draw_state = DrawState::Idle;
                         self.right_tab = RightTab::Properties;
 
                         // Check for alignment suggestion
@@ -899,17 +920,17 @@ impl KolibriApp {
             }
 
             Tool::CreateCylinder => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::CylBase { center: p };
+                            self.editor.draw_state = DrawState::CylBase { center: p };
                         }
                     }
                     DrawState::CylBase { center } => {
                         let c = *center;
                         if let Some(mouse) = self.ground_snapped() {
                             let r = ((mouse[0]-c[0]).powi(2)+(mouse[2]-c[2]).powi(2)).sqrt().max(10.0);
-                            self.draw_state = DrawState::CylHeight { center: c, radius: r };
+                            self.editor.draw_state = DrawState::CylHeight { center: c, radius: r };
                         }
                     }
                     DrawState::CylHeight { center, radius } => {
@@ -917,7 +938,8 @@ impl KolibriApp {
                         let r = *radius;
                         let h = self.current_height(c).max(10.0);
                         let name = self.next_name("Cylinder");
-                        let id = self.scene.add_cylinder(name, c, r, h, 48, self.create_mat);
+                        let id = self.scene.add_cylinder(name.clone(), c, r, h, 48, self.create_mat);
+                        self.console_push("ACTION", format!("建立圓柱 {} (r={:.0} h={:.0}) mat={}", name, r, h, self.create_mat.label()));
                         // Collision check on creation (warning only)
                         {
                             let components = crate::scene::scene_to_collision_components(&self.scene);
@@ -925,12 +947,12 @@ impl KolibriApp {
                             let new_comp = crate::collision::Component::new(id.clone(), crate::collision::ComponentKind::Generic, col_center, [r * 2.0, h, r * 2.0]);
                             let report = crate::collision::can_place_component(&new_comp, &components, &crate::collision::CollisionConfig::default());
                             if !report.is_allowed || !report.warning_pairs.is_empty() {
-                                self.collision_warning = Some("放置位置與現有物件碰撞".to_string());
+                                self.editor.collision_warning = Some("放置位置與現有物件碰撞".to_string());
                             }
                         }
                         self.ai_log.log(&self.current_actor.clone(), "\u{5efa}\u{7acb}\u{5713}\u{67f1}", &format!("r={:.0} h={:.0}", r, h), vec![id.clone()]);
-                        self.selected_ids = vec![id];
-                        self.draw_state = DrawState::Idle;
+                        self.editor.selected_ids = vec![id];
+                        self.editor.draw_state = DrawState::Idle;
                         self.right_tab = RightTab::Properties;
                     }
                     _ => {}
@@ -938,10 +960,10 @@ impl KolibriApp {
             }
 
             Tool::CreateSphere => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::SphRadius { center: p };
+                            self.editor.draw_state = DrawState::SphRadius { center: p };
                         }
                     }
                     DrawState::SphRadius { center } => {
@@ -949,7 +971,8 @@ impl KolibriApp {
                         if let Some(mouse) = self.ground_snapped() {
                             let r = ((mouse[0]-c[0]).powi(2)+(mouse[2]-c[2]).powi(2)).sqrt().max(10.0);
                             let name = self.next_name("Sphere");
-                            let id = self.scene.add_sphere(name, c, r, 32, self.create_mat);
+                            let id = self.scene.add_sphere(name.clone(), c, r, 32, self.create_mat);
+                            self.console_push("ACTION", format!("建立球體 {} (r={:.0}) mat={}", name, r, self.create_mat.label()));
                             // Collision check on creation (warning only)
                             {
                                 let components = crate::scene::scene_to_collision_components(&self.scene);
@@ -957,12 +980,12 @@ impl KolibriApp {
                                 let new_comp = crate::collision::Component::new(id.clone(), crate::collision::ComponentKind::Generic, col_center, [r * 2.0, r * 2.0, r * 2.0]);
                                 let report = crate::collision::can_place_component(&new_comp, &components, &crate::collision::CollisionConfig::default());
                                 if !report.is_allowed || !report.warning_pairs.is_empty() {
-                                    self.collision_warning = Some("放置位置與現有物件碰撞".to_string());
+                                    self.editor.collision_warning = Some("放置位置與現有物件碰撞".to_string());
                                 }
                             }
                             self.ai_log.log(&self.current_actor.clone(), "\u{5efa}\u{7acb}\u{7403}\u{9ad4}", &format!("r={:.0}", r), vec![id.clone()]);
-                            self.selected_ids = vec![id];
-                            self.draw_state = DrawState::Idle;
+                            self.editor.selected_ids = vec![id];
+                            self.editor.draw_state = DrawState::Idle;
                             self.right_tab = RightTab::Properties;
                         }
                     }
@@ -972,10 +995,10 @@ impl KolibriApp {
 
             // Rectangle = 2D flat rectangle only (use Push/Pull to extrude)
             Tool::Rectangle => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::BoxBase { p1: p };
+                            self.editor.draw_state = DrawState::BoxBase { p1: p };
                         }
                     }
                     DrawState::BoxBase { p1 } => {
@@ -988,10 +1011,10 @@ impl KolibriApp {
                             let name = self.next_name("Rect");
                             // Create flat rectangle (1mm height) — use Push/Pull to extrude
                             let id = self.scene.add_box(name, [x0, 0.0, z0], w, 1.0, d, self.create_mat);
-                            self.selected_ids = vec![id];
-                            self.draw_state = DrawState::Idle;
+                            self.editor.selected_ids = vec![id];
+                            self.editor.draw_state = DrawState::Idle;
                             self.right_tab = RightTab::Properties;
-                            self.tool = Tool::PushPull; // auto-switch to Push/Pull
+                            self.editor.tool = Tool::PushPull; // auto-switch to Push/Pull
                             self.file_message = Some(("矩形已建立 — 用推拉拉出高度".to_string(), std::time::Instant::now()));
                         }
                     }
@@ -1001,17 +1024,17 @@ impl KolibriApp {
 
             // Circle = same as CreateCylinder flow
             Tool::Circle => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::CylBase { center: p };
+                            self.editor.draw_state = DrawState::CylBase { center: p };
                         }
                     }
                     DrawState::CylBase { center } => {
                         let c = *center;
                         if let Some(mouse) = self.ground_snapped() {
                             let r = ((mouse[0]-c[0]).powi(2)+(mouse[2]-c[2]).powi(2)).sqrt().max(10.0);
-                            self.draw_state = DrawState::CylHeight { center: c, radius: r };
+                            self.editor.draw_state = DrawState::CylHeight { center: c, radius: r };
                         }
                     }
                     DrawState::CylHeight { center, radius } => {
@@ -1019,8 +1042,8 @@ impl KolibriApp {
                         let h = self.current_height(c).max(10.0);
                         let name = self.next_name("Circle");
                         let id = self.scene.add_cylinder(name, c, r, h, 48, self.create_mat);
-                        self.selected_ids = vec![id];
-                        self.draw_state = DrawState::Idle;
+                        self.editor.selected_ids = vec![id];
+                        self.editor.draw_state = DrawState::Idle;
                         self.right_tab = RightTab::Properties;
                     }
                     _ => {}
@@ -1029,8 +1052,8 @@ impl KolibriApp {
 
             // Move click = select for moving (only when highlighted)
             Tool::Move => {
-                if let Some(ref id) = self.hovered_id.clone() {
-                    self.selected_ids = vec![id.clone()];
+                if let Some(ref id) = self.editor.hovered_id.clone() {
+                    self.editor.selected_ids = vec![id.clone()];
                     // Expand selection to include all group members
                     self.expand_selection_to_groups();
                     self.right_tab = RightTab::Properties;
@@ -1039,37 +1062,51 @@ impl KolibriApp {
 
             // Eraser = click to delete (only when highlighted)
             Tool::Eraser => {
-                if let Some(ref id) = self.hovered_id.clone() {
+                if let Some(ref id) = self.editor.hovered_id.clone() {
                     self.ai_log.log(&self.current_actor.clone(), "\u{522a}\u{9664}\u{7269}\u{4ef6}", id, vec![id.clone()]);
                     self.scene.delete(id);
-                    self.selected_ids.retain(|s| s != id);
+                    self.editor.selected_ids.retain(|s| s != id);
                 }
             }
 
             // Paint Bucket = apply material on click (hovered or picked)
             Tool::PaintBucket => {
-                let target_id = self.hovered_id.clone().or_else(|| {
-                    let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                    let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let target_id = self.editor.hovered_id.clone().or_else(|| {
+                    let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                    let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                     self.pick(mx, my, vw, vh)
                 });
                 if let Some(ref id) = target_id {
                     self.scene.snapshot();
+                    let mut log_msg: Option<String> = None;
                     if let Some(obj) = self.scene.objects.get_mut(id) {
                         let old_mat = obj.material.label().to_string();
+                        let obj_name = obj.name.clone();
                         obj.material = self.create_mat;
+                        self.scene.version += 1;
+                        log_msg = Some(format!("油漆桶: {} 材質 {} → {} (v={})", obj_name, old_mat, self.create_mat.label(), self.scene.version));
                         self.ai_log.log(&self.current_actor.clone(), "設定材質", &format!("{} → {}", old_mat, self.create_mat.label()), vec![id.clone()]);
                         self.file_message = Some((format!("已套用材質: {}", self.create_mat.label()), std::time::Instant::now()));
+                        // 油漆桶塗完後取消選取，讓使用者立即看到新材質效果
+                        self.editor.selected_ids.clear();
+                    } else {
+                        log_msg = Some(format!("油漆桶: 找不到物件 id={}", id));
                     }
+                    if let Some(msg) = log_msg {
+                        let level = if msg.contains("找不到") { "WARN" } else { "ACTION" };
+                        self.console_push(level, msg);
+                    }
+                } else {
+                    self.console_push("WARN", "油漆桶: 未偵測到物件（未 hover 也未 pick）".to_string());
                 }
             }
 
             // TapeMeasure = snap-aware point-to-point measurement (like SketchUp)
             Tool::TapeMeasure => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         // Always use snap position first (endpoint/midpoint/edge/face)
-                        let p = if let Some(ref snap) = self.snap_result {
+                        let p = if let Some(ref snap) = self.editor.snap_result {
                             if snap.snap_type != crate::app::SnapType::None {
                                 snap.position
                             } else if let Some(g) = self.ground_snapped() {
@@ -1080,7 +1117,7 @@ impl KolibriApp {
                         } else { return; };
 
                         // Show what we snapped to
-                        if let Some(ref snap) = self.snap_result {
+                        if let Some(ref snap) = self.editor.snap_result {
                             if snap.snap_type != crate::app::SnapType::None && snap.snap_type != crate::app::SnapType::Grid {
                                 self.file_message = Some((
                                     format!("量測起點: {} [{:.0}, {:.0}, {:.0}]", snap.snap_type.label(), p[0], p[1], p[2]),
@@ -1088,11 +1125,11 @@ impl KolibriApp {
                                 ));
                             }
                         }
-                        self.draw_state = DrawState::Measuring { start: p };
+                        self.editor.draw_state = DrawState::Measuring { start: p };
                     }
                     DrawState::Measuring { start } => {
                         let s = *start;
-                        let p = if let Some(ref snap) = self.snap_result {
+                        let p = if let Some(ref snap) = self.editor.snap_result {
                             if snap.snap_type != crate::app::SnapType::None {
                                 snap.position
                             } else if let Some(g) = self.ground_snapped() {
@@ -1118,7 +1155,7 @@ impl KolibriApp {
                         ));
 
                         self.dimensions.push(crate::dimensions::Dimension::new(s, p));
-                        self.draw_state = DrawState::Idle;
+                        self.editor.draw_state = DrawState::Idle;
                     }
                     _ => {}
                 }
@@ -1126,9 +1163,9 @@ impl KolibriApp {
 
             // Dimension = persistent two-point annotation (same measuring flow, no object info)
             Tool::Dimension => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
-                        let p = if let Some(ref snap) = self.snap_result {
+                        let p = if let Some(ref snap) = self.editor.snap_result {
                             if snap.snap_type != crate::app::SnapType::None {
                                 snap.position
                             } else if let Some(g) = self.ground_snapped() {
@@ -1142,11 +1179,11 @@ impl KolibriApp {
                             format!("標註起點: [{:.0}, {:.0}, {:.0}]", p[0], p[1], p[2]),
                             std::time::Instant::now()
                         ));
-                        self.draw_state = DrawState::Measuring { start: p };
+                        self.editor.draw_state = DrawState::Measuring { start: p };
                     }
                     DrawState::Measuring { start } => {
                         let s = *start;
-                        let p = if let Some(ref snap) = self.snap_result {
+                        let p = if let Some(ref snap) = self.editor.snap_result {
                             if snap.snap_type != crate::app::SnapType::None {
                                 snap.position
                             } else if let Some(g) = self.ground_snapped() {
@@ -1170,7 +1207,7 @@ impl KolibriApp {
                             std::time::Instant::now()
                         ));
                         self.dimensions.push(crate::dimensions::Dimension::new(s, p));
-                        self.draw_state = DrawState::Idle;
+                        self.editor.draw_state = DrawState::Idle;
                     }
                     _ => {}
                 }
@@ -1178,7 +1215,7 @@ impl KolibriApp {
 
             // Text = click to place a text label
             Tool::Text => {
-                let p = if let Some(ref snap) = self.snap_result {
+                let p = if let Some(ref snap) = self.editor.snap_result {
                     if snap.snap_type != crate::app::SnapType::None {
                         snap.position
                     } else if let Some(g) = self.ground_snapped() {
@@ -1204,10 +1241,10 @@ impl KolibriApp {
 
             // Rotate: click on object to enter interactive rotation (D1)
             Tool::Rotate => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                 if let Some(id) = self.pick(mx, my, vw, vh) {
-                    self.selected_ids = vec![id.clone()];
+                    self.editor.selected_ids = vec![id.clone()];
                     if let Some(obj) = self.scene.objects.get(&id) {
                         let center = match &obj.shape {
                             Shape::Box { width, height, depth } =>
@@ -1221,15 +1258,15 @@ impl KolibriApp {
                         // Project object center to screen for correct angle calculation
                         let vp_rect = egui::Rect::from_min_size(
                             egui::pos2(0.0, 0.0),
-                            egui::vec2(self.viewport_size[0], self.viewport_size[1]),
+                            egui::vec2(self.viewer.viewport_size[0], self.viewer.viewport_size[1]),
                         );
                         let (cx, cy) = if let Some(screen_center) = self.world_to_screen(center, &vp_rect) {
                             (screen_center.x, screen_center.y)
                         } else {
-                            (self.viewport_size[0] / 2.0, self.viewport_size[1] / 2.0)
+                            (self.viewer.viewport_size[0] / 2.0, self.viewer.viewport_size[1] / 2.0)
                         };
                         let start_angle = (mx - cx).atan2(my - cy);
-                        self.draw_state = DrawState::Rotating {
+                        self.editor.draw_state = DrawState::Rotating {
                             obj_id: id, center, start_angle, accumulated: 0.0,
                         };
                     }
@@ -1238,10 +1275,10 @@ impl KolibriApp {
 
             // Scale: click to select, determine handle from face
             Tool::Scale => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                 if let Some(id) = self.pick(mx, my, vw, vh) {
-                    self.selected_ids = vec![id.clone()];
+                    self.editor.selected_ids = vec![id.clone()];
 
                     // Determine handle type from click position on bounding box
                     let handle = if let Some((_, face)) = self.pick_face(mx, my, vw, vh) {
@@ -1264,21 +1301,21 @@ impl KolibriApp {
                         }
                     } else { [1000.0; 3] };
 
-                    self.draw_state = DrawState::Scaling { obj_id: id, handle, original_dims: orig };
+                    self.editor.draw_state = DrawState::Scaling { obj_id: id, handle, original_dims: orig };
                 }
             }
 
             // Line: click-click chain drawing → adds edges to the shared free mesh
             Tool::Line => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
-                match &self.draw_state {
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         // Try face snap first, then fall back to ground
                         let pos = self.snap_to_face(mx, my, vw, vh)
                             .or_else(|| self.ground_snapped());
                         if let Some(p) = pos {
-                            self.draw_state = DrawState::LineFrom { p1: p };
+                            self.editor.draw_state = DrawState::LineFrom { p1: p };
                         }
                     }
                     DrawState::LineFrom { p1 } => {
@@ -1315,11 +1352,11 @@ impl KolibriApp {
                             let edge_dir = [p2[0] - p1[0], p2[2] - p1[2]];
                             let edge_len = (edge_dir[0] * edge_dir[0] + edge_dir[1] * edge_dir[1]).sqrt();
                             if edge_len > 1.0 {
-                                self.last_line_dir = Some([edge_dir[0] / edge_len, edge_dir[1] / edge_len]);
+                                self.editor.last_line_dir = Some([edge_dir[0] / edge_len, edge_dir[1] / edge_len]);
                             }
 
                             // Inference 2.0: update context after line drawn
-                            crate::inference::update_context_after_line(&mut self.inference_ctx, p1, p2);
+                            crate::inference::update_context_after_line(&mut self.editor.inference_ctx, p1, p2);
 
                             // Try to split a box face if line lies on it
                             self.try_split_face(p1, p2);
@@ -1328,7 +1365,7 @@ impl KolibriApp {
                             self.try_split_face_on_line(p1, p2);
 
                             // Chain: start new line from p2
-                            self.draw_state = DrawState::LineFrom { p1: p2 };
+                            self.editor.draw_state = DrawState::LineFrom { p1: p2 };
                         }
                     }
                     _ => {}
@@ -1337,14 +1374,14 @@ impl KolibriApp {
 
             // Arc: 3-click (start, end, bulge)
             Tool::Arc => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
-                match &self.draw_state {
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         let pos = self.snap_to_face(mx, my, vw, vh)
                             .or_else(|| self.ground_snapped());
                         if let Some(p) = pos {
-                            self.draw_state = DrawState::ArcP1 { p1: p };
+                            self.editor.draw_state = DrawState::ArcP1 { p1: p };
                         }
                     }
                     DrawState::ArcP1 { p1 } => {
@@ -1352,7 +1389,7 @@ impl KolibriApp {
                         let pos = self.snap_to_face(mx, my, vw, vh)
                             .or_else(|| self.ground_snapped());
                         if let Some(p2) = pos {
-                            self.draw_state = DrawState::ArcP2 { p1, p2 };
+                            self.editor.draw_state = DrawState::ArcP2 { p1, p2 };
                         }
                     }
                     DrawState::ArcP2 { p1, p2 } => {
@@ -1363,8 +1400,8 @@ impl KolibriApp {
                             let arc_pts = compute_arc(p1, p2, p3, 32);
                             let name = self.next_name("Arc");
                             let id = self.scene.add_line(name, arc_pts, 20.0, self.create_mat);
-                            self.selected_ids = vec![id];
-                            self.draw_state = DrawState::Idle;
+                            self.editor.selected_ids = vec![id];
+                            self.editor.draw_state = DrawState::Idle;
                         }
                     }
                     _ => {}
@@ -1373,15 +1410,15 @@ impl KolibriApp {
 
             // Offset: face edge inset — click a box face to enter drag-to-inset mode
             Tool::Offset => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
 
                 if let Some((id, face)) = self.pick_face(mx, my, vw, vh) {
                     if let Some(obj) = self.scene.objects.get(&id) {
                         match &obj.shape {
                             Shape::Box { .. } => {
-                                self.selected_ids = vec![id.clone()];
-                                self.draw_state = DrawState::Offsetting {
+                                self.editor.selected_ids = vec![id.clone()];
+                                self.editor.draw_state = DrawState::Offsetting {
                                     obj_id: id,
                                     face,
                                     distance: 0.0,
@@ -1399,7 +1436,7 @@ impl KolibriApp {
 
             // Group: tag selected objects as group (add _group suffix)
             Tool::Group => {
-                let ids = self.selected_ids.clone();
+                let ids = self.editor.selected_ids.clone();
                 for id in &ids {
                     let needs_tag = self.scene.objects.get(id)
                         .map(|o| !o.name.contains("[群組]"))
@@ -1415,7 +1452,7 @@ impl KolibriApp {
 
             // Component: tag selected object as component (reusable)
             Tool::Component => {
-                if let Some(ref id) = self.selected_ids.first().cloned() {
+                if let Some(ref id) = self.editor.selected_ids.first().cloned() {
                     let needs_tag = self.scene.objects.get(id)
                         .map(|o| !o.name.contains("[元件]"))
                         .unwrap_or(false);
@@ -1430,23 +1467,23 @@ impl KolibriApp {
 
             // FollowMe: path extrusion — select profile, then click points to define path
             Tool::FollowMe => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
-                        if !self.selected_ids.is_empty() {
+                        if !self.editor.selected_ids.is_empty() {
                             // Profile already selected, start path with first click
                             if let Some(p) = self.ground_snapped() {
-                                self.draw_state = DrawState::FollowPath {
-                                    source_id: self.selected_ids[0].clone(),
+                                self.editor.draw_state = DrawState::FollowPath {
+                                    source_id: self.editor.selected_ids[0].clone(),
                                     path_points: vec![p],
                                 };
                                 self.file_message = Some(("路徑第一點已設定 — 繼續點擊加入路徑點, ESC 完成".to_string(), std::time::Instant::now()));
                             }
                         } else {
                             // No selection: pick an object first
-                            let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                            let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                            let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                            let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                             if let Some(id) = self.pick(mx, my, vw, vh) {
-                                self.selected_ids = vec![id];
+                                self.editor.selected_ids = vec![id];
                                 self.file_message = Some(("已選取截面 — 點擊地面設定路徑起點".to_string(), std::time::Instant::now()));
                             } else {
                                 self.file_message = Some(("請先選取要沿路徑擠出的物件".to_string(), std::time::Instant::now()));
@@ -1466,12 +1503,12 @@ impl KolibriApp {
                                 let dist = ((last[0] - first[0]).powi(2) + (last[2] - first[2]).powi(2)).sqrt();
                                 if dist < 200.0 {
                                     self.extrude_along_path(&src, &pts);
-                                    self.draw_state = DrawState::Idle;
+                                    self.editor.draw_state = DrawState::Idle;
                                     return;
                                 }
                             }
 
-                            self.draw_state = DrawState::FollowPath { source_id: src, path_points: pts.clone() };
+                            self.editor.draw_state = DrawState::FollowPath { source_id: src, path_points: pts.clone() };
                             self.file_message = Some((
                                 format!("路徑 {} 點 — 繼續點擊或按 Enter/ESC 完成擠出", pts.len()),
                                 std::time::Instant::now(),
@@ -1486,8 +1523,8 @@ impl KolibriApp {
             Tool::SteelColumn => {
                 if let Some(p) = self.ground_snapped() {
                     self.scene.snapshot();
-                    let member_h = self.steel_height;
-                    let (h_sec, b_sec, tw, tf) = parse_h_profile(&self.steel_profile);
+                    let member_h = self.editor.steel_height;
+                    let (h_sec, b_sec, tw, tf) = parse_h_profile(&self.editor.steel_profile);
                     let name_base = self.next_name("COL");
 
                     let cx = p[0]; // column center X
@@ -1524,32 +1561,32 @@ impl KolibriApp {
                     self.scene.create_group(name_base.clone(), child_ids.clone());
                     self.scene.version += 1;
 
-                    self.selected_ids = child_ids.clone();
+                    self.editor.selected_ids = child_ids.clone();
                     self.ai_log.log(
                         &self.current_actor, "\u{5efa}\u{7acb}\u{67f1}",
-                        &format!("{} H={:.0}", self.steel_profile, member_h),
+                        &format!("{} H={:.0}", self.editor.steel_profile, member_h),
                         child_ids,
                     );
                     self.file_message = Some((
-                        format!("\u{67f1}\u{5df2}\u{5efa}\u{7acb}: {} @ [{:.0},{:.0}]", self.steel_profile, cx, cz),
+                        format!("\u{67f1}\u{5df2}\u{5efa}\u{7acb}: {} @ [{:.0},{:.0}]", self.editor.steel_profile, cx, cz),
                         std::time::Instant::now(),
                     ));
                 }
             }
 
             Tool::SteelBeam => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::LineFrom { p1: [p[0], self.steel_height, p[2]] };
+                            self.editor.draw_state = DrawState::LineFrom { p1: [p[0], self.editor.steel_height, p[2]] };
                         }
                     }
                     DrawState::LineFrom { p1 } => {
                         let p1 = *p1;
                         if let Some(p2) = self.ground_snapped() {
                             self.scene.snapshot();
-                            let (h_sec, b_sec, tw, tf) = parse_h_profile(&self.steel_profile);
-                            let beam_y = self.steel_height - h_sec; // beam bottom
+                            let (h_sec, b_sec, tw, tf) = parse_h_profile(&self.editor.steel_profile);
+                            let beam_y = self.editor.steel_height - h_sec; // beam bottom
 
                             let dx = p2[0] - p1[0];
                             let dz = p2[2] - p1[2];
@@ -1613,11 +1650,11 @@ impl KolibriApp {
                             self.scene.create_group(name_base.clone(), ids.clone());
                             self.scene.version += 1;
 
-                            self.selected_ids = ids.clone();
-                            self.draw_state = DrawState::Idle;
+                            self.editor.selected_ids = ids.clone();
+                            self.editor.draw_state = DrawState::Idle;
                             self.ai_log.log(
                                 &self.current_actor, "\u{5efa}\u{7acb}\u{6881}",
-                                &format!("{} L={:.0}", self.steel_profile, length),
+                                &format!("{} L={:.0}", self.editor.steel_profile, length),
                                 ids,
                             );
                         }
@@ -1627,10 +1664,10 @@ impl KolibriApp {
             }
 
             Tool::SteelBrace => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::LineFrom { p1: p };
+                            self.editor.draw_state = DrawState::LineFrom { p1: p };
                         }
                     }
                     DrawState::LineFrom { p1 } => {
@@ -1638,9 +1675,9 @@ impl KolibriApp {
                         if let Some(p2) = self.ground_snapped() {
                             self.scene.snapshot();
                             let name = self.next_name("BR");
-                            let id = self.scene.add_line(name, vec![p1, [p2[0], self.steel_height, p2[2]]], 50.0, MaterialKind::Steel);
-                            self.selected_ids = vec![id.clone()];
-                            self.draw_state = DrawState::Idle;
+                            let id = self.scene.add_line(name, vec![p1, [p2[0], self.editor.steel_height, p2[2]]], 50.0, MaterialKind::Steel);
+                            self.editor.selected_ids = vec![id.clone()];
+                            self.editor.draw_state = DrawState::Idle;
                             self.ai_log.log(&self.current_actor, "建立斜撐", "", vec![id]);
                         }
                     }
@@ -1649,10 +1686,10 @@ impl KolibriApp {
             }
 
             Tool::SteelPlate => {
-                match &self.draw_state {
+                match &self.editor.draw_state {
                     DrawState::Idle => {
                         if let Some(p) = self.ground_snapped() {
-                            self.draw_state = DrawState::BoxBase { p1: p };
+                            self.editor.draw_state = DrawState::BoxBase { p1: p };
                         }
                     }
                     DrawState::BoxBase { p1 } => {
@@ -1669,9 +1706,9 @@ impl KolibriApp {
                             if let Some(obj) = self.scene.objects.get_mut(&id) {
                                 obj.component_kind = crate::collision::ComponentKind::Plate;
                             }
-                            self.selected_ids = vec![id.clone()];
-                            self.draw_state = DrawState::Idle;
-                            self.tool = Tool::PushPull;
+                            self.editor.selected_ids = vec![id.clone()];
+                            self.editor.draw_state = DrawState::Idle;
+                            self.editor.tool = Tool::PushPull;
                             self.file_message = Some(("鋼板已建立 — 用推拉設定厚度".into(), std::time::Instant::now()));
                         }
                     }
@@ -1689,13 +1726,13 @@ impl KolibriApp {
             }
 
             Tool::SteelConnection => {
-                let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                 if let Some(id) = self.pick(mx, my, vw, vh) {
-                    if !self.selected_ids.contains(&id) {
-                        self.selected_ids.push(id);
+                    if !self.editor.selected_ids.contains(&id) {
+                        self.editor.selected_ids.push(id);
                     }
-                    if self.selected_ids.len() >= 2 {
+                    if self.editor.selected_ids.len() >= 2 {
                         self.file_message = Some(("接頭已標記（選取兩構件）".into(), std::time::Instant::now()));
                     } else {
                         self.file_message = Some(("選取第二個構件".into(), std::time::Instant::now()));
@@ -1704,23 +1741,23 @@ impl KolibriApp {
             }
 
             Tool::PushPull => {
-                if matches!(self.draw_state, DrawState::Idle) {
-                    let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-                    let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+                if matches!(self.editor.draw_state, DrawState::Idle) {
+                    let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                    let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                     let clicked_face = self.pick_face(mx, my, vw, vh);
 
                     // A4: Double-click repeats last pull distance
                     if let Some((ref id, face)) = clicked_face {
-                        let is_double = self.last_pull_click_time.elapsed().as_millis() < 500
-                            && self.last_pull_distance.abs() > 0.1
-                            && self.last_pull_face.as_ref()
+                        let is_double = self.editor.last_pull_click_time.elapsed().as_millis() < 500
+                            && self.editor.last_pull_distance.abs() > 0.1
+                            && self.editor.last_pull_face.as_ref()
                                 .map(|(lid, lf)| lid == id && *lf == face)
                                 .unwrap_or(false);
 
                         if is_double {
                             // Apply last pull distance instantly
                             self.scene.snapshot();
-                            let dist = self.last_pull_distance;
+                            let dist = self.editor.last_pull_distance;
                             if let Some(obj) = self.scene.objects.get_mut(id.as_str()) {
                                 match (&mut obj.shape, face) {
                                     (Shape::Box { height, .. }, PullFace::Top) =>
@@ -1758,31 +1795,31 @@ impl KolibriApp {
                                 format!("\u{91cd}\u{8907}\u{63a8}\u{62c9} {:.0}mm", dist),
                                 std::time::Instant::now(),
                             ));
-                            self.last_pull_click_time = std::time::Instant::now();
+                            self.editor.last_pull_click_time = std::time::Instant::now();
                             // Don't change selection, keep face selected
                         } else {
                             // Check if clicking the SAME face that's already selected → toggle off
-                            let same = self.selected_face.as_ref()
+                            let same = self.editor.selected_face.as_ref()
                                 .map(|(sid, sf)| sid == id && *sf == face)
                                 .unwrap_or(false);
 
                             if same {
                                 // Deselect face
-                                self.selected_face = None;
+                                self.editor.selected_face = None;
                             } else {
                                 // Select this face (highlight + show properties)
-                                self.selected_face = Some((id.clone(), face));
-                                self.selected_ids = vec![id.clone()];
+                                self.editor.selected_face = Some((id.clone(), face));
+                                self.editor.selected_ids = vec![id.clone()];
                                 self.right_tab = RightTab::Properties;
                             }
                         }
                     } else if let Some(fid) = self.pick_free_mesh_face(mx, my, vw, vh) {
-                        self.selected_ids.clear();
-                        self.selected_face = None;
-                        self.draw_state = DrawState::PullingFreeMesh { face_id: fid };
+                        self.editor.selected_ids.clear();
+                        self.editor.selected_face = None;
+                        self.editor.draw_state = DrawState::PullingFreeMesh { face_id: fid };
                     } else {
                         // Clicked empty space → deselect face
-                        self.selected_face = None;
+                        self.editor.selected_face = None;
                     }
                 }
             }
@@ -1790,35 +1827,35 @@ impl KolibriApp {
 
         // Fallback: any click on an object selects it (like SketchUp)
         // Only when idle (not mid-draw) and nothing was selected by the tool handler
-        if matches!(self.draw_state, DrawState::Idle) && self.selected_ids.is_empty() {
-            let (mx, my) = (self.mouse_screen[0], self.mouse_screen[1]);
-            let (vw, vh) = (self.viewport_size[0], self.viewport_size[1]);
+        if matches!(self.editor.draw_state, DrawState::Idle) && self.editor.selected_ids.is_empty() {
+            let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+            let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
             if let Some(id) = self.pick(mx, my, vw, vh) {
-                self.selected_ids = vec![id];
+                self.editor.selected_ids = vec![id];
                 // Expand selection to include all group members
                 self.expand_selection_to_groups();
                 self.right_tab = RightTab::Properties;
             }
         }
 
-        self.measure_input.clear();
+        self.editor.measure_input.clear();
     }
 
     pub(crate) fn apply_measure(&mut self) {
         // Array creation: "3x" or "5X" after Ctrl+Move copy
         // Uses persisted last_move_delta / last_move_was_copy (B8) since
         // move_is_copy and move_origin are cleared when drag stops.
-        if (self.measure_input.ends_with('x') || self.measure_input.ends_with('X'))
-            && self.measure_input.len() > 1
+        if (self.editor.measure_input.ends_with('x') || self.editor.measure_input.ends_with('X'))
+            && self.editor.measure_input.len() > 1
         {
-            let count_str = &self.measure_input[..self.measure_input.len() - 1];
+            let count_str = &self.editor.measure_input[..self.editor.measure_input.len() - 1];
             if let Ok(count) = count_str.parse::<usize>() {
                 // Try live drag state first, then fall back to persisted delta
-                let is_copy = self.move_is_copy || self.last_move_was_copy;
-                let delta_opt: Option<[f32; 3]> = if self.move_is_copy {
+                let is_copy = self.editor.move_is_copy || self.editor.last_move_was_copy;
+                let delta_opt: Option<[f32; 3]> = if self.editor.move_is_copy {
                     // Still dragging (unlikely but handle it)
-                    self.move_origin.and_then(|orig| {
-                        self.selected_ids.first().and_then(|id| {
+                    self.editor.move_origin.and_then(|orig| {
+                        self.editor.selected_ids.first().and_then(|id| {
                             self.scene.objects.get(id).map(|obj| [
                                 obj.position[0] - orig[0],
                                 obj.position[1] - orig[1],
@@ -1827,13 +1864,13 @@ impl KolibriApp {
                         })
                     })
                 } else {
-                    self.last_move_delta
+                    self.editor.last_move_delta
                 };
 
-                if count >= 2 && count <= 100 && is_copy && !self.selected_ids.is_empty() {
+                if count >= 2 && count <= 100 && is_copy && !self.editor.selected_ids.is_empty() {
                     if let Some(delta) = delta_opt {
                         // Get current positions of selected objects as base
-                        let base_objs: Vec<_> = self.selected_ids.iter()
+                        let base_objs: Vec<_> = self.editor.selected_ids.iter()
                             .filter_map(|id| self.scene.objects.get(id).cloned())
                             .collect();
                         if !base_objs.is_empty() {
@@ -1856,9 +1893,9 @@ impl KolibriApp {
                                 format!("\u{5df2}\u{5efa}\u{7acb} {} \u{500b}\u{526f}\u{672c}", count),
                                 std::time::Instant::now(),
                             ));
-                            self.last_move_delta = None;
-                            self.last_move_was_copy = false;
-                            self.measure_input.clear();
+                            self.editor.last_move_delta = None;
+                            self.editor.last_move_was_copy = false;
+                            self.editor.measure_input.clear();
                             return;
                         }
                     }
@@ -1866,18 +1903,18 @@ impl KolibriApp {
             }
         }
 
-        let parts: Vec<f32> = self.measure_input
+        let parts: Vec<f32> = self.editor.measure_input
             .split(|c: char| c == ',' || c == 'x')
             .filter_map(|s| s.trim().parse().ok())
             .collect();
         if parts.is_empty() { return; }
 
-        match &self.draw_state {
+        match &self.editor.draw_state {
             DrawState::BoxBase { p1 } => {
                 if parts.len() >= 2 {
                     let p1 = *p1;
                     let p2 = [p1[0]+parts[0], 0.0, p1[2]+parts[1]];
-                    self.draw_state = DrawState::BoxHeight { p1, p2 };
+                    self.editor.draw_state = DrawState::BoxHeight { p1, p2 };
                 }
             }
             DrawState::BoxHeight { p1, p2 } => {
@@ -1889,29 +1926,29 @@ impl KolibriApp {
                 let h = parts[0].max(10.0);
                 let name = self.next_name("Box");
                 let id = self.scene.add_box(name, [x0, 0.0, z0], w, h, d, self.create_mat);
-                self.selected_ids = vec![id];
-                self.draw_state = DrawState::Idle;
+                self.editor.selected_ids = vec![id];
+                self.editor.draw_state = DrawState::Idle;
             }
             DrawState::CylBase { center } => {
                 let c = *center;
                 let r = parts[0].max(10.0);
-                self.draw_state = DrawState::CylHeight { center: c, radius: r };
+                self.editor.draw_state = DrawState::CylHeight { center: c, radius: r };
             }
             DrawState::CylHeight { center, radius } => {
                 let c = *center; let r = *radius;
                 let h = parts[0].max(10.0);
                 let name = self.next_name("Cylinder");
                 let id = self.scene.add_cylinder(name, c, r, h, 48, self.create_mat);
-                self.selected_ids = vec![id];
-                self.draw_state = DrawState::Idle;
+                self.editor.selected_ids = vec![id];
+                self.editor.draw_state = DrawState::Idle;
             }
             DrawState::SphRadius { center } => {
                 let c = *center;
                 let r = parts[0].max(10.0);
                 let name = self.next_name("Sphere");
                 let id = self.scene.add_sphere(name, c, r, 32, self.create_mat);
-                self.selected_ids = vec![id];
-                self.draw_state = DrawState::Idle;
+                self.editor.selected_ids = vec![id];
+                self.editor.draw_state = DrawState::Idle;
             }
             DrawState::PullingFreeMesh { face_id } => {
                 let fid = *face_id;
@@ -1919,7 +1956,7 @@ impl KolibriApp {
                 self.scene.snapshot();
                 self.scene.free_mesh.push_pull_face(fid, height);
                 self.scene.version += 1;
-                self.draw_state = DrawState::Idle;
+                self.editor.draw_state = DrawState::Idle;
                 self.file_message = Some((
                     format!("\u{9762}\u{5df2}\u{63a8}\u{62c9} {}mm", height),
                     std::time::Instant::now(),
@@ -1929,7 +1966,7 @@ impl KolibriApp {
                 let obj_id = obj_id.clone();
                 let original_dims = *original_dims;
                 let handle = *handle;
-                let input = &self.measure_input;
+                let input = &self.editor.measure_input;
 
                 // Parse as scale factor (e.g., "1.5", "x1.5", "150%") or absolute dimension (e.g., "2000")
                 let value: Option<f32> = if input.ends_with('%') {
@@ -1980,27 +2017,27 @@ impl KolibriApp {
                             _ => {}
                         }
                     }
-                    self.draw_state = DrawState::Idle;
+                    self.editor.draw_state = DrawState::Idle;
                 }
             }
             // D1: Rotating — type angle in degrees to set precise rotation
             DrawState::Rotating { ref obj_id, .. } => {
-                if let Ok(angle) = self.measure_input.parse::<f32>() {
+                if let Ok(angle) = self.editor.measure_input.parse::<f32>() {
                     let obj_id = obj_id.clone();
                     self.scene.snapshot();
                     if let Some(obj) = self.scene.objects.get_mut(&obj_id) {
                         obj.rotation_y = angle.to_radians();
                     }
-                    self.draw_state = DrawState::Idle;
+                    self.editor.draw_state = DrawState::Idle;
                 }
             }
             _ => {}
         }
-        self.measure_input.clear();
+        self.editor.measure_input.clear();
     }
 
     pub(crate) fn pick(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<String> {
-        let (origin, dir) = self.camera.screen_ray(mx, my, vw, vh);
+        let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let mut best: Option<(f32, String)> = None;
         for obj in self.scene.objects.values() {
             let pos = glam::Vec3::from(obj.position);
@@ -2100,7 +2137,7 @@ impl KolibriApp {
 
     /// Pick which face of which object the ray hits (for Push/Pull)
     pub(crate) fn pick_face(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<(String, PullFace)> {
-        let (origin, dir) = self.camera.screen_ray(mx, my, vw, vh);
+        let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let mut best: Option<(f32, String, PullFace)> = None;
 
         for obj in self.scene.objects.values() {
@@ -2166,7 +2203,7 @@ impl KolibriApp {
 
     /// Pick a face on the shared free mesh by ray-casting.
     pub(crate) fn pick_free_mesh_face(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<u32> {
-        let (origin, dir) = self.camera.screen_ray(mx, my, vw, vh);
+        let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let mut best: Option<(f32, u32)> = None;
 
         for (&fid, face) in &self.scene.free_mesh.faces {
@@ -2225,8 +2262,8 @@ impl KolibriApp {
         match action {
             MenuAction::NewScene => {
                 self.scene.clear();
-                self.selected_ids.clear();
-                self.draw_state = DrawState::Idle;
+                self.editor.selected_ids.clear();
+                self.editor.draw_state = DrawState::Idle;
                 self.current_file = None;
                 self.last_saved_version = self.scene.version;
                 self.file_message = Some(("新建場景".to_string(), std::time::Instant::now()));
@@ -2236,7 +2273,7 @@ impl KolibriApp {
                 if let Some(ref path) = self.current_file.clone() {
                     match self.scene.load_from_file(path) {
                         Ok(count) => {
-                            self.selected_ids.clear();
+                            self.editor.selected_ids.clear();
                             self.last_saved_version = self.scene.version;
                             self.file_message = Some((format!("已回復: {} 個物件", count), std::time::Instant::now()));
                         }
@@ -2271,7 +2308,7 @@ impl KolibriApp {
                 if path.ends_with(".obj") {
                     match crate::obj_io::import_obj(&mut self.scene, &path) {
                         Ok(count) => {
-                            self.selected_ids.clear();
+                            self.editor.selected_ids.clear();
                             self.file_message = Some((format!("已匯入 {} 個物件", count), std::time::Instant::now()));
                         }
                         Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
@@ -2281,7 +2318,7 @@ impl KolibriApp {
                         Ok(count) => {
                             self.current_file = Some(path.clone());
                             self.add_recent_file(&path);
-                            self.selected_ids.clear();
+                            self.editor.selected_ids.clear();
                             self.last_saved_version = self.scene.version;
                             self.file_message = Some((format!("已載入 {} 個物件", count), std::time::Instant::now()));
                         }
@@ -2297,24 +2334,24 @@ impl KolibriApp {
             MenuAction::Undo => { self.scene.undo(); }
             MenuAction::Redo => { self.scene.redo(); }
             MenuAction::Delete => {
-                for id in self.selected_ids.drain(..).collect::<Vec<_>>() {
+                for id in self.editor.selected_ids.drain(..).collect::<Vec<_>>() {
                     self.scene.delete(&id);
                 }
             }
             MenuAction::SelectAll => {
-                self.selected_ids = self.scene.objects.keys().cloned().collect();
+                self.editor.selected_ids = self.scene.objects.keys().cloned().collect();
             }
-            MenuAction::ViewFront => self.camera.set_front(),
-            MenuAction::ViewBack => self.camera.set_back(),
-            MenuAction::ViewLeft => self.camera.set_left(),
-            MenuAction::ViewRight => self.camera.set_right(),
-            MenuAction::ViewTop => self.camera.set_top(),
-            MenuAction::ViewBottom => self.camera.set_bottom(),
-            MenuAction::ViewIso => self.camera.set_iso(),
+            MenuAction::ViewFront => self.viewer.camera.set_front(),
+            MenuAction::ViewBack => self.viewer.camera.set_back(),
+            MenuAction::ViewLeft => self.viewer.camera.set_left(),
+            MenuAction::ViewRight => self.viewer.camera.set_right(),
+            MenuAction::ViewTop => self.viewer.camera.set_top(),
+            MenuAction::ViewBottom => self.viewer.camera.set_bottom(),
+            MenuAction::ViewIso => self.viewer.camera.set_iso(),
             MenuAction::ZoomExtents => self.zoom_extents(),
             MenuAction::Duplicate => {
                 let mut new_ids = Vec::new();
-                for id in &self.selected_ids.clone() {
+                for id in &self.editor.selected_ids.clone() {
                     if let Some(obj) = self.scene.objects.get(id) {
                         let mut clone = obj.clone();
                         clone.id = self.scene.next_id_pub();
@@ -2327,21 +2364,21 @@ impl KolibriApp {
                 }
                 if !new_ids.is_empty() {
                     self.scene.version += 1;
-                    self.selected_ids = new_ids;
+                    self.editor.selected_ids = new_ids;
                 }
             }
             MenuAction::GroupSelected => {
-                if self.selected_ids.len() >= 2 {
+                if self.editor.selected_ids.len() >= 2 {
                     self.scene.snapshot();
                     let name = format!("Group_{}", self.scene.groups.len() + 1);
-                    let gid = self.scene.create_group(name, self.selected_ids.clone());
+                    let gid = self.scene.create_group(name, self.editor.selected_ids.clone());
                     self.file_message = Some((format!("已建立群組: {}", gid), std::time::Instant::now()));
                 } else {
                     self.file_message = Some(("需要選取至少2個物件".to_string(), std::time::Instant::now()));
                 }
             }
             MenuAction::ComponentSelected => {
-                for id in &self.selected_ids {
+                for id in &self.editor.selected_ids {
                     if let Some(obj) = self.scene.objects.get_mut(id) {
                         if !obj.name.contains("[元件]") {
                             obj.name = format!("[元件] {}", obj.name);
@@ -2377,9 +2414,9 @@ impl KolibriApp {
                     _ => unreachable!(),
                 };
 
-                if self.selected_ids.len() >= 2 {
-                    let id_a = self.selected_ids[0].clone();
-                    let id_b = self.selected_ids[1].clone();
+                if self.editor.selected_ids.len() >= 2 {
+                    let id_a = self.editor.selected_ids[0].clone();
+                    let id_b = self.editor.selected_ids[1].clone();
 
                     if let (Some(a), Some(b)) = (
                         self.scene.objects.get(&id_a).cloned(),
@@ -2398,7 +2435,7 @@ impl KolibriApp {
                                 new_ids.push(id);
                             }
                             self.scene.version += 1;
-                            self.selected_ids = new_ids.clone();
+                            self.editor.selected_ids = new_ids.clone();
 
                             let op_name = match op {
                                 crate::csg::CsgOp::Union => "聯集",
@@ -2415,7 +2452,7 @@ impl KolibriApp {
                 }
             }
             MenuAction::SetRenderMode(mode) => {
-                self.render_mode = match mode {
+                self.viewer.render_mode = match mode {
                     0 => RenderMode::Shaded,
                     1 => RenderMode::Wireframe,
                     2 => RenderMode::XRay,
@@ -2425,14 +2462,14 @@ impl KolibriApp {
                 };
             }
             MenuAction::ToggleBackground => {
-                if self.sky_color[0] > 0.5 {
+                if self.viewer.sky_color[0] > 0.5 {
                     // Switch to dark
-                    self.sky_color = [0.12, 0.12, 0.15];
-                    self.ground_color = [0.2, 0.2, 0.22];
+                    self.viewer.sky_color = [0.12, 0.12, 0.15];
+                    self.viewer.ground_color = [0.2, 0.2, 0.22];
                 } else {
                     // Switch to light
-                    self.sky_color = [0.53, 0.72, 0.9];
-                    self.ground_color = [0.65, 0.63, 0.60];
+                    self.viewer.sky_color = [0.53, 0.72, 0.9];
+                    self.viewer.ground_color = [0.65, 0.63, 0.60];
                 }
             }
             MenuAction::SaveTemplate => {
@@ -2509,7 +2546,7 @@ impl KolibriApp {
                     let ps = p.to_string_lossy().to_string();
                     match crate::stl_io::import_stl(&mut self.scene, &ps) {
                         Ok(count) => {
-                            self.selected_ids.clear();
+                            self.editor.selected_ids.clear();
                             self.file_message = Some((format!("已匯入 {} 個物件: {}", count, ps), std::time::Instant::now()));
                         }
                         Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
@@ -2556,7 +2593,7 @@ impl KolibriApp {
                     let ps = p.to_string_lossy().to_string();
                     match crate::dxf_io::import_dxf(&mut self.scene, &ps) {
                         Ok(count) => {
-                            self.selected_ids.clear();
+                            self.editor.selected_ids.clear();
                             self.file_message = Some((format!("已匯入 {} 個物件: {}", count, ps), std::time::Instant::now()));
                         }
                         Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
@@ -2582,7 +2619,7 @@ impl KolibriApp {
                                 for line in &ir.debug_report {
                                     self.console_push("INFO", line.clone());
                                 }
-                                self.show_console = true;
+                                self.viewer.show_console = true;
                                 self.console_push("INFO", format!("[DXF] Grids: X={} Y={} | Columns: {} | Beams: {} | Levels: {}",
                                     ir.grids.x_grids.len(), ir.grids.y_grids.len(),
                                     ir.columns.len(), ir.beams.len(), ir.levels.len()));
@@ -2608,7 +2645,7 @@ impl KolibriApp {
                                     let level = if line.contains("❌") { "WARN" } else { "INFO" };
                                     self.console_push(level, line.clone());
                                 }
-                                self.show_console = true;
+                                self.viewer.show_console = true;
                                 self.pending_unified_ir = Some(ir);
                             }
                             Err(e) => {
@@ -2654,7 +2691,7 @@ impl KolibriApp {
                                 ir.stats.mesh_count, ir.stats.group_count,
                                 ir.stats.member_count, ir.stats.material_count,
                             );
-                            self.show_console = true; // auto-open console on import
+                            self.viewer.show_console = true; // auto-open console on import
                             self.pending_unified_ir = Some(ir);
                             self.file_message = Some((summary, std::time::Instant::now()));
                         }
@@ -2666,7 +2703,7 @@ impl KolibriApp {
                 }
             }
             MenuAction::SplitObject => {
-                if let Some(id) = self.selected_ids.first().cloned() {
+                if let Some(id) = self.editor.selected_ids.first().cloned() {
                     if let Some(obj) = self.scene.objects.get(&id) {
                         if let Shape::Box { width, height, depth } = &obj.shape {
                             let p = obj.position;
@@ -2680,7 +2717,7 @@ impl KolibriApp {
                                 (2u8, p[2] + d / 2.0)
                             };
                             if let Some((a, b)) = self.scene.split_box(&id, axis, split_pos) {
-                                self.selected_ids = vec![a, b];
+                                self.editor.selected_ids = vec![a, b];
                                 self.file_message = Some(("物件已分割".to_string(), std::time::Instant::now()));
                             }
                         }
@@ -2774,7 +2811,7 @@ impl KolibriApp {
 
         if let Some((obj_id, axis, split_pos)) = split_info {
             if let Some((a, b)) = self.scene.split_box(&obj_id, axis, split_pos) {
-                self.selected_ids = vec![a, b];
+                self.editor.selected_ids = vec![a, b];
                 self.file_message = Some(("\u{9762}\u{5df2}\u{88ab}\u{7dda}\u{6bb5}\u{5207}\u{5272}".to_string(), std::time::Instant::now()));
             }
         }
@@ -2902,12 +2939,12 @@ impl KolibriApp {
                 }
                 if !created_ids.is_empty() {
                     self.scene.version += 1;
-                    self.selected_ids = created_ids.clone();
+                    self.editor.selected_ids = created_ids.clone();
                     self.file_message = Some((
                         format!("沿路徑擠出 {} 段", created_ids.len()),
                         std::time::Instant::now(),
                     ));
-                    self.tool = Tool::Select;
+                    self.editor.tool = Tool::Select;
                 }
                 return;
             }
@@ -2955,18 +2992,18 @@ impl KolibriApp {
         }
 
         self.scene.version += 1;
-        self.selected_ids = created_ids.clone();
+        self.editor.selected_ids = created_ids.clone();
         self.file_message = Some((
             format!("沿路徑擠出 {} 段", created_ids.len()),
             std::time::Instant::now(),
         ));
-        self.tool = Tool::Select;
+        self.editor.tool = Tool::Select;
     }
 
     /// Expand selection to include all group members for any selected object
     pub(crate) fn expand_selection_to_groups(&mut self) {
-        let mut expanded = self.selected_ids.clone();
-        for id in &self.selected_ids {
+        let mut expanded = self.editor.selected_ids.clone();
+        for id in &self.editor.selected_ids {
             for g in self.scene.groups.values() {
                 if g.children.contains(id) {
                     for child in &g.children {
@@ -2977,7 +3014,7 @@ impl KolibriApp {
                 }
             }
         }
-        self.selected_ids = expanded;
+        self.editor.selected_ids = expanded;
     }
 }
 

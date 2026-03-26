@@ -1,7 +1,7 @@
 # Kolibri_Ai3D 開發總結
 
-> 日期：2026-03-23
-> 從零到可用的 SketchUp-like 3D CAD 應用，一天完成
+> 更新日期：2026-03-26
+> 25,681 行 Rust，60 模組
 
 ---
 
@@ -12,167 +12,77 @@
 | 語言 | Rust 2021 |
 | 渲染 | wgpu + WGSL shader |
 | UI | egui (eframe 0.28) |
-| 原始碼 | 23 個模組，10,970 行 |
-| 二進制 | kolibri-cad.exe（~12 MB） |
-| 平台 | Windows 11（GPU: NVIDIA RTX 4060 Laptop） |
+| 平台 | Windows 11 |
+| 架構 | 三層 Store 分離（Pascal Editor 風格） |
 
 ---
 
-## 模組結構
+## 架構設計
+
+應用狀態分三層 Store，禁止跨層直接耦合：
+
+| Store | 結構 | 職責 |
+|-------|------|------|
+| **SceneStore** | `scene: Scene` | 節點 `HashMap<id, SceneObject>` + parent_id 層級、材質、undo/redo |
+| **ViewerState** | `viewer: ViewerState` | 相機、渲染模式、背景色、顯示設定、Layout |
+| **EditorState** | `editor: EditorState` | 工具、選取、snap、inference、鋼構模式 |
+
+---
+
+## 核心模組
 
 ```
 src/
-├── main.rs          (154)   入口 + 圖標 + --mcp 分支
-├── app.rs          (1596)   核心 struct + 主題 + update()
-├── tools.rs        (1763)   工具互動 + 點擊/拖曳處理
-├── panels.rs       (1214)   UI 面板（toolbar + 右側 + 場景）
-├── renderer.rs     (1447)   wgpu 渲染管線 + shader + 網格生成
-├── scene.rs         (549)   場景資料模型 + undo/redo + 存取
-├── mcp_server.rs    (466)   MCP JSON-RPC Server（11 工具）
-├── test_bridge.rs   (511)   檔案式測試入口
-├── snap.rs          (449)   推斷/捕捉系統
-├── icons.rs         (406)   22 個手繪向量圖標
+├── app.rs          (2705)   KolibriApp + ViewerState + EditorState + 主題
+├── tools.rs        (2999)   工具互動 + 點擊/拖曳處理
+├── panels.rs       (1832)   UI 面板（toolbar + 右側 + 場景）
+├── renderer.rs     (1675)   wgpu 渲染管線 + shader
+├── scene.rs         (696)   SceneStore: 節點字典 + undo/redo + 層級查詢
+├── snap.rs          (634)   推斷/捕捉系統
+├── inference_engine.rs (584) Inference 2.0 評分管線
+├── icons.rs         (541)   22 個 Heroicons 風格向量圖標
+├── collision.rs     (508)   碰撞偵測
+├── layout.rs        (457)   出圖模式
 ├── halfedge.rs      (396)   半邊網格資料結構
 ├── camera.rs        (188)   軌道相機 + 行走 + 正交投影
-├── menu.rs          (174)   選單列 + 右鍵選單
-├── preview.rs       (275)   繪圖預覽 + 縮放手柄
-├── dimensions.rs    (138)   尺寸標註 2D 覆蓋
-├── obj_io.rs        (333)   OBJ 匯出入
-├── gltf_io.rs       (188)   GLTF 匯出
-├── stl_io.rs        (141)   STL 匯出入
-├── dxf_io.rs        (137)   DXF 匯出入
-├── csg.rs           (142)   布林運算（聯集/差集/交集）
-├── measure.rs        (86)   面積/體積/重量計算
-├── ai_log.rs         (87)   AI 審計日誌
-└── file_io.rs       (130)   檔案存取 + 自動儲存
+├── cad_import/             CAD 語意解析（DXF 軸線/柱梁/標高）
+├── import/                 統一匯入管線（DWG/SKP/PDF/OBJ）
+├── dwg_parser/             DWG 二進制解析器（R2000–R2025）
+└── builders/               鋼構建造器
 ```
 
 ---
 
-## 功能清單
+## 功能概覽
 
-### 繪圖工具（22 個）
-- 選取、移動（Ctrl 切軸 X/Y/Z）、旋轉、縮放（等比+非等比+精確輸入）
-- 線段、弧線、矩形、圓形
-- 方塊、圓柱、球體（SketchUp 風格互動式建立）
-- 推拉（面級別，六面獨立，螢幕投影法線方向）
-- 偏移、跟隨、量測、油漆桶
-- 環繞、平移、全部顯示
-- 群組、元件、橡皮擦
-
-### 渲染
-- 天空漸層背景（可切換明/暗）
-- 地面格線 + XYZ 軸線
-- 方向光 + 天光環境光
-- 邊線描繪（精確幾何邊線 + shader 輔助）
-- 面正反面不同顏色
-- 平滑法線（圓柱/球體）
-- 5 種顯示模式（著色/線框/X光/隱藏線/單色）
-- 程序化材質紋理（磚/木/金屬/混凝土/大理石/磁磚/柏油/草地）
-- 選取高亮（藍色邊框 + 軸向面色）
-- 尺寸標註 2D 覆蓋
-
-### 材質系統
-- 29 種預設材質（7 大類：石材/木材/金屬/磚瓦/玻璃/路面/其他）
-- 自訂 RGBA 顏色
-- PBR 參數（粗糙度/金屬感）
-- 材質預覽球
-- 油漆桶工具套用
-
-### 選取互動
-- 點擊選取（任何工具下）
-- 懸停高亮
-- 面級別選取（推拉用，軸向顏色指示）
-- 多選（Shift+Click）
-- 框選（Rubber Band）
-- 雙擊編輯群組（隔離模式）
-
-### 組織管理
-- 群組（選取多物件→建立群組→雙擊進入）
-- 元件實例（改一個同步全部）
-- 圖層/標籤（自訂標籤 + 可見性切換）
-- 場景大綱（物件列表 + 點擊選取 + 刪除）
-
-### 相機
-- 軌道旋轉（中鍵拖曳，匹配 SU 方向）
-- 平移（Shift+中鍵）
-- 游標中心縮放（滾輪）
-- WASD 行走模式
-- 透視/正交切換
-- 標準視圖（前/後/左/右/上/等角）
-- 場景視角儲存/恢復
-
-### 推斷/捕捉
-- 端點/中點/原點捕捉
-- 軸向引導線（RGB 彩色虛線）
-- 面上繪圖（Line/Arc 吸附物件面）
-- 500mm 格線捕捉
-- 文字提示標籤
-
-### 編輯
-- Undo/Redo（50 步歷史）
-- 複製移動（Ctrl+Move）
-- 刪除（Delete 鍵 / 橡皮擦拖曳連刪）
-- 雙擊推拉重複上次距離
-- 精確尺寸輸入（底部輸入框 + Enter）
-
-### 檔案 I/O
-- 儲存/載入 .k3d（JSON）
-- 匯出入 OBJ / STL / GLTF / DXF
-- 匯出 PNG / JPG 截圖
-- 自動儲存（60 秒）
-- 最近檔案列表
-- 拖放開啟
-- 未儲存提示
-
-### UI（Figma 風格）
-- 淺色毛玻璃面板
-- 頂部品牌列（Logo + 選單 + 專案名 + Undo/Redo）
-- 左側合併面板（工具列 + 場景/圖層/快速操作/捕捉）
-- 右側分頁面板（設計/屬性/場景/輸出）
-- 浮動視角切換按鈕（透視/正視/俯視/左視/線框/著色）
-- 浮動工具資訊卡
-- 浮動方向鍵盤
-- 浮動座標晶片（X/Y/Z/Snap/Units）
-- Selection Summary 統計卡片
-- 材質色票網格（28 色）
-- 工具圖標 48px + 快捷鍵標示
-- 游標回饋（工具不同游標不同）
-- 狀態列（工具說明 + 游標座標 + 物件數）
-
-### AI 整合
-- MCP Server 內建（`--mcp` stdio 模式，11 個工具）
-- Claude Desktop 直接連接
-- AI 審計日誌（署名 + 時間 + 動作 + 物件）
-- 測試入口（JSON 指令 → 截圖/狀態查詢）
-
-### 布林運算
-- 聯集（A+B → 合併邊界框）
-- 差集（A-B → 切割成最多 6 塊）
-- 交集（A∩B → 保留重疊部分）
+- **22 個繪圖工具**：選取/移動/旋轉/縮放/線/弧/矩形/圓/方塊/圓柱/球/推拉/偏移/跟隨/量測/油漆桶/標註 等
+- **6 種渲染模式**：著色/線框/X 光/隱藏線/單色/草稿
+- **29 種建築材質**：程序化紋理（磚/木/金屬/混凝土/大理石/磁磚/柏油/草地）
+- **鋼構模式**：Grid/Column/Beam/Brace/Plate/Connection + H 型鋼斷面
+- **CAD 匯入**：DXF/DWG/SKP/OBJ/PDF + 語意偵測 + 確認面板
+- **AI 整合**：MCP Server（11 工具）+ AI 審計日誌 + 語意建模助手
+- **匯出**：OBJ/STL/GLTF/DXF + PNG/JPG 截圖
+- **50 步 Undo/Redo** + 自動儲存 + 最近檔案
 
 ---
 
-## 明日待辦（優先順序）
+## 近期里程碑
 
-### 🔴 高優先
-1. 線條/邊選取高亮（free_mesh pick 機制）
-2. 推拉方向全面驗證
-3. 推拉即時距離顯示驗證
+### 2026-03-26：架構重構
+- 三層 Store 分離（SceneStore / ViewerState / EditorState）
+- 扁平節點字典（SceneObject + parent_id）
+- CLAUDE.md 專案規範
 
-### 🟡 中優先
-4. 旋轉工具量角器模式
-5. 橡皮擦刪除 free_mesh 邊
-6. 捲尺工具完善（構造線 + 物件間距）
-7. 面上繪圖完善
+### 2026-03-24：CAD 匯入 + 鋼構
+- DXF/DWG/PDF 匯入系統 + 語意偵測器
+- Snap 系統改為 3D 螢幕空間
+- 鋼構模式 6 工具 + 碰撞偵測
+- 標註/文字工具 + 陣列複製
 
-### 🟢 低優先
-8. 多邊形/徒手畫工具
-9. 線段切割相交面
-10. MSAA 反鋸齒
-11. PDF 匯出
-12. 圖片參考底圖
-13. 材質色票調色（偏建築色系）
+### 2026-03-23：核心功能
+- 從零建立可用的 SketchUp-like 3D CAD 應用
+- Figma 風格 UI + 22 個工具 + 推斷/捕捉
+- MCP Server + AI 審計日誌
 
 ---
 
@@ -180,33 +90,27 @@ src/
 
 | 文件 | 說明 |
 |------|------|
-| [ROADMAP.md](ROADMAP.md) | 總功能清單（96 項，91.7% 完成） |
-| [SU_DIFF.md](SU_DIFF.md) | 與 SketchUp 差異（20 項，前 3 波已完成） |
-| [TODO_NEXT.md](TODO_NEXT.md) | 詳細待辦清單（17 項） |
-| [PLUGIN_SYSTEM.md](PLUGIN_SYSTEM.md) | 外掛系統規劃（Lua/WASM/HTTP） |
-| [PLUGIN_API.md](PLUGIN_API.md) | 外掛 HTTP API 規格 |
-| [MCP_SETUP.md](MCP_SETUP.md) | Claude Desktop MCP 連接指南 |
-| [DEV_SUMMARY.md](DEV_SUMMARY.md) | 本文件 |
+| [CLAUDE.md](../../CLAUDE.md) | AI Agent 專案規範 |
+| [ROADMAP.md](ROADMAP.md) | 功能清單 + 待辦追蹤 |
+| [IMPORT_DESIGN.md](IMPORT_DESIGN.md) | CAD 匯入架構設計 |
+| [PLUGIN_AND_MCP.md](PLUGIN_AND_MCP.md) | 外掛系統 + MCP 連接 |
+| [kolibri_ux_upgrade_plan.md](kolibri_ux_upgrade_plan.md) | UX 升級計畫 |
+| [LEFT_PANEL_STEEL_TOOLS.md](LEFT_PANEL_STEEL_TOOLS.md) | 鋼構模式規劃 |
+| [rust_module_scoring_engine_ui_flow.md](rust_module_scoring_engine_ui_flow.md) | Inference 2.0 設計 |
 
 ---
 
-## 桌面捷徑
+## 快速啟動
 
-```
-位置：C:\Users\localadmin\Desktop\Kolibri CAD.lnk
-目標：D:\AI_Design\Kolibri_Ai3D\app\target\release\kolibri-cad.exe
-工作目錄：D:\AI_Design\Kolibri_Ai3D\app
+```bash
+# 開發建置
+cd app && cargo run
+
+# Release 建置
+cargo build --release
+
+# MCP Server 模式
+target/release/kolibri-cad.exe --mcp
 ```
 
-## MCP 連接
-
-```json
-{
-  "mcpServers": {
-    "kolibri-ai3d": {
-      "command": "D:\\AI_Design\\Kolibri_Ai3D\\app\\target\\release\\kolibri-cad.exe",
-      "args": ["--mcp"]
-    }
-  }
-}
-```
+桌面捷徑：`C:\Users\localadmin\Desktop\Kolibri CAD.lnk`

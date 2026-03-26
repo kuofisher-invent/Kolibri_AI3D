@@ -10,7 +10,7 @@ impl KolibriApp {
         let mut idx = Vec::new();
         let ghost = [0.35, 0.55, 0.95, 0.35]; // semi-transparent blue
 
-        match &self.draw_state {
+        match &self.editor.draw_state {
             DrawState::Idle => {}
 
             DrawState::BoxBase { p1 } => {
@@ -181,8 +181,8 @@ impl KolibriApp {
 
             DrawState::LineFrom { p1 } => {
                 // Use face snap or ground snap for preview
-                let p2_opt = self.snap_to_face(self.mouse_screen[0], self.mouse_screen[1],
-                    self.viewport_size[0], self.viewport_size[1])
+                let p2_opt = self.snap_to_face(self.editor.mouse_screen[0], self.editor.mouse_screen[1],
+                    self.viewer.viewport_size[0], self.viewer.viewport_size[1])
                     .or_else(|| self.ground_snapped());
                 if let Some(p2) = p2_opt {
                     crate::renderer::push_line_pub(&mut v, &mut idx, &[*p1, p2], 20.0, ghost);
@@ -190,8 +190,8 @@ impl KolibriApp {
             }
 
             DrawState::ArcP1 { p1 } => {
-                let p2_opt = self.snap_to_face(self.mouse_screen[0], self.mouse_screen[1],
-                    self.viewport_size[0], self.viewport_size[1])
+                let p2_opt = self.snap_to_face(self.editor.mouse_screen[0], self.editor.mouse_screen[1],
+                    self.viewer.viewport_size[0], self.viewer.viewport_size[1])
                     .or_else(|| self.ground_snapped());
                 if let Some(p2) = p2_opt {
                     crate::renderer::push_line_pub(&mut v, &mut idx, &[*p1, p2], 20.0, ghost);
@@ -199,8 +199,8 @@ impl KolibriApp {
             }
 
             DrawState::ArcP2 { p1, p2 } => {
-                let p3_opt = self.snap_to_face(self.mouse_screen[0], self.mouse_screen[1],
-                    self.viewport_size[0], self.viewport_size[1])
+                let p3_opt = self.snap_to_face(self.editor.mouse_screen[0], self.editor.mouse_screen[1],
+                    self.viewer.viewport_size[0], self.viewer.viewport_size[1])
                     .or_else(|| self.ground_snapped());
                 if let Some(p3) = p3_opt {
                     let pts = crate::app::compute_arc(*p1, *p2, p3, 32);
@@ -247,8 +247,8 @@ impl KolibriApp {
         }
 
         // ── F2: Ghost original shape during push/pull ──
-        if self.selected_face.is_some() && self.drag_snapshot_taken {
-            if let (Some(orig_pos), Some(orig_dims)) = (self.pull_original_pos, self.pull_original_dims) {
+        if self.editor.selected_face.is_some() && self.editor.drag_snapshot_taken {
+            if let (Some(orig_pos), Some(orig_dims)) = (self.editor.pull_original_pos, self.editor.pull_original_dims) {
                 let ghost_color = [0.5, 0.5, 0.5, 0.15];
                 crate::renderer::push_box_pub(
                     &mut v, &mut idx,
@@ -259,8 +259,8 @@ impl KolibriApp {
         }
 
         // ── Scale handles: 8 corner cubes when Scale tool is active ──
-        if matches!(self.tool, Tool::Scale) {
-            for id in &self.selected_ids {
+        if matches!(self.editor.tool, Tool::Scale) {
+            for id in &self.editor.selected_ids {
                 if let Some(obj) = self.scene.objects.get(id) {
                     let p = obj.position;
                     let (w, h, d) = match &obj.shape {

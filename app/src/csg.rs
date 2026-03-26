@@ -140,5 +140,6 @@ fn make_box(name: &str, min: [f32; 3], max: [f32; 3], material: MaterialKind) ->
         metallic: 0.0,
         texture_path: None,
         component_kind: Default::default(),
+        parent_id: None,
     }
 }

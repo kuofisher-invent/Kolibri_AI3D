@@ -86,6 +86,10 @@ pub struct SceneObject {
     /// Collision detection component kind (column, beam, plate, etc.)
     #[serde(default)]
     pub(crate) component_kind: crate::collision::ComponentKind,
+    /// Parent node ID for flat-dictionary hierarchy (Pascal Editor style).
+    /// `None` = root-level node; `Some(id)` = child of that node.
+    #[serde(default)]
+    pub(crate) parent_id: Option<String>,
 }
 
 fn default_tag() -> String { "\u{9810}\u{8a2d}".to_string() }  // "預設"
@@ -356,7 +360,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(),
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
         });
         id
     }
@@ -412,7 +416,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(),
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
         });
         self.version += 1;
         id
@@ -429,7 +433,7 @@ impl Scene {
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(),
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
         });
         self.version += 1;
         id
@@ -446,7 +450,7 @@ impl Scene {
             shape: Shape::Sphere { radius: r, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(),
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
         });
         self.version += 1;
         id
@@ -464,7 +468,7 @@ impl Scene {
             shape: Shape::Line { points, thickness },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(),
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
         });
         self.version += 1;
         id
@@ -504,6 +508,45 @@ impl Scene {
     pub fn dissolve_group(&mut self, group_id: &str) {
         self.groups.remove(group_id);
         self.version += 1;
+    }
+
+    // ─── Flat node hierarchy helpers (Pascal Editor style) ──────────────
+
+    /// Get all direct children of a given parent node.
+    pub fn children_of(&self, parent_id: &str) -> Vec<&SceneObject> {
+        self.objects.values()
+            .filter(|obj| obj.parent_id.as_deref() == Some(parent_id))
+            .collect()
+    }
+
+    /// Get all root-level nodes (no parent).
+    pub fn root_nodes(&self) -> Vec<&SceneObject> {
+        self.objects.values()
+            .filter(|obj| obj.parent_id.is_none())
+            .collect()
+    }
+
+    /// Reparent a node under a new parent (or `None` for root).
+    pub fn reparent(&mut self, node_id: &str, new_parent: Option<String>) {
+        if let Some(obj) = self.objects.get_mut(node_id) {
+            obj.parent_id = new_parent;
+            self.version += 1;
+        }
+    }
+
+    /// Collect all descendant IDs of a node (recursive).
+    pub fn descendants_of(&self, parent_id: &str) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut stack = vec![parent_id.to_string()];
+        while let Some(pid) = stack.pop() {
+            for obj in self.objects.values() {
+                if obj.parent_id.as_deref() == Some(&pid) {
+                    result.push(obj.id.clone());
+                    stack.push(obj.id.clone());
+                }
+            }
+        }
+        result
     }
 
     /// Create a component definition from selected objects.
@@ -638,6 +681,82 @@ pub fn obj_collision_center_size(obj: &SceneObject) -> ([f32; 3], [f32; 3]) {
              [radius * 2.0, radius * 2.0, radius * 2.0])
         }
         _ => (obj.position, [100.0; 3]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_object_creation() {
+        let mut scene = Scene::default();
+
+        // Box
+        let box_id = scene.add_box("TestBox".into(), [0.0, 0.0, 0.0], 1000.0, 2000.0, 500.0, MaterialKind::Concrete);
+        assert!(scene.objects.contains_key(&box_id), "Box creation failed");
+        assert!(matches!(scene.objects[&box_id].shape, Shape::Box { .. }));
+
+        // Cylinder
+        let cyl_id = scene.add_cylinder("TestCyl".into(), [3000.0, 0.0, 0.0], 500.0, 1500.0, 32, MaterialKind::Steel);
+        assert!(scene.objects.contains_key(&cyl_id), "Cylinder creation failed");
+        assert!(matches!(scene.objects[&cyl_id].shape, Shape::Cylinder { .. }));
+
+        // Sphere
+        let sph_id = scene.add_sphere("TestSphere".into(), [6000.0, 0.0, 0.0], 800.0, 32, MaterialKind::Glass);
+        assert!(scene.objects.contains_key(&sph_id), "Sphere creation failed");
+        assert!(matches!(scene.objects[&sph_id].shape, Shape::Sphere { .. }));
+
+        // Line
+        let line_id = scene.add_line("TestLine".into(), vec![[0.0, 0.0, 0.0], [1000.0, 0.0, 1000.0]], 2.0, MaterialKind::White);
+        assert!(scene.objects.contains_key(&line_id), "Line creation failed");
+
+        // Verify count
+        assert_eq!(scene.objects.len(), 4, "Should have 4 objects");
+
+        // Material change
+        scene.objects.get_mut(&sph_id).unwrap().material = MaterialKind::Brick;
+        assert_eq!(scene.objects[&sph_id].material, MaterialKind::Brick, "Material change failed");
+
+        // Undo
+        assert!(scene.undo(), "Undo should succeed");
+        assert_eq!(scene.objects.len(), 3, "Undo should remove last object");
+
+        // Redo
+        assert!(scene.redo(), "Redo should succeed");
+        assert_eq!(scene.objects.len(), 4, "Redo should restore object");
+
+        // Delete
+        assert!(scene.delete(&box_id), "Delete should succeed");
+        assert_eq!(scene.objects.len(), 3, "Delete should remove object");
+
+        // Parent-child hierarchy
+        let parent_id = scene.add_box("Parent".into(), [0.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+        let child_id = scene.add_box("Child".into(), [50.0, 0.0, 0.0], 50.0, 50.0, 50.0, MaterialKind::White);
+        scene.reparent(&child_id, Some(parent_id.clone()));
+        assert_eq!(scene.children_of(&parent_id).len(), 1, "Should have 1 child");
+        assert_eq!(scene.root_nodes().len(), 4, "Should have 4 root nodes (cyl+sph+line+parent)");
+
+        println!("All object creation tests passed!");
+    }
+
+    #[test]
+    fn test_save_load_roundtrip() {
+        let mut scene = Scene::default();
+        scene.add_box("Box1".into(), [0.0, 0.0, 0.0], 100.0, 200.0, 300.0, MaterialKind::Concrete);
+        scene.add_sphere("Sph1".into(), [500.0, 0.0, 0.0], 100.0, 32, MaterialKind::Glass);
+
+        let path = std::env::temp_dir().join("kolibri_test_scene.k3d");
+        let path_str = path.to_string_lossy().to_string();
+
+        scene.save_to_file(&path_str).expect("Save failed");
+
+        let mut scene2 = Scene::default();
+        let count = scene2.load_from_file(&path_str).expect("Load failed");
+        assert_eq!(count, 2, "Should load 2 objects");
+
+        let _ = std::fs::remove_file(&path);
+        println!("Save/load roundtrip test passed!");
     }
 }
 

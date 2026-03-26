@@ -528,185 +528,50 @@ fn swatch_grass_dots(painter: &egui::Painter, rect: egui::Rect, base: [f32; 4]) 
 }
 
 impl KolibriApp {
-    // ── Left: Scenes / Pages panel ─────────────────────────────────────────
-    pub(crate) fn scenes_panel_ui(&mut self, ui: &mut egui::Ui) {
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            // ── PAGES / SCENES ──
-            section_header(ui, "PAGES / SCENES");
-            figma_group(ui, |ui| {
-                let scene_name = self.current_file.as_ref()
-                    .and_then(|p| p.rsplit(['\\', '/']).next())
-                    .unwrap_or("Scene 1");
-                let obj_count = self.scene.objects.len();
-
-                ui.horizontal(|ui| {
-                    let (thumb_rect, _) = ui.allocate_exact_size(egui::vec2(48.0, 36.0), egui::Sense::hover());
-                    ui.painter().rect_filled(thumb_rect, 8.0, egui::Color32::from_rgb(230, 233, 240));
-                    ui.painter().text(thumb_rect.center(), egui::Align2::CENTER_CENTER,
-                        "\u{1f3d7}", egui::FontId::proportional(16.0),
-                        egui::Color32::from_rgb(110, 118, 135));
-
-                    ui.vertical(|ui| {
-                        ui.label(egui::RichText::new(scene_name).strong().size(12.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                        ui.label(egui::RichText::new(format!("{} objects", obj_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
-                    });
-                });
-            });
-
-            ui.add_space(8.0);
-
-            // ── QUICK ACTIONS ──
-            section_header(ui, "QUICK ACTIONS");
-            figma_group(ui, |ui| {
-                ui.columns(2, |cols| {
-                    if cols[0].button(egui::RichText::new("+ \u{65b0}\u{5834}\u{666f}").size(11.0)).clicked() {
-                        self.handle_menu_action(crate::menu::MenuAction::NewScene);
-                    }
-                    if cols[1].button(egui::RichText::new("\u{1f4c2} \u{958b}\u{555f}").size(11.0)).clicked() {
-                        self.handle_menu_action(crate::menu::MenuAction::OpenScene);
-                    }
-                });
-                ui.add_space(2.0);
-                ui.columns(2, |cols| {
-                    if cols[0].button(egui::RichText::new("\u{1f4e5} \u{532f}\u{5165} OBJ").size(11.0)).clicked() {
-                        self.handle_menu_action(crate::menu::MenuAction::ImportObj);
-                    }
-                    if cols[1].button(egui::RichText::new("\u{1f4e4} \u{532f}\u{51fa}").size(11.0)).clicked() {
-                        self.handle_menu_action(crate::menu::MenuAction::ExportObj);
-                    }
-                });
-                ui.add_space(2.0);
-                ui.columns(2, |cols| {
-                    if cols[0].button(egui::RichText::new("\u{1f4e6} \u{7fa4}\u{7d44}").size(11.0)).clicked() {
-                        self.tool = Tool::Group;
-                    }
-                    if cols[1].button(egui::RichText::new("\u{1f50d} \u{5168}\u{90e8}\u{986f}\u{793a}").size(11.0)).clicked() {
-                        self.zoom_extents();
-                    }
-                });
-            });
-
-            ui.add_space(8.0);
-
-            // ── LAYERS / OBJECTS ──
-            section_header(ui, "LAYERS / OBJECTS");
-            figma_group(ui, |ui| {
-                if self.scene.objects.is_empty() {
-                    ui.label(egui::RichText::new("\u{5834}\u{666f}\u{70ba}\u{7a7a}").size(11.0).color(egui::Color32::from_rgb(160, 166, 180)));
-                } else {
-                    let tags: Vec<String> = {
-                        let mut set = std::collections::BTreeSet::new();
-                        for o in self.scene.objects.values() {
-                            set.insert(o.tag.clone());
-                        }
-                        set.into_iter().collect()
-                    };
-                    for tag in &tags {
-                        let visible = !self.hidden_tags.contains(tag);
-                        let count = self.scene.objects.values().filter(|o| &o.tag == tag).count();
-                        ui.horizontal(|ui| {
-                            let eye = if visible { "\u{1f441}" } else { "\u{2014}" };
-                            if ui.small_button(eye).clicked() {
-                                if visible { self.hidden_tags.insert(tag.clone()); }
-                                else { self.hidden_tags.remove(tag); }
-                            }
-                            let label_color = if visible {
-                                egui::Color32::from_rgb(31, 36, 48)
-                            } else {
-                                egui::Color32::from_rgb(160, 166, 180)
-                            };
-                            ui.label(egui::RichText::new(format!("{} ({})", tag, count)).size(11.0).color(label_color));
-                        });
-                    }
-
-                    ui.add_space(4.0);
-
-                    let items: Vec<_> = self.scene.objects.values()
-                        .map(|o| {
-                            let icon = match &o.shape {
-                                Shape::Box{..} => "\u{2b1c}",
-                                Shape::Cylinder{..} => "\u{25cb}",
-                                Shape::Sphere{..} => "\u{25ce}",
-                                Shape::Line{..} => "\u{2571}",
-                                Shape::Mesh{..} => "\u{25c7}",
-                            };
-                            (o.id.clone(), o.name.clone(), icon)
-                        }).collect();
-                    for (oid, name, icon) in &items {
-                        let selected = self.selected_ids.contains(oid);
-                        let text = egui::RichText::new(format!("{} {}", icon, name)).size(11.0);
-                        let btn = if selected {
-                            egui::Button::new(text.color(egui::Color32::from_rgb(76, 139, 245)))
-                                .fill(egui::Color32::from_rgba_unmultiplied(76, 139, 245, 25))
-                                .stroke(egui::Stroke::new(1.5, egui::Color32::from_rgb(76, 139, 245)))
-                                .rounding(8.0)
-                        } else {
-                            egui::Button::new(text.color(egui::Color32::from_rgb(31, 36, 48)))
-                                .fill(egui::Color32::TRANSPARENT)
-                                .stroke(egui::Stroke::NONE)
-                                .rounding(8.0)
-                        };
-                        if ui.add(btn).clicked() {
-                            self.selected_ids = vec![oid.clone()];
-                        }
-                    }
-                }
-            });
-
-            ui.add_space(8.0);
-
-            // ── SNAP ──
-            section_header(ui, "SNAP");
-            figma_group(ui, |ui| {
-                ui.columns(3, |cols| {
-                    cols[0].label(egui::RichText::new("\u{25cf} \u{7aef}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                    cols[1].label(egui::RichText::new("\u{25cb} \u{4e2d}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                    cols[2].label(egui::RichText::new("\u{2716} \u{4ea4}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                });
-            });
-        });
-    }
 
     // ── Left: Two-column toolbar ────────────────────────────────────────────
 
     pub(crate) fn toolbar_ui(&mut self, ui: &mut egui::Ui) {
         let bsz = egui::vec2(48.0, 48.0);
 
-        // ── Mode switch: 建模 / 鋼構 / 出圖 (unified single row) ──
+        // ── Mode switch: 建模 / 鋼構 / 出圖 (compact row) ──
         ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            ui.spacing_mut().button_padding = egui::vec2(4.0, 3.0);
+
             let brand = egui::Color32::from_rgb(76, 139, 245);
             let steel_color = egui::Color32::from_rgb(220, 100, 50);
             let layout_color = egui::Color32::from_rgb(60, 160, 100);
             let muted = egui::Color32::from_rgb(110, 118, 135);
 
-            let modeling_active = !self.layout_mode && self.work_mode == WorkMode::Modeling;
-            let steel_active = !self.layout_mode && self.work_mode == WorkMode::Steel;
-            let layout_active = self.layout_mode;
+            let modeling_active = !self.viewer.layout_mode && self.editor.work_mode == WorkMode::Modeling;
+            let steel_active = !self.viewer.layout_mode && self.editor.work_mode == WorkMode::Steel;
+            let layout_active = self.viewer.layout_mode;
 
             let make_btn = |label: &str, active: bool, color: egui::Color32| {
-                egui::Button::new(egui::RichText::new(label).size(11.0)
+                egui::Button::new(egui::RichText::new(label).size(10.0)
                     .color(if active { egui::Color32::WHITE } else { muted }))
                     .fill(if active { color } else { egui::Color32::TRANSPARENT })
-                    .rounding(8.0)
+                    .rounding(6.0)
             };
 
             if ui.add(make_btn("建模", modeling_active, brand)).clicked() {
-                self.layout_mode = false;
-                self.work_mode = WorkMode::Modeling;
+                self.viewer.layout_mode = false;
+                self.editor.work_mode = WorkMode::Modeling;
             }
             if ui.add(make_btn("鋼構", steel_active, steel_color)).clicked() {
-                self.layout_mode = false;
-                self.work_mode = WorkMode::Steel;
+                self.viewer.layout_mode = false;
+                self.editor.work_mode = WorkMode::Steel;
             }
             if ui.add(make_btn("出圖", layout_active, layout_color)).clicked() {
-                self.layout_mode = true;
+                self.viewer.layout_mode = true;
             }
         });
 
         ui.add_space(2.0);
 
         // When in layout mode, don't show 3D tools
-        if self.layout_mode {
+        if self.viewer.layout_mode {
             ui.separator();
             ui.label(egui::RichText::new("出圖模式").size(11.0).color(egui::Color32::from_gray(130)));
             ui.label(egui::RichText::new("右側面板可編輯\n紙張與圖框設定").size(10.0).color(egui::Color32::from_gray(160)));
@@ -714,15 +579,15 @@ impl KolibriApp {
         }
 
         // Steel mode uses a different variable now (work_mode), skip the old toggle
-        let modeling_active = self.work_mode == WorkMode::Modeling;
-        let steel_active = self.work_mode == WorkMode::Steel;
+        let modeling_active = self.editor.work_mode == WorkMode::Modeling;
+        let steel_active = self.editor.work_mode == WorkMode::Steel;
         // (The old m_btn/s_btn block below is now handled by the unified row above)
         // Skip the duplicate toggle — just keep the steel_mode sync
         // steel_mode is derived from work_mode (used elsewhere in the app)
 
         ui.separator();
 
-        match self.work_mode {
+        match self.editor.work_mode {
             WorkMode::Modeling => {
                 // ── Select & Transform ──
                 self.tool_row(ui, bsz, &[
@@ -820,13 +685,13 @@ impl KolibriApp {
                 figma_group(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new("Profile:").size(11.0));
-                        ui.text_edit_singleline(&mut self.steel_profile);
+                        ui.text_edit_singleline(&mut self.editor.steel_profile);
                     });
                     ui.horizontal(|ui| {
                         ui.label(egui::RichText::new("材質:").size(11.0));
-                        ui.text_edit_singleline(&mut self.steel_material);
+                        ui.text_edit_singleline(&mut self.editor.steel_material);
                     });
-                    ui.add(egui::DragValue::new(&mut self.steel_height)
+                    ui.add(egui::DragValue::new(&mut self.editor.steel_height)
                         .speed(10.0).prefix("柱高: ").suffix(" mm").range(100.0..=50000.0));
                 });
 
@@ -855,7 +720,7 @@ impl KolibriApp {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             for &(tool, tip) in tools {
-                let active = self.tool == tool;
+                let active = self.editor.tool == tool;
                 let implemented = tool.is_implemented();
 
                 // Allocate button space
@@ -925,16 +790,17 @@ impl KolibriApp {
 
                 // Click handling
                 if resp.clicked() && implemented {
-                    self.tool = tool;
-                    self.draw_state = DrawState::Idle;
+                    self.console_push("TOOL", format!("工具列點擊: {:?}", tool));
+                    self.editor.tool = tool;
+                    self.editor.draw_state = DrawState::Idle;
                     // Inference 2.0: sync tool to inference context
-                    self.inference_ctx.current_tool = tool;
-                    crate::inference::reset_context(&mut self.inference_ctx);
-                    self.inference_ctx.current_tool = tool;
+                    self.editor.inference_ctx.current_tool = tool;
+                    crate::inference::reset_context(&mut self.editor.inference_ctx);
+                    self.editor.inference_ctx.current_tool = tool;
                     match tool {
                         Tool::ZoomExtents => self.zoom_extents(),
                         Tool::Eraser => {
-                            for id in std::mem::take(&mut self.selected_ids) {
+                            for id in std::mem::take(&mut self.editor.selected_ids) {
                                 self.scene.delete(&id);
                             }
                         }
@@ -995,9 +861,9 @@ impl KolibriApp {
         ui.add_space(4.0);
 
         // Layout mode: show layout properties instead of normal tabs
-        if self.layout_mode {
+        if self.viewer.layout_mode {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                crate::layout::draw_layout_properties(ui, &mut self.layout);
+                crate::layout::draw_layout_properties(ui, &mut self.viewer.layout);
             });
             return;
         }
@@ -1030,13 +896,13 @@ impl KolibriApp {
                 });
                 cols[2].vertical(|ui| {
                     ui.label(egui::RichText::new("選取").size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
-                    ui.label(egui::RichText::new(format!("{}", self.selected_ids.len())).size(18.0).strong());
+                    ui.label(egui::RichText::new(format!("{}", self.editor.selected_ids.len())).size(18.0).strong());
                 });
             });
         });
         ui.add_space(8.0);
 
-        if self.selected_ids.is_empty() {
+        if self.editor.selected_ids.is_empty() {
             // ── Scene details when nothing selected ──
             section_frame_full(ui, |ui| {
                 section_header_text(ui, "SCENE INFO");
@@ -1079,17 +945,17 @@ impl KolibriApp {
             section_frame_full(ui, |ui| {
                 section_header_text(ui, "CAMERA");
                 ui.horizontal_wrapped(|ui| {
-                    if ui.small_button("前").clicked() { self.camera.set_front(); }
-                    if ui.small_button("後").clicked() { self.camera.set_back(); }
-                    if ui.small_button("左").clicked() { self.camera.set_left(); }
-                    if ui.small_button("右").clicked() { self.camera.set_right(); }
-                    if ui.small_button("上").clicked() { self.camera.set_top(); }
-                    if ui.small_button("等角").clicked() { self.camera.set_iso(); }
+                    if ui.small_button("前").clicked() { self.viewer.camera.set_front(); }
+                    if ui.small_button("後").clicked() { self.viewer.camera.set_back(); }
+                    if ui.small_button("左").clicked() { self.viewer.camera.set_left(); }
+                    if ui.small_button("右").clicked() { self.viewer.camera.set_right(); }
+                    if ui.small_button("上").clicked() { self.viewer.camera.set_top(); }
+                    if ui.small_button("等角").clicked() { self.viewer.camera.set_iso(); }
                 });
                 ui.horizontal(|ui| {
                     if ui.small_button("全部顯示").clicked() { self.zoom_extents(); }
-                    let ortho_label = if self.use_ortho { "透視" } else { "平行" };
-                    if ui.small_button(ortho_label).clicked() { self.use_ortho = !self.use_ortho; }
+                    let ortho_label = if self.viewer.use_ortho { "透視" } else { "平行" };
+                    if ui.small_button(ortho_label).clicked() { self.viewer.use_ortho = !self.viewer.use_ortho; }
                 });
             });
 
@@ -1108,17 +974,17 @@ impl KolibriApp {
                         (crate::app::RenderMode::Sketch, "草稿"),
                     ];
                     for (mode, label) in modes {
-                        if ui.selectable_label(self.render_mode == mode, label).clicked() {
-                            self.render_mode = mode;
+                        if ui.selectable_label(self.viewer.render_mode == mode, label).clicked() {
+                            self.viewer.render_mode = mode;
                         }
                     }
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label("線粗");
-                    ui.add(egui::Slider::new(&mut self.edge_thickness, 0.5..=8.0).step_by(0.5));
+                    ui.add(egui::Slider::new(&mut self.viewer.edge_thickness, 0.5..=8.0).step_by(0.5));
                 });
-                ui.checkbox(&mut self.show_colors, "顯示顏色");
+                ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
             });
 
             ui.add_space(8.0);
@@ -1178,12 +1044,12 @@ impl KolibriApp {
 
             return;
         }
-        if self.selected_ids.len() > 1 {
+        if self.editor.selected_ids.len() > 1 {
             section_frame_full(ui, |ui| {
                 section_header_text(ui, "MULTI-SELECT");
-                ui.label(egui::RichText::new(format!("已選取 {} 個物件", self.selected_ids.len())).strong());
+                ui.label(egui::RichText::new(format!("已選取 {} 個物件", self.editor.selected_ids.len())).strong());
                 ui.add_space(4.0);
-                for sid in &self.selected_ids {
+                for sid in &self.editor.selected_ids {
                     if let Some(obj) = self.scene.objects.get(sid) {
                         let icon = match &obj.shape {
                             Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇",
@@ -1194,10 +1060,10 @@ impl KolibriApp {
             });
             return;
         }
-        let id = self.selected_ids[0].clone();
+        let id = self.editor.selected_ids[0].clone();
         let obj = match self.scene.objects.get_mut(&id) {
             Some(o) => o,
-            None => { self.selected_ids.clear(); return; }
+            None => { self.editor.selected_ids.clear(); return; }
         };
 
         // Object header
@@ -1298,11 +1164,11 @@ impl KolibriApp {
                 section_header_text(ui, "STEEL PROPERTIES");
                 ui.horizontal(|ui| {
                     ui.label("Profile:");
-                    ui.label(egui::RichText::new(&self.steel_profile).strong());
+                    ui.label(egui::RichText::new(&self.editor.steel_profile).strong());
                 });
                 ui.horizontal(|ui| {
                     ui.label("Material:");
-                    ui.label(egui::RichText::new(&self.steel_material).strong());
+                    ui.label(egui::RichText::new(&self.editor.steel_material).strong());
                 });
                 let dims = match &obj.shape {
                     Shape::Box { width, height, depth } => format!("{:.0}x{:.0}x{:.0} mm", width, height, depth),
@@ -1342,6 +1208,7 @@ impl KolibriApp {
                 &mut show_custom_local,
             ) {
                 obj.material = new_mat;
+                self.scene.version += 1;
             }
 
             ui.add_space(6.0);
@@ -1361,6 +1228,7 @@ impl KolibriApp {
                     obj.material = MaterialKind::Custom([
                         c.r() as f32/255.0, c.g() as f32/255.0,
                         c.b() as f32/255.0, c.a() as f32/255.0]);
+                    self.scene.version += 1;
                 }
 
                 ui.add_space(4.0);
@@ -1391,6 +1259,7 @@ impl KolibriApp {
                         }
                         if resp.clicked() {
                             obj.material = MaterialKind::Paint(hex);
+                            self.scene.version += 1;
                         }
                         resp.on_hover_text(label);
                     }
@@ -1507,9 +1376,9 @@ impl KolibriApp {
     fn ai_suggestions_ui(&mut self, ui: &mut egui::Ui) {
         let suggestions = crate::ai_assist::generate_suggestions(
             &self.scene,
-            self.tool,
-            &self.selected_ids,
-            &self.last_action_name,
+            self.editor.tool,
+            &self.editor.selected_ids,
+            &self.editor.last_action_name,
         );
 
         if suggestions.is_empty() {
@@ -1537,7 +1406,7 @@ impl KolibriApp {
                         crate::ai_assist::SuggestedAction::SwitchTool(tool) => {
                             let t = *tool;
                             if ui.small_button("\u{5957}\u{7528}").clicked() {
-                                self.tool = t;
+                                self.editor.tool = t;
                             }
                         }
                         crate::ai_assist::SuggestedAction::SetDimension {
@@ -1674,6 +1543,76 @@ impl KolibriApp {
     }
 
     pub(crate) fn tab_scene(&mut self, ui: &mut egui::Ui) {
+        // ── PAGES / SCENES ──
+        section_header(ui, "PAGES / SCENES");
+        figma_group(ui, |ui| {
+            let scene_name = self.current_file.as_ref()
+                .and_then(|p| p.rsplit(['\\', '/']).next())
+                .unwrap_or("Scene 1");
+            let obj_count = self.scene.objects.len();
+
+            ui.horizontal(|ui| {
+                let (thumb_rect, _) = ui.allocate_exact_size(egui::vec2(48.0, 36.0), egui::Sense::hover());
+                ui.painter().rect_filled(thumb_rect, 8.0, egui::Color32::from_rgb(230, 233, 240));
+                ui.painter().text(thumb_rect.center(), egui::Align2::CENTER_CENTER,
+                    "\u{1f3d7}", egui::FontId::proportional(16.0),
+                    egui::Color32::from_rgb(110, 118, 135));
+
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(scene_name).strong().size(12.0).color(egui::Color32::from_rgb(31, 36, 48)));
+                    ui.label(egui::RichText::new(format!("{} objects", obj_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                });
+            });
+        });
+
+        ui.add_space(8.0);
+
+        // ── QUICK ACTIONS ──
+        section_header(ui, "QUICK ACTIONS");
+        figma_group(ui, |ui| {
+            ui.columns(2, |cols| {
+                if cols[0].button(egui::RichText::new("+ \u{65b0}\u{5834}\u{666f}").size(11.0)).clicked() {
+                    self.handle_menu_action(crate::menu::MenuAction::NewScene);
+                }
+                if cols[1].button(egui::RichText::new("\u{1f4c2} \u{958b}\u{555f}").size(11.0)).clicked() {
+                    self.handle_menu_action(crate::menu::MenuAction::OpenScene);
+                }
+            });
+            ui.add_space(2.0);
+            ui.columns(2, |cols| {
+                if cols[0].button(egui::RichText::new("\u{1f4e5} \u{532f}\u{5165} OBJ").size(11.0)).clicked() {
+                    self.handle_menu_action(crate::menu::MenuAction::ImportObj);
+                }
+                if cols[1].button(egui::RichText::new("\u{1f4e4} \u{532f}\u{51fa}").size(11.0)).clicked() {
+                    self.handle_menu_action(crate::menu::MenuAction::ExportObj);
+                }
+            });
+            ui.add_space(2.0);
+            ui.columns(2, |cols| {
+                if cols[0].button(egui::RichText::new("\u{1f4e6} \u{7fa4}\u{7d44}").size(11.0)).clicked() {
+                    self.editor.tool = Tool::Group;
+                }
+                if cols[1].button(egui::RichText::new("\u{1f50d} \u{5168}\u{90e8}\u{986f}\u{793a}").size(11.0)).clicked() {
+                    self.zoom_extents();
+                }
+            });
+        });
+
+        ui.add_space(8.0);
+
+        // ── SNAP ──
+        section_header(ui, "SNAP");
+        figma_group(ui, |ui| {
+            ui.columns(3, |cols| {
+                cols[0].label(egui::RichText::new("\u{25cf} \u{7aef}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
+                cols[1].label(egui::RichText::new("\u{25cb} \u{4e2d}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
+                cols[2].label(egui::RichText::new("\u{2716} \u{4ea4}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
+            });
+        });
+
+        ui.add_space(8.0);
+
+        // ── LAYERS / OBJECTS ──
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("場景物件").strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1695,11 +1634,11 @@ impl KolibriApp {
                 ui.group(|ui| {
                     ui.label(egui::RichText::new("圖層").strong());
                     for tag in &tags {
-                        let visible = !self.hidden_tags.contains(tag);
+                        let visible = !self.viewer.hidden_tags.contains(tag);
                         let label = if visible { format!("\u{1f441} {}", tag) } else { format!("   {}", tag) };
                         if ui.selectable_label(visible, &label).clicked() {
-                            if visible { self.hidden_tags.insert(tag.clone()); }
-                            else { self.hidden_tags.remove(tag); }
+                            if visible { self.viewer.hidden_tags.insert(tag.clone()); }
+                            else { self.viewer.hidden_tags.remove(tag); }
                         }
                     }
                 });
@@ -1717,7 +1656,7 @@ impl KolibriApp {
                     let label = format!("\u{1f4c1} {} ({} 物件)", g.name, g.children.len());
                     if ui.selectable_label(false, &label).clicked() {
                         // Select all children
-                        self.selected_ids = g.children.clone();
+                        self.editor.selected_ids = g.children.clone();
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.small_button("解散").clicked() {
@@ -1765,8 +1704,8 @@ impl KolibriApp {
         let mut to_delete = None;
         for (oid, name, icon) in &items {
             ui.horizontal(|ui| {
-                if ui.selectable_label(self.selected_ids.iter().any(|s| s == oid), format!("{} {}", icon, name)).clicked() {
-                    self.selected_ids = vec![oid.clone()];
+                if ui.selectable_label(self.editor.selected_ids.iter().any(|s| s == oid), format!("{} {}", icon, name)).clicked() {
+                    self.editor.selected_ids = vec![oid.clone()];
                     self.right_tab = RightTab::Properties;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1775,18 +1714,18 @@ impl KolibriApp {
             });
         }
         if let Some(id) = to_delete {
-            self.selected_ids.retain(|s| s != &id);
+            self.editor.selected_ids.retain(|s| s != &id);
             self.scene.delete(&id);
         }
 
         ui.separator();
-        if ui.button("🧹 清空").clicked() { self.scene.clear(); self.selected_ids.clear(); }
+        if ui.button("🧹 清空").clicked() { self.scene.clear(); self.editor.selected_ids.clear(); }
     }
 
     pub(crate) fn status_text(&self) -> String {
-        let snap_info = if let Some(ref snap) = self.snap_result {
+        let snap_info = if let Some(ref snap) = self.editor.snap_result {
             let label = snap.snap_type.label();
-            if !label.is_empty() && !matches!(self.draw_state, DrawState::Idle) {
+            if !label.is_empty() && !matches!(self.editor.draw_state, DrawState::Idle) {
                 format!("  [{}]", label)
             } else {
                 String::new()
@@ -1795,8 +1734,8 @@ impl KolibriApp {
             String::new()
         };
 
-        let base = match &self.draw_state {
-            DrawState::Idle => match self.tool {
+        let base = match &self.editor.draw_state {
+            DrawState::Idle => match self.editor.tool {
                 Tool::Select      => "選取 — 點擊選取物件, 左鍵拖曳旋轉, 中鍵平移".into(),
                 Tool::Move        => "移動 — 選取物件後拖曳移動".into(),
                 Tool::Rotate      => "旋轉 — 點擊物件旋轉90度 (Q)".into(),
@@ -1822,7 +1761,7 @@ impl KolibriApp {
                 Tool::Component   => "元件 — 點擊物件標記為可重複使用的元件".into(),
                 Tool::Eraser      => "橡皮擦 — 點擊物件刪除".into(),
                 Tool::SteelGrid   => "軸線 — 點擊放置軸線".into(),
-                Tool::SteelColumn => format!("柱 — 點擊放置 {} 柱", self.steel_profile),
+                Tool::SteelColumn => format!("柱 — 點擊放置 {} 柱", self.editor.steel_profile),
                 Tool::SteelBeam   => "梁 — 點擊起點，再點擊終點".into(),
                 Tool::SteelBrace  => "斜撐 — 點擊起點，再點擊終點".into(),
                 Tool::SteelPlate  => "鋼板 — 畫矩形，再推拉厚度".into(),
@@ -1860,7 +1799,7 @@ impl KolibriApp {
                 format!("偏移 {:.0}mm — 拖曳調整距離, 放開確認", distance)
             }
             DrawState::Measuring { start } => {
-                if let Some(p2) = self.mouse_ground {
+                if let Some(p2) = self.editor.mouse_ground {
                     let dx = p2[0] - start[0];
                     let dz = p2[2] - start[2];
                     let dist = (dx*dx + dz*dz).sqrt();
@@ -1888,7 +1827,7 @@ impl KolibriApp {
         let base_text = format!("{}{}", base, snap_info);
 
         // Append cursor world coordinates
-        if let Some(p) = self.mouse_ground {
+        if let Some(p) = self.editor.mouse_ground {
             format!("{} | X:{:.0} Y:{:.0} Z:{:.0}", base_text, p[0], 0.0, p[2])
         } else {
             base_text
