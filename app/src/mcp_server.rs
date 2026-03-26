@@ -50,6 +50,13 @@ pub enum McpCommand {
     MoveObject { id: String, position: [f32; 3] },
     SetMaterial { id: String, material: String },
     ClearScene,
+    RotateObject { id: String, angle_deg: f32 },
+    ScaleObject { id: String, factor: [f32; 3] },
+    DuplicateObject { id: String, offset: [f32; 3] },
+    GetObjectInfo { id: String },
+    Undo,
+    Redo,
+    Shutdown,
 }
 
 /// MCP result sent back from GUI thread to MCP thread
@@ -179,7 +186,45 @@ fn handle_mcp_request(
                 },
                 {
                     "name": "clear_scene",
-                    "description": "\u{6e05}\u{7a7a}\u{5834}\u{666f}",
+                    "description": "清空場景",
+                    "inputSchema": { "type": "object", "properties": {} }
+                },
+                {
+                    "name": "rotate_object",
+                    "description": "旋轉物件（Y軸，角度制）",
+                    "inputSchema": { "type": "object", "required": ["id", "angle_deg"],
+                        "properties": { "id":{"type":"string"}, "angle_deg":{"type":"number"} } }
+                },
+                {
+                    "name": "scale_object",
+                    "description": "縮放物件。factor=[x,y,z] 倍率",
+                    "inputSchema": { "type": "object", "required": ["id", "factor"],
+                        "properties": { "id":{"type":"string"}, "factor":{"type":"array","items":{"type":"number"}} } }
+                },
+                {
+                    "name": "duplicate_object",
+                    "description": "複製物件。offset=[x,y,z] 偏移量(mm)",
+                    "inputSchema": { "type": "object", "required": ["id"],
+                        "properties": { "id":{"type":"string"}, "offset":{"type":"array","items":{"type":"number"},"default":[500,0,0]} } }
+                },
+                {
+                    "name": "get_object_info",
+                    "description": "取得單一物件詳細資訊",
+                    "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } }
+                },
+                {
+                    "name": "undo",
+                    "description": "撤銷上一步",
+                    "inputSchema": { "type": "object", "properties": {} }
+                },
+                {
+                    "name": "redo",
+                    "description": "重做",
+                    "inputSchema": { "type": "object", "properties": {} }
+                },
+                {
+                    "name": "shutdown",
+                    "description": "關閉 Kolibri CAD 應用程式",
                     "inputSchema": { "type": "object", "properties": {} }
                 }
             ]
@@ -224,6 +269,31 @@ fn handle_mcp_request(
                     material: args["material"].as_str().unwrap_or("concrete").into(),
                 },
                 "clear_scene" => McpCommand::ClearScene,
+                "rotate_object" => McpCommand::RotateObject {
+                    id: args["id"].as_str().unwrap_or("").into(),
+                    angle_deg: args["angle_deg"].as_f64().unwrap_or(0.0) as f32,
+                },
+                "scale_object" => McpCommand::ScaleObject {
+                    id: args["id"].as_str().unwrap_or("").into(),
+                    factor: {
+                        let f = &args["factor"];
+                        if let Some(arr) = f.as_array() {
+                            [arr.first().and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+                             arr.get(1).and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+                             arr.get(2).and_then(|v| v.as_f64()).unwrap_or(1.0) as f32]
+                        } else { [1.0; 3] }
+                    },
+                },
+                "duplicate_object" => McpCommand::DuplicateObject {
+                    id: args["id"].as_str().unwrap_or("").into(),
+                    offset: parse_pos(&args.get("offset").cloned().unwrap_or(json!([500,0,0]))),
+                },
+                "get_object_info" => McpCommand::GetObjectInfo {
+                    id: args["id"].as_str().unwrap_or("").into(),
+                },
+                "undo" => McpCommand::Undo,
+                "redo" => McpCommand::Redo,
+                "shutdown" => McpCommand::Shutdown,
                 other => return JsonRpcResponse::ok(id, json!({
                     "content": [{"type": "text", "text": format!("Unknown tool: {}", other)}],
                     "isError": true
@@ -314,7 +384,14 @@ fn handle_tools_list(id: Option<Value>) -> JsonRpcResponse {
             { "name": "clear_scene", "description": "清空場景", "inputSchema": { "type": "object", "properties": {} } },
             { "name": "push_pull", "description": "推拉物件的面。face: top/bottom/front/back/left/right。distance: mm正值向外。", "inputSchema": { "type": "object", "required": ["id","face","distance"], "properties": { "id":{"type":"string"}, "face":{"type":"string","enum":["top","bottom","front","back","left","right"]}, "distance":{"type":"number"} } } },
             { "name": "save_scene", "description": "儲存場景到檔案", "inputSchema": { "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } } },
-            { "name": "load_scene", "description": "載入場景", "inputSchema": { "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } } }
+            { "name": "load_scene", "description": "載入場景", "inputSchema": { "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } } },
+            { "name": "rotate_object", "description": "旋轉物件（Y軸，角度制）", "inputSchema": { "type": "object", "required": ["id","angle_deg"], "properties": { "id":{"type":"string"}, "angle_deg":{"type":"number"} } } },
+            { "name": "scale_object", "description": "縮放物件 factor=[x,y,z]倍率", "inputSchema": { "type": "object", "required": ["id","factor"], "properties": { "id":{"type":"string"}, "factor":{"type":"array","items":{"type":"number"}} } } },
+            { "name": "duplicate_object", "description": "複製物件 offset=[x,y,z]mm", "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"}, "offset":{"type":"array","items":{"type":"number"},"default":[500,0,0]} } } },
+            { "name": "get_object_info", "description": "取得單一物件詳細資訊", "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } } },
+            { "name": "undo", "description": "撤銷上一步", "inputSchema": { "type": "object", "properties": {} } },
+            { "name": "redo", "description": "重做", "inputSchema": { "type": "object", "properties": {} } },
+            { "name": "shutdown", "description": "關閉應用程式", "inputSchema": { "type": "object", "properties": {} } }
         ]
     }))
 }
@@ -447,6 +524,77 @@ fn execute_tool(scene: &mut crate::scene::Scene, ai_log: &mut crate::ai_log::AiL
             scene.clear();
             ai_log.log(actor, "清空場景", "", vec![]);
             json!({ "success": true })
+        }
+        "rotate_object" => {
+            let oid = args["id"].as_str().unwrap_or("").to_string();
+            let deg = args["angle_deg"].as_f64().unwrap_or(0.0) as f32;
+            if let Some(obj) = scene.objects.get_mut(&oid) {
+                obj.rotation_y += deg.to_radians();
+                scene.version += 1;
+                json!({ "success": true, "rotated": oid })
+            } else {
+                json!({ "success": false, "error": "Object not found" })
+            }
+        }
+        "scale_object" => {
+            let oid = args["id"].as_str().unwrap_or("").to_string();
+            let factor = {
+                let f = &args["factor"];
+                if let Some(arr) = f.as_array() {
+                    [arr.first().and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+                     arr.get(1).and_then(|v| v.as_f64()).unwrap_or(1.0) as f32,
+                     arr.get(2).and_then(|v| v.as_f64()).unwrap_or(1.0) as f32]
+                } else { [1.0; 3] }
+            };
+            if let Some(obj) = scene.objects.get_mut(&oid) {
+                match &mut obj.shape {
+                    Shape::Box { width, height, depth } => { *width *= factor[0]; *height *= factor[1]; *depth *= factor[2]; }
+                    Shape::Cylinder { radius, height, .. } => { *radius *= factor[0]; *height *= factor[1]; }
+                    Shape::Sphere { radius, .. } => { *radius *= factor[0]; }
+                    _ => {}
+                }
+                scene.version += 1;
+                json!({ "success": true, "scaled": oid })
+            } else {
+                json!({ "success": false, "error": "Object not found" })
+            }
+        }
+        "duplicate_object" => {
+            let oid = args["id"].as_str().unwrap_or("").to_string();
+            let offset = parse_pos(&args.get("offset").cloned().unwrap_or(json!([500,0,0])));
+            if let Some(obj) = scene.objects.get(&oid).cloned() {
+                let mut clone = obj;
+                clone.id = scene.next_id_pub();
+                clone.name = format!("{}_copy", clone.name);
+                clone.position[0] += offset[0];
+                clone.position[1] += offset[1];
+                clone.position[2] += offset[2];
+                let nid = clone.id.clone();
+                scene.objects.insert(nid.clone(), clone);
+                scene.version += 1;
+                json!({ "success": true, "copy_id": nid })
+            } else {
+                json!({ "success": false, "error": "Object not found" })
+            }
+        }
+        "get_object_info" => {
+            let oid = args["id"].as_str().unwrap_or("");
+            if let Some(obj) = scene.objects.get(oid) {
+                let shape_info = match &obj.shape {
+                    Shape::Box { width, height, depth } => json!({"type":"box","width":width,"height":height,"depth":depth}),
+                    Shape::Cylinder { radius, height, segments } => json!({"type":"cylinder","radius":radius,"height":height,"segments":segments}),
+                    Shape::Sphere { radius, segments } => json!({"type":"sphere","radius":radius,"segments":segments}),
+                    _ => json!({"type":"other"}),
+                };
+                json!({ "id": obj.id, "name": obj.name, "position": obj.position, "material": obj.material.label(), "shape": shape_info })
+            } else {
+                json!({ "success": false, "error": "Object not found" })
+            }
+        }
+        "undo" => { let ok = scene.undo(); json!({ "success": ok }) }
+        "redo" => { let ok = scene.redo(); json!({ "success": ok }) }
+        "shutdown" => {
+            std::process::exit(0);
         }
         _ => json!({ "success": false, "error": format!("Unknown tool: {}", tool) }),
     }

@@ -1374,8 +1374,97 @@ impl KolibriApp {
                 self.scene.objects.clear();
                 self.scene.version += 1;
                 self.editor.selected_ids.clear();
-                self.ai_log.log(&actor, "\u{6e05}\u{7a7a}\u{5834}\u{666f}", &format!("{} objects removed", count), vec![]);
+                self.ai_log.log(&actor, "清空場景", &format!("{} objects removed", count), vec![]);
                 McpResult { success: true, data: json!({ "cleared": count }) }
+            }
+            McpCommand::RotateObject { id, angle_deg } => {
+                self.scene.snapshot_ids(&[&id], "MCP旋轉");
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.rotation_y += angle_deg.to_radians();
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "旋轉物件", &format!("{} {:.0}°", id, angle_deg), vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "rotated": id, "angle_deg": angle_deg }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::ScaleObject { id, factor } => {
+                self.scene.snapshot_ids(&[&id], "MCP縮放");
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    match &mut obj.shape {
+                        Shape::Box { width, height, depth } => {
+                            *width *= factor[0]; *height *= factor[1]; *depth *= factor[2];
+                        }
+                        Shape::Cylinder { radius, height, .. } => {
+                            *radius *= factor[0]; *height *= factor[1];
+                        }
+                        Shape::Sphere { radius, .. } => {
+                            *radius *= factor[0];
+                        }
+                        _ => {}
+                    }
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "縮放物件", &format!("{} x[{:.2},{:.2},{:.2}]", id, factor[0], factor[1], factor[2]), vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "scaled": id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::DuplicateObject { id, offset } => {
+                if let Some(obj) = self.scene.objects.get(&id).cloned() {
+                    self.scene.snapshot();
+                    let mut clone = obj;
+                    clone.id = self.scene.next_id_pub();
+                    clone.name = format!("{}_copy", clone.name);
+                    clone.position[0] += offset[0];
+                    clone.position[1] += offset[1];
+                    clone.position[2] += offset[2];
+                    let new_id = clone.id.clone();
+                    self.scene.objects.insert(new_id.clone(), clone);
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "複製物件", &format!("{} → {}", id, new_id), vec![new_id.clone()]);
+                    McpResult { success: true, data: json!({ "original": id, "copy_id": new_id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::GetObjectInfo { id } => {
+                if let Some(obj) = self.scene.objects.get(&id) {
+                    let shape_info = match &obj.shape {
+                        Shape::Box { width, height, depth } => json!({"type":"box","width":width,"height":height,"depth":depth}),
+                        Shape::Cylinder { radius, height, segments } => json!({"type":"cylinder","radius":radius,"height":height,"segments":segments}),
+                        Shape::Sphere { radius, segments } => json!({"type":"sphere","radius":radius,"segments":segments}),
+                        Shape::Line { points, thickness, .. } => json!({"type":"line","point_count":points.len(),"thickness":thickness}),
+                        Shape::Mesh(mesh) => json!({"type":"mesh","vertices":mesh.vertices.len(),"faces":mesh.faces.len(),"edges":mesh.edges.len()}),
+                    };
+                    McpResult { success: true, data: json!({
+                        "id": obj.id, "name": obj.name, "position": obj.position,
+                        "rotation_y_deg": obj.rotation_y.to_degrees(),
+                        "material": obj.material.label(),
+                        "tag": obj.tag, "visible": obj.visible,
+                        "roughness": obj.roughness, "metallic": obj.metallic,
+                        "shape": shape_info,
+                    }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::Undo => {
+                let ok = self.scene.undo();
+                McpResult { success: ok, data: json!({ "undo": ok, "undo_count": self.scene.undo_count() }) }
+            }
+            McpCommand::Redo => {
+                let ok = self.scene.redo();
+                McpResult { success: ok, data: json!({ "redo": ok, "redo_count": self.scene.redo_count() }) }
+            }
+            McpCommand::Shutdown => {
+                self.ai_log.log(&actor, "關閉應用", "MCP shutdown", vec![]);
+                // 延遲一小段時間讓回應送出後再結束
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    std::process::exit(0);
+                });
+                McpResult { success: true, data: json!({ "message": "Shutting down..." }) }
             }
         }
     }
