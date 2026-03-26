@@ -1101,7 +1101,7 @@ fn build_scene_mesh(
                 push_cylinder(&mut verts, &mut idx, p, *radius, *height, *segments, color),
             Shape::Sphere { radius, segments } =>
                 push_sphere(&mut verts, &mut idx, p, *radius, *segments, color),
-            Shape::Line { points, thickness } =>
+            Shape::Line { points, thickness, .. } =>
                 push_line_segments(&mut verts, &mut idx, points, *thickness, color),
             Shape::Mesh(ref mesh) => {
                 for (&fid, face) in &mesh.faces {

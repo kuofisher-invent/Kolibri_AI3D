@@ -18,6 +18,8 @@ pub enum Tool {
     // ── Draw 2D ──
     Line,
     Arc,
+    Arc3Point,  // 三點圓弧
+    Pie,        // 扇形/餅圖
     Rectangle,
     Circle,
     // ── Draw 3D ──
@@ -89,6 +91,9 @@ pub(crate) enum DrawState {
     // Arc: first point, then second, then bulge
     ArcP1 { p1: [f32; 3] },
     ArcP2 { p1: [f32; 3], p2: [f32; 3] },
+    // Pie: center, then edge point for radius, then second edge point for angle
+    PieCenter { center: [f32; 3] },
+    PieRadius { center: [f32; 3], edge1: [f32; 3] },
     // Rotate: dragging with protractor
     Rotating { obj_id: String, center: [f32; 3], start_angle: f32, accumulated: f32 },
     // Scale: dragging with handle type and original dimensions
@@ -356,6 +361,7 @@ pub struct KolibriApp {
 
     // Dimension annotations (tape measure)
     pub(crate) dimensions: Vec<crate::dimensions::Dimension>,
+    pub(crate) dim_style: crate::dimensions::DimensionStyle,
 
     // Custom material picker UI
     pub(crate) show_custom_color_picker: bool,
@@ -546,6 +552,7 @@ impl KolibriApp {
             current_actor: crate::ai_log::ActorId::user(),
             mcp_bridge: None,
             dimensions: Vec::new(),
+            dim_style: crate::dimensions::DimensionStyle::default(),
             show_custom_color_picker: false,
             custom_color: [0.8, 0.8, 0.8, 1.0],
             mat_search: String::new(),
@@ -1176,57 +1183,15 @@ impl eframe::App for KolibriApp {
 
                 // Draw dimension annotations
                 if !self.dimensions.is_empty() {
-                    crate::dimensions::draw_dimensions(ui.painter(), &self.dimensions, vp, &rect);
+                    crate::dimensions::draw_dimensions_styled(ui.painter(), &self.dimensions, vp, &rect, &self.dim_style);
                 }
 
-                // Auto-show dimensions for selected object
+                // Auto-show dimensions for selected object (CAD style)
                 if let Some(ref id) = self.editor.selected_ids.first() {
                     if let Some(obj) = self.scene.objects.get(*id) {
-                        let p = obj.position;
-                        let vp_matrix = vp;
-                        match &obj.shape {
-                            crate::scene::Shape::Box { width, height, depth } => {
-                                let auto_dims = vec![
-                                    crate::dimensions::Dimension::new(p, [p[0] + width, p[1], p[2]]),
-                                    crate::dimensions::Dimension::new(p, [p[0], p[1] + height, p[2]]),
-                                    crate::dimensions::Dimension::new(p, [p[0], p[1], p[2] + depth]),
-                                ];
-                                crate::dimensions::draw_dimensions(ui.painter(), &auto_dims, vp_matrix, &rect);
-                            }
-                            crate::scene::Shape::Cylinder { radius, height, .. } => {
-                                // 圓柱直徑 + 高度標註
-                                let auto_dims = vec![
-                                    crate::dimensions::Dimension::new(
-                                        [p[0], p[1], p[2]],
-                                        [p[0] + radius * 2.0, p[1], p[2]],
-                                    ),
-                                    crate::dimensions::Dimension::new(
-                                        [p[0] + radius * 2.0 + 200.0, p[1], p[2]],
-                                        [p[0] + radius * 2.0 + 200.0, p[1] + height, p[2]],
-                                    ),
-                                ];
-                                crate::dimensions::draw_dimensions(ui.painter(), &auto_dims, vp_matrix, &rect);
-                            }
-                            crate::scene::Shape::Sphere { radius, .. } => {
-                                // 球體中心在 [p[0], p[1]+r, p[2]]，半徑標註從中心到邊緣
-                                let cx = p[0];
-                                let cy = p[1] + radius;
-                                let cz = p[2];
-                                let auto_dims = vec![
-                                    // 水平直徑標註
-                                    crate::dimensions::Dimension::new(
-                                        [cx - radius, p[1], cz],
-                                        [cx + radius, p[1], cz],
-                                    ),
-                                    // 垂直高度標註（底部到頂部）
-                                    crate::dimensions::Dimension::new(
-                                        [cx - radius * 1.1, p[1], cz],
-                                        [cx - radius * 1.1, cy + radius, cz],
-                                    ),
-                                ];
-                                crate::dimensions::draw_dimensions(ui.painter(), &auto_dims, vp_matrix, &rect);
-                            }
-                            _ => {}
+                        let auto_dims = crate::dimensions::auto_dims_for_shape(&obj.shape, obj.position);
+                        if !auto_dims.is_empty() {
+                            crate::dimensions::draw_dimensions_styled(ui.painter(), &auto_dims, vp, &rect, &self.dim_style);
                         }
                     }
                 }
@@ -2572,19 +2537,134 @@ impl eframe::App for KolibriApp {
 // ─── Arc geometry ────────────────────────────────────────────────────────────
 
 /// Compute arc points through 3 points on the ground plane (Y=0)
-pub(crate) fn compute_arc(p1: [f32; 3], p2: [f32; 3], p3: [f32; 3], segments: usize) -> Vec<[f32; 3]> {
-    // Use p3 as a control point to determine the arc bulge
-    // Simple approach: quadratic Bezier through p1, p3, p2
-    let mut pts = Vec::with_capacity(segments + 1);
-    for i in 0..=segments {
-        let t = i as f32 / segments as f32;
-        let mt = 1.0 - t;
-        let x = mt * mt * p1[0] + 2.0 * mt * t * p3[0] + t * t * p2[0];
-        let y = mt * mt * p1[1] + 2.0 * mt * t * p3[1] + t * t * p2[1];
-        let z = mt * mt * p1[2] + 2.0 * mt * t * p3[2] + t * t * p2[2];
-        pts.push([x, y, z]);
+/// 圓弧幾何資訊（真圓弧，非 Bezier 近似）
+#[derive(Debug, Clone)]
+pub(crate) struct ArcInfo {
+    pub center: [f32; 3],    // 圓心
+    pub radius: f32,         // 半徑
+    pub start_angle: f32,    // 起始角度 (rad)
+    pub end_angle: f32,      // 結束角度 (rad)
+    pub normal: [f32; 3],    // 弧面法線（用於 3D 旋轉）
+    pub u_axis: [f32; 3],    // 弧平面 U 軸
+    pub v_axis: [f32; 3],    // 弧平面 V 軸
+}
+
+impl ArcInfo {
+    /// 弧度（弧長角度）
+    pub fn sweep_angle(&self) -> f32 {
+        let mut sweep = self.end_angle - self.start_angle;
+        if sweep < 0.0 { sweep += std::f32::consts::TAU; }
+        sweep
     }
-    pts
+    /// 角度（度）
+    pub fn sweep_degrees(&self) -> f32 {
+        self.sweep_angle().to_degrees()
+    }
+    /// 弧長
+    pub fn arc_length(&self) -> f32 {
+        self.radius * self.sweep_angle()
+    }
+    /// 是否接近半圓（170°–190°）
+    pub fn is_semicircle(&self) -> bool {
+        let deg = self.sweep_degrees();
+        deg > 170.0 && deg < 190.0
+    }
+    /// 生成弧線上的點
+    pub fn points(&self, segments: usize) -> Vec<[f32; 3]> {
+        let sweep = self.sweep_angle();
+        let mut pts = Vec::with_capacity(segments + 1);
+        for i in 0..=segments {
+            let t = i as f32 / segments as f32;
+            let angle = self.start_angle + sweep * t;
+            let (sin_a, cos_a) = angle.sin_cos();
+            pts.push([
+                self.center[0] + self.radius * (cos_a * self.u_axis[0] + sin_a * self.v_axis[0]),
+                self.center[1] + self.radius * (cos_a * self.u_axis[1] + sin_a * self.v_axis[1]),
+                self.center[2] + self.radius * (cos_a * self.u_axis[2] + sin_a * self.v_axis[2]),
+            ]);
+        }
+        pts
+    }
+}
+
+/// 從兩端點 + 凸度點計算真圓弧（circumscribed circle）
+/// p1 = 起點, p2 = 終點, p3 = 弧上凸度點
+pub(crate) fn compute_arc_info(p1: [f32; 3], p2: [f32; 3], p3: [f32; 3]) -> Option<ArcInfo> {
+    let a = glam::Vec3::from(p1);
+    let b = glam::Vec3::from(p2);
+    let c = glam::Vec3::from(p3);
+
+    // 弧面法線
+    let ab = b - a;
+    let ac = c - a;
+    let normal = ab.cross(ac);
+    if normal.length_squared() < 1e-6 {
+        return None; // 三點共線，無法形成圓弧
+    }
+    let normal = normal.normalize();
+
+    // 三點外接圓：求圓心
+    // 用垂直平分線交點法
+    let mid_ab = (a + b) * 0.5;
+    let mid_ac = (a + c) * 0.5;
+    let dir_ab = ab.cross(normal).normalize();
+    let dir_ac = ac.cross(normal).normalize();
+
+    // 求 mid_ab + t1 * dir_ab = mid_ac + t2 * dir_ac
+    // 用最小二乘法求交點
+    let d = mid_ac - mid_ab;
+    let denom = dir_ab.cross(dir_ac).length_squared();
+    if denom < 1e-10 { return None; }
+    let t1 = d.cross(dir_ac).dot(dir_ab.cross(dir_ac)) / denom;
+    let center = mid_ab + dir_ab * t1;
+    let radius = (a - center).length();
+
+    // 建立弧面局部座標系
+    let u_axis = (a - center).normalize();
+    let v_axis = normal.cross(u_axis).normalize();
+
+    // 計算各點在局部座標系的角度
+    let angle_of = |p: glam::Vec3| -> f32 {
+        let d = p - center;
+        let u = d.dot(u_axis);
+        let v = d.dot(v_axis);
+        v.atan2(u)
+    };
+
+    let angle_a = angle_of(a); // 應該是 0
+    let angle_b = angle_of(b);
+    let angle_c = angle_of(c);
+
+    // 確保 c 在 a→b 的弧段上，決定方向
+    let mut end_angle = angle_b - angle_a;
+    let mut mid_check = angle_c - angle_a;
+    if mid_check < 0.0 { mid_check += std::f32::consts::TAU; }
+    if end_angle < 0.0 { end_angle += std::f32::consts::TAU; }
+
+    // 如果 c 不在 a→b 的短弧上，走長弧
+    if mid_check > end_angle {
+        end_angle = end_angle - std::f32::consts::TAU;
+    }
+
+    Some(ArcInfo {
+        center: center.into(),
+        radius,
+        start_angle: angle_a,
+        end_angle: angle_a + end_angle,
+        normal: normal.into(),
+        u_axis: u_axis.into(),
+        v_axis: v_axis.into(),
+    })
+}
+
+/// 向下相容包裝：回傳點陣列
+pub(crate) fn compute_arc(p1: [f32; 3], p2: [f32; 3], p3: [f32; 3], segments: usize) -> Vec<[f32; 3]> {
+    if let Some(info) = compute_arc_info(p1, p2, p3) {
+        info.points(segments)
+    } else {
+        // 退回直線（三點共線）
+        vec![p1, p2]
+    }
 }
 
 // ─── Dashed line helper (C3/D1) ──────────────────────────────────────────────

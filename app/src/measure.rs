@@ -18,7 +18,7 @@ pub fn surface_area(obj: &SceneObject) -> f64 {
             let r = *radius as f64;
             4.0 * std::f64::consts::PI * r * r
         }
-        Shape::Line { points, thickness } => {
+        Shape::Line { points, thickness, .. } => {
             let t = *thickness as f64;
             let mut len = 0.0f64;
             for pair in points.windows(2) {

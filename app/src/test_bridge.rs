@@ -431,7 +431,7 @@ fn execute_one(
                         ("cylinder", format!("r={} h={} seg={}", radius, height, segments)),
                     Shape::Sphere { radius, segments } =>
                         ("sphere", format!("r={} seg={}", radius, segments)),
-                    Shape::Line { points, thickness } =>
+                    Shape::Line { points, thickness, .. } =>
                         ("line", format!("{} pts, {}mm", points.len(), thickness)),
                     Shape::Mesh(ref mesh) =>
                         ("mesh", format!("{} verts, {} faces", mesh.vertices.len(), mesh.faces.len())),

@@ -188,7 +188,7 @@ fn generate_obj_mesh(obj: &SceneObject) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<Ve
 
             (verts, normals, faces)
         }
-        Shape::Line { points, thickness } => {
+        Shape::Line { points, thickness, .. } => {
             let mut all_verts = Vec::new();
             let mut all_normals = Vec::new();
             let mut all_faces = Vec::new();

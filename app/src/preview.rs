@@ -5,7 +5,7 @@ use crate::scene::Shape;
 impl KolibriApp {
     // ── Preview geometry generation ─────────────────────────────────────────
 
-    pub(crate) fn build_preview(&self) -> (Vec<Vertex>, Vec<u32>) {
+    pub(crate) fn build_preview(&mut self) -> (Vec<Vertex>, Vec<u32>) {
         let mut v = Vec::new();
         let mut idx = Vec::new();
         let ghost = [0.35, 0.55, 0.95, 0.35]; // semi-transparent blue
@@ -134,7 +134,7 @@ impl KolibriApp {
                             crate::renderer::push_cylinder_pub(&mut v, &mut idx, p, *radius, *height, *segments, scale_ghost),
                         Shape::Sphere { radius, segments } =>
                             crate::renderer::push_sphere_pub(&mut v, &mut idx, p, *radius, *segments, scale_ghost),
-                        Shape::Line { points, thickness } =>
+                        Shape::Line { points, thickness, .. } =>
                             crate::renderer::push_line_pub(&mut v, &mut idx, points, *thickness, scale_ghost),
                         Shape::Mesh(_) => {} // TODO: mesh ghost preview
                     }
@@ -205,6 +205,52 @@ impl KolibriApp {
                 if let Some(p3) = p3_opt {
                     let pts = crate::app::compute_arc(*p1, *p2, p3, 32);
                     crate::renderer::push_line_pub(&mut v, &mut idx, &pts, 20.0, ghost);
+
+                    // 即時顯示圓弧資訊（半徑、角度、弧長）
+                    if let Some(info) = crate::app::compute_arc_info(*p1, *p2, p3) {
+                        let semi = if info.is_semicircle() { " [半圓]" } else { "" };
+                        self.editor.cursor_dimension = Some((
+                            self.editor.mouse_screen[0] + 20.0,
+                            self.editor.mouse_screen[1] - 40.0,
+                            format!("R{:.0} {:.1}° L{:.0}{}", info.radius, info.sweep_degrees(), info.arc_length(), semi),
+                        ));
+                    }
+                }
+            }
+
+            DrawState::PieCenter { center } => {
+                // 從中心到滑鼠畫半徑線
+                if let Some(edge) = self.ground_snapped() {
+                    crate::renderer::push_line_pub(&mut v, &mut idx, &[*center, edge], 15.0, ghost);
+                    let r = ((edge[0]-center[0]).powi(2) + (edge[2]-center[2]).powi(2)).sqrt();
+                    self.editor.cursor_dimension = Some((
+                        self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                        format!("R{:.0}", r),
+                    ));
+                }
+            }
+
+            DrawState::PieRadius { center, edge1 } => {
+                // 畫扇形預覽
+                if let Some(e2) = self.ground_snapped() {
+                    let r = ((edge1[0]-center[0]).powi(2) + (edge1[2]-center[2]).powi(2)).sqrt();
+                    let a1 = (edge1[2]-center[2]).atan2(edge1[0]-center[0]);
+                    let a2 = (e2[2]-center[2]).atan2(e2[0]-center[0]);
+                    let mut sweep = a2 - a1;
+                    if sweep < 0.0 { sweep += std::f32::consts::TAU; }
+                    let seg = 32;
+                    let mut pts = vec![*center];
+                    for i in 0..=seg {
+                        let t = i as f32 / seg as f32;
+                        let a = a1 + sweep * t;
+                        pts.push([center[0] + r * a.cos(), center[1], center[2] + r * a.sin()]);
+                    }
+                    pts.push(*center);
+                    crate::renderer::push_line_pub(&mut v, &mut idx, &pts, 15.0, ghost);
+                    self.editor.cursor_dimension = Some((
+                        self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                        format!("R{:.0} {:.1}°", r, sweep.to_degrees()),
+                    ));
                 }
             }
 

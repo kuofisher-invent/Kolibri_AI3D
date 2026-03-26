@@ -43,7 +43,7 @@ impl KolibriApp {
 
             // Compute smart snap
             // For Line/Arc tools, try face snap first
-            let is_draw_tool = matches!(self.editor.tool, Tool::Line | Tool::Arc);
+            let is_draw_tool = matches!(self.editor.tool, Tool::Line | Tool::Arc | Tool::Arc3Point | Tool::Pie);
             if is_draw_tool {
                 if let Some(face_pt) = self.snap_to_face(local.x, local.y, response.rect.width(), response.rect.height()) {
                     self.editor.mouse_ground = Some(face_pt);
@@ -277,7 +277,7 @@ impl KolibriApp {
                                 (p, [p[0] + radius * 2.0, p[1] + height, p[2] + radius * 2.0]),
                             Shape::Sphere { radius, .. } =>
                                 (p, [p[0] + radius * 2.0, p[1] + radius * 2.0, p[2] + radius * 2.0]),
-                            Shape::Line { points, thickness } => {
+                            Shape::Line { points, thickness, .. } => {
                                 let mut mx = p;
                                 for pt in points {
                                     mx[0] = mx[0].max(pt[0] + thickness);
@@ -772,6 +772,27 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::N) {
                         self.editor.suggestion = None;
                     }
+                }
+
+                // 弧線工具啟用時，按 Ctrl 循環切換模式（兩點弧→三點弧→扇形）
+                if matches!(self.editor.tool, Tool::Arc | Tool::Arc3Point | Tool::Pie) {
+                    if ctrl && !self.editor.ctrl_was_down {
+                        let next = match self.editor.tool {
+                            Tool::Arc       => Tool::Arc3Point,
+                            Tool::Arc3Point => Tool::Pie,
+                            Tool::Pie       => Tool::Arc,
+                            _ => Tool::Arc,
+                        };
+                        let label = match next {
+                            Tool::Arc3Point => "三點弧",
+                            Tool::Pie       => "扇形",
+                            _               => "兩點弧",
+                        };
+                        self.console_push("TOOL", format!("弧線模式: {}", label));
+                        self.editor.tool = next;
+                        self.editor.draw_state = DrawState::Idle;
+                    }
+                    self.editor.ctrl_was_down = ctrl;
                 }
 
                 // Shortcut keys (SketchUp-style) — only when Ctrl is NOT held
@@ -1382,6 +1403,7 @@ impl KolibriApp {
                             .or_else(|| self.ground_snapped());
                         if let Some(p) = pos {
                             self.editor.draw_state = DrawState::ArcP1 { p1: p };
+                            self.clog(format!("圓弧: 起點 [{:.0}, {:.0}, {:.0}]", p[0], p[1], p[2]));
                         }
                     }
                     DrawState::ArcP1 { p1 } => {
@@ -1389,6 +1411,8 @@ impl KolibriApp {
                         let pos = self.snap_to_face(mx, my, vw, vh)
                             .or_else(|| self.ground_snapped());
                         if let Some(p2) = pos {
+                            let chord = ((p2[0]-p1[0]).powi(2) + (p2[2]-p1[2]).powi(2)).sqrt();
+                            self.clog(format!("圓弧: 終點 [{:.0}, {:.0}, {:.0}] 弦長={:.0}mm", p2[0], p2[1], p2[2], chord));
                             self.editor.draw_state = DrawState::ArcP2 { p1, p2 };
                         }
                     }
@@ -1396,10 +1420,147 @@ impl KolibriApp {
                         let (p1, p2) = (*p1, *p2);
                         let pos = self.snap_to_face(mx, my, vw, vh)
                             .or_else(|| self.ground_snapped());
+                        if let Some(mut p3) = pos {
+                            // 半圓鎖定：凸度點接近弦長中垂線上的半圓位置時自動吸附
+                            if let Some(ref info) = crate::app::compute_arc_info(p1, p2, p3) {
+                                if info.is_semicircle() {
+                                    // 強制半圓：調整 p3 到精確半圓位置
+                                    let mid = [(p1[0]+p2[0])*0.5, (p1[1]+p2[1])*0.5, (p1[2]+p2[2])*0.5];
+                                    let chord_dir = [p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]];
+                                    let chord_len = (chord_dir[0]*chord_dir[0] + chord_dir[2]*chord_dir[2]).sqrt();
+                                    let perp = [-chord_dir[2] / chord_len, 0.0, chord_dir[0] / chord_len];
+                                    let r = chord_len * 0.5;
+                                    let sign = if (p3[0]-mid[0])*perp[0] + (p3[2]-mid[2])*perp[2] > 0.0 { 1.0 } else { -1.0 };
+                                    p3 = [mid[0] + perp[0]*r*sign, mid[1], mid[2] + perp[2]*r*sign];
+                                    self.clog("圓弧: 半圓鎖定!".to_string());
+                                }
+                            }
+
+                            let seg = 32_usize; // TODO: 可調細分數
+                            if let Some(info) = crate::app::compute_arc_info(p1, p2, p3) {
+                                let arc_pts = info.points(seg);
+                                let name = self.next_name("Arc");
+                                let id = self.scene.add_line(name.clone(), arc_pts, 20.0, self.create_mat);
+                                // 儲存圓弧資訊到 Shape::Line
+                                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                                    if let crate::scene::Shape::Line { ref mut arc_center, ref mut arc_radius, ref mut arc_angle_deg, .. } = obj.shape {
+                                        *arc_center = Some(info.center);
+                                        *arc_radius = Some(info.radius);
+                                        *arc_angle_deg = Some(info.sweep_degrees());
+                                    }
+                                }
+                                self.console_push("ACTION", format!(
+                                    "建立圓弧 {} R={:.0}mm 角度={:.1}° 弧長={:.0}mm",
+                                    name, info.radius, info.sweep_degrees(), info.arc_length()
+                                ));
+                                self.editor.selected_ids = vec![id];
+                            } else {
+                                // 退回直線
+                                let name = self.next_name("Line");
+                                let id = self.scene.add_line(name, vec![p1, p2], 20.0, self.create_mat);
+                                self.editor.selected_ids = vec![id];
+                                self.console_push("WARN", "圓弧: 三點共線，建立直線".to_string());
+                            }
+                            self.editor.draw_state = DrawState::Idle;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Arc3Point: 任意三點定圓弧（等同 Arc 但語意更清楚）
+            Tool::Arc3Point => {
+                let pos = self.snap_to_face(self.editor.mouse_screen[0], self.editor.mouse_screen[1],
+                    self.viewer.viewport_size[0], self.viewer.viewport_size[1])
+                    .or_else(|| self.ground_snapped());
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        if let Some(p) = pos {
+                            self.editor.draw_state = DrawState::ArcP1 { p1: p };
+                            self.clog(format!("三點圓弧: P1 [{:.0}, {:.0}, {:.0}]", p[0], p[1], p[2]));
+                        }
+                    }
+                    DrawState::ArcP1 { p1 } => {
+                        let p1 = *p1;
+                        if let Some(p2) = pos {
+                            self.editor.draw_state = DrawState::ArcP2 { p1, p2 };
+                            self.clog(format!("三點圓弧: P2 [{:.0}, {:.0}, {:.0}]", p2[0], p2[1], p2[2]));
+                        }
+                    }
+                    DrawState::ArcP2 { p1, p2 } => {
+                        let (p1, p2) = (*p1, *p2);
                         if let Some(p3) = pos {
-                            let arc_pts = compute_arc(p1, p2, p3, 32);
-                            let name = self.next_name("Arc");
-                            let id = self.scene.add_line(name, arc_pts, 20.0, self.create_mat);
+                            if let Some(info) = crate::app::compute_arc_info(p1, p2, p3) {
+                                let arc_pts = info.points(32);
+                                let name = self.next_name("Arc3P");
+                                let id = self.scene.add_line(name.clone(), arc_pts, 20.0, self.create_mat);
+                                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                                    if let crate::scene::Shape::Line { ref mut arc_center, ref mut arc_radius, ref mut arc_angle_deg, .. } = obj.shape {
+                                        *arc_center = Some(info.center);
+                                        *arc_radius = Some(info.radius);
+                                        *arc_angle_deg = Some(info.sweep_degrees());
+                                    }
+                                }
+                                self.console_push("ACTION", format!("建立三點圓弧 {} R={:.0} {:.1}°", name, info.radius, info.sweep_degrees()));
+                                self.editor.selected_ids = vec![id];
+                            }
+                            self.editor.draw_state = DrawState::Idle;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Pie: 扇形工具 — 中心→邊緣定半徑→第二邊緣定角度
+            Tool::Pie => {
+                let pos = self.ground_snapped();
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        if let Some(p) = pos {
+                            self.editor.draw_state = DrawState::PieCenter { center: p };
+                            self.clog(format!("扇形: 中心 [{:.0}, {:.0}, {:.0}]", p[0], p[1], p[2]));
+                        }
+                    }
+                    DrawState::PieCenter { center } => {
+                        let c = *center;
+                        if let Some(e1) = pos {
+                            let r = ((e1[0]-c[0]).powi(2) + (e1[2]-c[2]).powi(2)).sqrt();
+                            if r > 10.0 {
+                                self.editor.draw_state = DrawState::PieRadius { center: c, edge1: e1 };
+                                self.clog(format!("扇形: 半徑={:.0}mm", r));
+                            }
+                        }
+                    }
+                    DrawState::PieRadius { center, edge1 } => {
+                        let c = *center;
+                        let e1 = *edge1;
+                        if let Some(e2) = pos {
+                            let r = ((e1[0]-c[0]).powi(2) + (e1[2]-c[2]).powi(2)).sqrt();
+                            let a1 = (e1[2]-c[2]).atan2(e1[0]-c[0]);
+                            let a2 = (e2[2]-c[2]).atan2(e2[0]-c[0]);
+                            let mut sweep = a2 - a1;
+                            if sweep < 0.0 { sweep += std::f32::consts::TAU; }
+
+                            // 生成扇形邊緣弧線 + 兩條半徑線
+                            let seg = 32;
+                            let mut pts = vec![c]; // 中心
+                            for i in 0..=seg {
+                                let t = i as f32 / seg as f32;
+                                let a = a1 + sweep * t;
+                                pts.push([c[0] + r * a.cos(), c[1], c[2] + r * a.sin()]);
+                            }
+                            pts.push(c); // 閉合回中心
+
+                            let name = self.next_name("Pie");
+                            let id = self.scene.add_line(name.clone(), pts, 20.0, self.create_mat);
+                            if let Some(obj) = self.scene.objects.get_mut(&id) {
+                                if let crate::scene::Shape::Line { ref mut arc_center, ref mut arc_radius, ref mut arc_angle_deg, .. } = obj.shape {
+                                    *arc_center = Some(c);
+                                    *arc_radius = Some(r);
+                                    *arc_angle_deg = Some(sweep.to_degrees());
+                                }
+                            }
+                            self.console_push("ACTION", format!("建立扇形 {} R={:.0} {:.1}°", name, r, sweep.to_degrees()));
                             self.editor.selected_ids = vec![id];
                             self.editor.draw_state = DrawState::Idle;
                         }
@@ -2051,7 +2212,7 @@ impl KolibriApp {
                 }
                 Shape::Cylinder { radius, height, .. } => (pos, pos + glam::Vec3::new(*radius*2.0, *height, *radius*2.0)),
                 Shape::Sphere { radius, .. } => (pos, pos + glam::Vec3::splat(*radius*2.0)),
-                Shape::Line { points, thickness } => {
+                Shape::Line { points, thickness, .. } => {
                     let mut mx = pos;
                     for pt in points { mx = mx.max(glam::Vec3::from(*pt) + glam::Vec3::splat(*thickness)); }
                     (pos, mx)

@@ -559,7 +559,8 @@ pub fn tool_to_kind(tool: crate::app::Tool) -> ToolKind {
         Tool::SteelGrid => ToolKind::SteelGrid,
         Tool::Eraser => ToolKind::Eraser,
         Tool::Text | Tool::Group | Tool::Component
-        | Tool::SteelBrace | Tool::SteelPlate | Tool::SteelConnection => ToolKind::Other,
+        | Tool::SteelBrace | Tool::SteelPlate | Tool::SteelConnection
+        | Tool::Arc3Point | Tool::Pie => ToolKind::Other,
     }
 }
 

@@ -120,6 +120,29 @@ pub fn arc(p: &Painter, r: Rect, c: Color32) {
     p.circle_filled(s(r, 0.85, 0.75), 2.5, c);
 }
 
+// ─── Arc 3-Point (三點弧：弧線 + 3 個端點) ───────────────────────────────────
+
+pub fn arc_3point(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    let segments = 10;
+    for i in 0..segments {
+        let t0 = i as f32 / segments as f32;
+        let t1 = (i + 1) as f32 / segments as f32;
+        let x0 = 0.15 + t0 * 0.7;
+        let x1 = 0.15 + t1 * 0.7;
+        let y0 = 0.75 - (t0 * std::f32::consts::PI).sin() * 0.55;
+        let y1 = 0.75 - (t1 * std::f32::consts::PI).sin() * 0.55;
+        p.line_segment([s(r, x0, y0), s(r, x1, y1)], st);
+    }
+    // 三個點（起點、終點、弧上中點）
+    p.circle_filled(s(r, 0.15, 0.75), 3.0, c);
+    p.circle_filled(s(r, 0.85, 0.75), 3.0, c);
+    p.circle_filled(s(r, 0.50, 0.20), 3.0, c);
+    // 小 "3" 標記
+    let font = egui::FontId::proportional(8.0);
+    p.text(s(r, 0.85, 0.30), egui::Align2::CENTER_CENTER, "3", font, c);
+}
+
 // ─── Rectangle ───────────────────────────────────────────────────────────────
 
 pub fn rectangle(p: &Painter, r: Rect, c: Color32) {
@@ -505,6 +528,35 @@ pub fn steel_connection(p: &Painter, r: Rect, c: Color32) {
     p.circle_filled(s(r, 0.6, 0.4), 2.5, c);
 }
 
+// ─── Pie (fan/sector) ────────────────────────────────────────────────────────
+
+pub fn pie(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    let cx = r.center();
+    let rad = r.width() * 0.35;
+    // Draw sector: center → arc → center
+    let a_start = -0.3_f32;
+    let a_end = 1.8_f32;
+    let segments = 10;
+    // Radius line 1
+    p.line_segment([cx, pos2(cx.x + rad * a_start.cos(), cx.y + rad * a_start.sin())], st);
+    // Arc
+    for i in 0..segments {
+        let t0 = i as f32 / segments as f32;
+        let t1 = (i + 1) as f32 / segments as f32;
+        let ang0 = a_start + (a_end - a_start) * t0;
+        let ang1 = a_start + (a_end - a_start) * t1;
+        p.line_segment([
+            pos2(cx.x + rad * ang0.cos(), cx.y + rad * ang0.sin()),
+            pos2(cx.x + rad * ang1.cos(), cx.y + rad * ang1.sin()),
+        ], st);
+    }
+    // Radius line 2
+    p.line_segment([cx, pos2(cx.x + rad * a_end.cos(), cx.y + rad * a_end.sin())], st);
+    // Center dot
+    p.circle_filled(cx, 2.0, c);
+}
+
 pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
     match tool {
         Tool::Select         => select(p, r, color),
@@ -513,6 +565,8 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::Scale          => offset(p, r, color),  // nested rectangles = scale
         Tool::Line           => line(p, r, color),
         Tool::Arc            => arc(p, r, color),
+        Tool::Arc3Point      => arc_3point(p, r, color),
+        Tool::Pie            => pie(p, r, color),
         Tool::Rectangle      => rectangle(p, r, color),
         Tool::Circle         => circle(p, r, color),
         Tool::CreateBox      => box3d(p, r, color),

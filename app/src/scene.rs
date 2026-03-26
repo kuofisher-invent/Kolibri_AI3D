@@ -102,7 +102,11 @@ pub enum Shape {
     Box { width: f32, height: f32, depth: f32 },
     Cylinder { radius: f32, height: f32, segments: u32 },
     Sphere { radius: f32, segments: u32 },
-    Line { points: Vec<[f32; 3]>, thickness: f32 },
+    Line { points: Vec<[f32; 3]>, thickness: f32,
+        #[serde(default)] arc_center: Option<[f32; 3]>,
+        #[serde(default)] arc_radius: Option<f32>,
+        #[serde(default)] arc_angle_deg: Option<f32>,
+    },
     Mesh(crate::halfedge::HeMesh),
 }
 
@@ -465,7 +469,7 @@ impl Scene {
         let pos = points.first().copied().unwrap_or([0.0; 3]);
         self.objects.insert(id.clone(), SceneObject {
             id: id.clone(), name,
-            shape: Shape::Line { points, thickness },
+            shape: Shape::Line { points, thickness, arc_center: None, arc_radius: None, arc_angle_deg: None },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,

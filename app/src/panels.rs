@@ -602,9 +602,20 @@ impl KolibriApp {
                 ui.separator();
 
                 // ── Draw 2D ──
+                // 弧線按鈕：顯示當前模式的圖標（Ctrl+A 循環切換）
+                let arc_tool = match self.editor.tool {
+                    Tool::Arc3Point => Tool::Arc3Point,
+                    Tool::Pie => Tool::Pie,
+                    _ => Tool::Arc,
+                };
+                let arc_tip = match arc_tool {
+                    Tool::Arc3Point => "三點弧\nCtrl+A 切換模式 (A)",
+                    Tool::Pie       => "扇形\nCtrl+A 切換模式 (A)",
+                    _               => "兩點弧\nCtrl+A 切換模式 (A)",
+                };
                 self.tool_row(ui, bsz, &[
-                    (Tool::Line,      "線段\n連續點擊繪製線段，ESC結束 (L)"),
-                    (Tool::Arc,       "弧線\n三點定義弧線：起點→終點→弧度 (A)"),
+                    (Tool::Line,  "線段\n連續點擊繪製線段，ESC結束 (L)"),
+                    (arc_tool,    arc_tip),
                 ]);
                 self.tool_row(ui, bsz, &[
                     (Tool::Rectangle, "矩形\n點擊兩角定義底面，再拉高度 (R)"),
@@ -807,7 +818,7 @@ impl KolibriApp {
                         _ => {}
                     }
                     if matches!(tool, Tool::CreateBox | Tool::CreateCylinder | Tool::CreateSphere
-                        | Tool::Rectangle | Tool::Circle | Tool::Line | Tool::Arc) {
+                        | Tool::Rectangle | Tool::Circle | Tool::Line | Tool::Arc | Tool::Arc3Point | Tool::Pie) {
                         self.right_tab = RightTab::Create;
                     }
                 }
@@ -1097,7 +1108,7 @@ impl KolibriApp {
                     ui.add(egui::DragValue::new(radius).speed(10.0).prefix("R: ").suffix(" mm").range(1.0..=f32::MAX));
                     ui.add(egui::DragValue::new(segments).speed(1.0).prefix("細分: ").range(4..=128));
                 }
-                Shape::Line { points, thickness } => {
+                Shape::Line { points, thickness, .. } => {
                     ui.label(format!("線段 ({} 點)", points.len()));
                     ui.add(egui::DragValue::new(thickness).speed(1.0).prefix("粗細: ").suffix(" mm").range(1.0..=500.0));
                 }
@@ -1447,6 +1458,35 @@ impl KolibriApp {
     }
 
     pub(crate) fn tab_create(&mut self, ui: &mut egui::Ui) {
+        // ── 弧線模式切換（當 Arc/Arc3Point/Pie 工具啟用時顯示）──
+        if matches!(self.editor.tool, Tool::Arc | Tool::Arc3Point | Tool::Pie) {
+            section_frame_full(ui, |ui| {
+                section_header_text(ui, "ARC MODE");
+                ui.horizontal(|ui| {
+                    let modes = [
+                        (Tool::Arc,       "兩點弧"),
+                        (Tool::Arc3Point, "三點弧"),
+                        (Tool::Pie,       "扇形"),
+                    ];
+                    for (tool, label) in modes {
+                        if ui.selectable_label(self.editor.tool == tool, label).clicked() {
+                            self.console_push("TOOL", format!("弧線模式: {}", label));
+                            self.editor.tool = tool;
+                            self.editor.draw_state = DrawState::Idle;
+                        }
+                    }
+                });
+                let desc = match self.editor.tool {
+                    Tool::Arc       => "起點 → 終點 → 凸度拖曳（半圓自動鎖定）",
+                    Tool::Arc3Point => "任意三點定義圓弧",
+                    Tool::Pie       => "中心 → 邊緣定半徑 → 第二邊緣定角度",
+                    _ => "",
+                };
+                ui.small(desc);
+            });
+            ui.add_space(8.0);
+        }
+
         ui.label(egui::RichText::new("新物件材質").strong());
         // Material preview sphere
         {
@@ -1468,35 +1508,132 @@ impl KolibriApp {
         }
 
         ui.add_space(12.0);
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("SketchUp 風格繪圖").strong());
+
+        // ── 繪圖設定 ──
+        section_frame_full(ui, |ui| {
+            section_header_text(ui, "DRAWING SETTINGS");
+
+            // 圓柱/球體細分數
+            ui.horizontal(|ui| {
+                ui.label("圓弧細分");
+                // Store segments as a temporary — can't easily change global default yet
+                ui.label(egui::RichText::new("32 段").color(egui::Color32::from_rgb(110, 118, 135)));
+            });
+
             ui.add_space(4.0);
-            ui.small("⬜ 方塊:");
-            ui.small("  1. 點擊地面 → 設定第一角");
-            ui.small("  2. 移動滑鼠 → 拖出底面矩形");
-            ui.small("  3. 點擊 → 確認底面");
-            ui.small("  4. 移動滑鼠 → 拉出高度");
-            ui.small("  5. 點擊 → 完成");
+
+            // 快速建立物件（帶預設尺寸）
+            ui.label(egui::RichText::new("快速建立").size(11.0).strong());
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                if ui.button("方塊 1m").clicked() {
+                    let id = self.scene.add_box("QuickBox".into(), [0.0, 0.0, 0.0], 1000.0, 1000.0, 1000.0, self.create_mat);
+                    self.editor.selected_ids = vec![id];
+                    self.right_tab = RightTab::Properties;
+                }
+                if ui.button("方塊 3m").clicked() {
+                    let id = self.scene.add_box("QuickBox".into(), [0.0, 0.0, 0.0], 3000.0, 3000.0, 3000.0, self.create_mat);
+                    self.editor.selected_ids = vec![id];
+                    self.right_tab = RightTab::Properties;
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui.button("圓柱 r1m").clicked() {
+                    let id = self.scene.add_cylinder("QuickCyl".into(), [0.0, 0.0, 0.0], 1000.0, 2000.0, 32, self.create_mat);
+                    self.editor.selected_ids = vec![id];
+                    self.right_tab = RightTab::Properties;
+                }
+                if ui.button("球體 r1m").clicked() {
+                    let id = self.scene.add_sphere("QuickSphere".into(), [0.0, 0.0, 0.0], 1000.0, 32, self.create_mat);
+                    self.editor.selected_ids = vec![id];
+                    self.right_tab = RightTab::Properties;
+                }
+            });
+        });
+
+        ui.add_space(12.0);
+
+        // ── 標註樣式設定（CAD style dimension settings）──
+        section_frame_full(ui, |ui| {
+            section_header_text(ui, "DIMENSION STYLE");
+
+            let ds = &mut self.dim_style;
+
+            ui.horizontal(|ui| {
+                ui.label("線粗");
+                ui.add(egui::Slider::new(&mut ds.line_thickness, 0.5..=4.0).step_by(0.5).suffix(" px"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("延伸線粗");
+                ui.add(egui::Slider::new(&mut ds.ext_line_thickness, 0.25..=3.0).step_by(0.25).suffix(" px"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("文字大小");
+                ui.add(egui::Slider::new(&mut ds.text_size, 8.0..=20.0).step_by(1.0).suffix(" px"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("箭頭大小");
+                ui.add(egui::Slider::new(&mut ds.arrow_size, 3.0..=15.0).step_by(1.0).suffix(" px"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("偏移量");
+                ui.add(egui::Slider::new(&mut ds.offset, 5.0..=50.0).step_by(1.0).suffix(" px"));
+            });
+
             ui.add_space(4.0);
-            ui.small("○ 圓柱:");
-            ui.small("  1. 點擊 → 設定圓心");
-            ui.small("  2. 移動 → 拖出半徑");
-            ui.small("  3. 點擊 → 確認半徑");
-            ui.small("  4. 移動 → 拉出高度");
-            ui.small("  5. 點擊 → 完成");
+            ui.horizontal(|ui| {
+                ui.label("箭頭樣式");
+                let styles = [
+                    (crate::dimensions::ArrowStyle::Tick, "短橫"),
+                    (crate::dimensions::ArrowStyle::Arrow, "箭頭"),
+                    (crate::dimensions::ArrowStyle::Dot, "圓點"),
+                    (crate::dimensions::ArrowStyle::None, "無"),
+                ];
+                for (style, label) in styles {
+                    if ui.selectable_label(ds.arrow_style == style, label).clicked() {
+                        ds.arrow_style = style;
+                    }
+                }
+            });
+
             ui.add_space(4.0);
-            ui.small("◎ 球體:");
-            ui.small("  1. 點擊 → 設定圓心");
-            ui.small("  2. 移動 → 拖出半徑");
-            ui.small("  3. 點擊 → 完成");
+            ui.horizontal(|ui| {
+                ui.label("單位");
+                let units = [
+                    (crate::dimensions::UnitDisplay::Auto, "自動"),
+                    (crate::dimensions::UnitDisplay::Mm, "mm"),
+                    (crate::dimensions::UnitDisplay::Cm, "cm"),
+                    (crate::dimensions::UnitDisplay::M, "m"),
+                ];
+                for (unit, label) in units {
+                    if ui.selectable_label(ds.unit_display == unit, label).clicked() {
+                        ds.unit_display = unit;
+                    }
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("小數位");
+                ui.add(egui::Slider::new(&mut ds.precision, 0..=3));
+            });
+
+            ui.checkbox(&mut ds.show_bg, "顯示文字背景");
+
             ui.add_space(4.0);
-            ui.small("⇕ 推拉:");
-            ui.small("  1. 點擊物件頂面");
-            ui.small("  2. 移動 → 拉伸高度");
-            ui.small("  3. 點擊 → 確認");
-            ui.add_space(4.0);
-            ui.small("💡 繪圖中輸入數字 + Enter");
-            ui.small("   可精確設定尺寸");
+            ui.horizontal(|ui| {
+                ui.label("線條顏色");
+                let mut c = egui::Color32::from_rgba_unmultiplied(ds.line_color[0], ds.line_color[1], ds.line_color[2], ds.line_color[3]);
+                if ui.color_edit_button_srgba(&mut c).changed() {
+                    ds.line_color = [c.r(), c.g(), c.b(), c.a()];
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("文字顏色");
+                let mut c = egui::Color32::from_rgba_unmultiplied(ds.text_color[0], ds.text_color[1], ds.text_color[2], ds.text_color[3]);
+                if ui.color_edit_button_srgba(&mut c).changed() {
+                    ds.text_color = [c.r(), c.g(), c.b(), c.a()];
+                }
+            });
         });
     }
 
@@ -1741,7 +1878,9 @@ impl KolibriApp {
                 Tool::Rotate      => "旋轉 — 點擊物件旋轉90度 (Q)".into(),
                 Tool::Scale       => "縮放 — 點擊物件後上下拖曳等比縮放 (S)".into(),
                 Tool::Line        => "線段 — 點擊設定起點, 再點擊設定終點".into(),
-                Tool::Arc         => "弧線 — 三點定義: 起點→終點→弧度 (A)".into(),
+                Tool::Arc         => "弧線 — 起點→終點→凸度（真圓弧，半圓自動鎖定）(A)".into(),
+                Tool::Arc3Point   => "三點圓弧 — 任意三點定義圓弧".into(),
+                Tool::Pie         => "扇形 — 中心→邊緣定半徑→第二邊緣定角度".into(),
                 Tool::Rectangle   => "矩形 — 點擊地面設定第一角, 等同方塊底面".into(),
                 Tool::Circle      => "圓形 — 點擊地面設定圓心, 等同圓柱底面".into(),
                 Tool::CreateBox   => "方塊 — 點擊地面設定第一角".into(),
@@ -1782,7 +1921,9 @@ impl KolibriApp {
             }
             DrawState::LineFrom { .. } => "移動到下一點, 點擊確認 (ESC 結束)".into(),
             DrawState::ArcP1 { .. } => "點擊設定弧線終點".into(),
-            DrawState::ArcP2 { .. } => "點擊設定弧線弧度控制點".into(),
+            DrawState::ArcP2 { .. } => "移動設定弧度（半圓自動鎖定），點擊確認".into(),
+            DrawState::PieCenter { .. } => "點擊設定扇形半徑終點".into(),
+            DrawState::PieRadius { .. } => "移動設定扇形角度，點擊確認".into(),
             DrawState::Rotating { accumulated, .. } => {
                 format!("\u{65cb}\u{8f49} {:.1}\u{00b0} \u{2014} \u{62d6}\u{66f3}\u{65cb}\u{8f49}, \u{8f38}\u{5165}\u{89d2}\u{5ea6}+Enter \u{78ba}\u{8a8d}", accumulated.to_degrees())
             }
