@@ -51,6 +51,8 @@ pub struct KolibriApp {
     pub(crate) ai_log: crate::ai_log::AiLog,
     pub(crate) current_actor: crate::ai_log::ActorId,
     pub(crate) mcp_bridge: Option<crate::mcp_server::McpBridge>,
+    pub(crate) mcp_http_running: bool,
+    pub(crate) mcp_http_port: u16,
 
     // Dimension annotations (tape measure)
     pub(crate) dimensions: Vec<crate::dimensions::Dimension>,
@@ -250,6 +252,8 @@ impl KolibriApp {
             ai_log: crate::ai_log::AiLog::new(),
             current_actor: crate::ai_log::ActorId::user(),
             mcp_bridge: None,
+            mcp_http_running: false,
+            mcp_http_port: 3001,
             dimensions: Vec::new(),
             dim_style: crate::dimensions::DimensionStyle::default(),
             show_custom_color_picker: false,
@@ -399,6 +403,45 @@ impl eframe::App for KolibriApp {
 
                 // Right side: help + undo/redo + save + project name
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // MCP Server button
+                    let mcp_label = if self.mcp_http_running {
+                        egui::RichText::new("MCP").size(11.0).strong().color(egui::Color32::WHITE)
+                    } else {
+                        egui::RichText::new("MCP").size(11.0).color(egui::Color32::from_rgb(110, 118, 135))
+                    };
+                    let mcp_fill = if self.mcp_http_running {
+                        egui::Color32::from_rgb(60, 186, 108)
+                    } else {
+                        egui::Color32::from_rgba_unmultiplied(110, 118, 135, 30)
+                    };
+                    let mcp_btn = egui::Button::new(mcp_label)
+                        .fill(mcp_fill)
+                        .rounding(8.0);
+                    let mcp_tip = if self.mcp_http_running {
+                        format!("MCP Server 運行中 (port {})\n點擊開啟 Dashboard", self.mcp_http_port)
+                    } else {
+                        "啟動 MCP Server + Dashboard".to_string()
+                    };
+                    if ui.add(mcp_btn).on_hover_text(mcp_tip).clicked() {
+                        if !self.mcp_http_running {
+                            let port = self.mcp_http_port;
+                            std::thread::spawn(move || {
+                                let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+                                rt.block_on(kolibri_mcp::transport_http::run_http(port));
+                            });
+                            self.mcp_http_running = true;
+                            self.file_message = Some((
+                                format!("MCP Server 已啟動 http://localhost:{}", port),
+                                std::time::Instant::now(),
+                            ));
+                        }
+                        // 開啟瀏覽器
+                        let url = format!("http://localhost:{}", self.mcp_http_port);
+                        let _ = std::process::Command::new("cmd").args(["/C", "start", &url]).spawn();
+                    }
+
+                    ui.add_space(4.0);
+
                     // Help button
                     let help_btn = egui::Button::new(egui::RichText::new("?").size(14.0).strong())
                         .fill(egui::Color32::from_rgba_unmultiplied(76, 139, 245, 40))

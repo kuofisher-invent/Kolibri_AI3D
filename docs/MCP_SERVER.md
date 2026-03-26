@@ -86,6 +86,18 @@ Server URL: http://localhost:3001/mcp
 
 或使用 SSE endpoint 做即時事件監聽：`http://localhost:3001/sse`
 
+## Web Dashboard
+
+HTTP 模式自帶管理介面，開瀏覽器到 `http://localhost:3001/` 即可使用。
+
+功能：
+- **Tool Playground** — 選擇工具、編輯 JSON 參數、即時執行
+- **Scene State** — 一鍵查看場景所有物件
+- **Event Log** — SSE 即時事件串流（每次工具呼叫都會推送）
+- **Server Status** — 物件數量、版本、連線狀態
+
+也可從 Kolibri CAD APP 的頂部列點擊 **MCP** 按鈕啟動 server 並自動開啟 Dashboard。
+
 ## 可用工具（17 個）
 
 ### 場景查詢

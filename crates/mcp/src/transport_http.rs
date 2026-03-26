@@ -26,6 +26,7 @@ pub async fn run_http(port: u16) {
     let sse_tx = Arc::new(sse_tx);
 
     let app = Router::new()
+        .route("/", get(handle_dashboard))
         .route("/mcp", post(handle_mcp_post))
         .route("/sse", get(handle_sse))
         .route("/health", get(handle_health))
@@ -106,6 +107,11 @@ async fn handle_sse(
         }
     };
     Sse::new(stream)
+}
+
+/// GET / — Dashboard UI
+async fn handle_dashboard() -> axum::response::Html<&'static str> {
+    axum::response::Html(crate::dashboard::DASHBOARD_HTML)
 }
 
 /// GET /health

@@ -7,5 +7,6 @@
 
 pub mod protocol;
 pub mod adapter;
+pub mod dashboard;
 pub mod transport_stdio;
 pub mod transport_http;
