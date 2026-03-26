@@ -298,11 +298,12 @@ impl KolibriApp {
             }
         }
 
-        // ── Intersection snap: check where 3D edges project to overlapping screen positions ──
-        // For each pair of edges from different objects, sample and find screen-space crossings
-        // (kept simple: project edge endpoints to screen and find 2D segment intersection)
+        // ── Intersection snap: 2D screen-space edge crossing ──
+        // 限制最大邊數以避免 O(N²) 效能問題（>200 邊跳過）
         {
             let edge_count = all_box_edges_3d.len();
+            let max_edges = 200; // 超過此數跳過交叉檢測
+            if edge_count <= max_edges {
             for i in 0..edge_count {
                 for j in (i + 1)..edge_count {
                     let (a1, a2) = all_box_edges_3d[i];
@@ -339,6 +340,7 @@ impl KolibriApp {
                     }
                 }
             }
+            } // end if edge_count <= max_edges
         }
 
         // Check axis alignment from starting point using SCREEN-SPACE distance

@@ -736,11 +736,11 @@ impl ViewportRenderer {
         }
 
         // ── Dirty-flag caching: only rebuild scene mesh when scene changes ──
-        let scene_dirty = scene.version != self.cached_scene_version
-            || !preview.0.is_empty()   // always rebuild if there's preview geometry
-            || self.cached_verts.is_empty()
-            || (self.cached_edge_thickness - edge_thickness).abs() > 0.01
+        let geometry_changed = scene.version != self.cached_scene_version;
+        let has_preview = !preview.0.is_empty();
+        let style_changed = (self.cached_edge_thickness - edge_thickness).abs() > 0.01
             || self.cached_render_mode != render_mode;
+        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed;
 
         if scene_dirty {
             let (verts, idx) = build_scene_mesh(

@@ -8,4 +8,5 @@ pub mod collision;
 pub mod command;
 pub mod csg;
 pub mod dimensions;
+pub mod geometry;
 pub mod measure;
