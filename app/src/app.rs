@@ -954,6 +954,11 @@ impl eframe::App for KolibriApp {
                     obj.visible = !self.viewer.hidden_tags.contains(&obj.tag);
                 }
 
+                // 先分配區域取得 response，再處理互動，最後渲染
+                // 這確保點擊/材質變更在渲染前生效（同幀即時反映）
+                let (rect, response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
+                self.handle_viewport(&response, ui);
+
                 let preview = self.build_preview();
                 let aspect = w as f32 / h.max(1) as f32;
                 let vp = if self.viewer.use_ortho {
@@ -965,11 +970,9 @@ impl eframe::App for KolibriApp {
                 let sf = self.editor.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager);
 
-                let (rect, response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
                 if let Some(tex_id) = self.viewport.texture_id {
                     ui.painter().image(tex_id, rect, egui::Rect::from_min_max(egui::pos2(0.0,0.0), egui::pos2(1.0,1.0)), egui::Color32::WHITE);
                 }
-                self.handle_viewport(&response, ui);
 
                 // Draw rubber band selection rectangle
                 if let Some((start, end)) = self.editor.rubber_band {

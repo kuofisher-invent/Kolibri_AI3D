@@ -1087,11 +1087,11 @@ impl KolibriApp {
                         log_msg = Some(format!("油漆桶: {} 材質 {} → {} (v={})", obj_name, old_mat, self.create_mat.label(), self.scene.version));
                         self.ai_log.log(&self.current_actor.clone(), "設定材質", &format!("{} → {}", old_mat, self.create_mat.label()), vec![id.clone()]);
                         self.file_message = Some((format!("已套用材質: {}", self.create_mat.label()), std::time::Instant::now()));
-                        // 油漆桶塗完後取消選取，讓使用者立即看到新材質效果
-                        self.editor.selected_ids.clear();
                     } else {
                         log_msg = Some(format!("油漆桶: 找不到物件 id={}", id));
                     }
+                    // 油漆桶塗完後取消選取 — 放在借用區塊外確保執行
+                    self.editor.selected_ids.clear();
                     if let Some(msg) = log_msg {
                         let level = if msg.contains("找不到") { "WARN" } else { "ACTION" };
                         self.console_push(level, msg);
