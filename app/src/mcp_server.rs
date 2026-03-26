@@ -433,14 +433,14 @@ fn execute_tool(scene: &mut crate::scene::Scene, ai_log: &mut crate::ai_log::AiL
             let path = args["path"].as_str().unwrap_or("scene.k3d");
             match scene.save_to_file(path) {
                 Ok(()) => json!({ "success": true, "path": path }),
-                Err(e) => json!({ "success": false, "error": e }),
+                Err(e) => json!({ "success": false, "error": e.to_string() }),
             }
         }
         "load_scene" => {
             let path = args["path"].as_str().unwrap_or("scene.k3d");
             match scene.load_from_file(path) {
                 Ok(count) => json!({ "success": true, "loaded": count }),
-                Err(e) => json!({ "success": false, "error": e }),
+                Err(e) => json!({ "success": false, "error": e.to_string() }),
             }
         }
         "clear_scene" => {

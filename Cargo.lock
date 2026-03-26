@@ -1744,6 +1744,7 @@ dependencies = [
  "glam",
  "image 0.24.9",
  "kolibri-core",
+ "kolibri-io",
  "log",
  "rfd",
  "serde",
@@ -1764,6 +1765,18 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "uuid",
+]
+
+[[package]]
+name = "kolibri-io"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "kolibri-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "zip",
 ]
 
 [[package]]

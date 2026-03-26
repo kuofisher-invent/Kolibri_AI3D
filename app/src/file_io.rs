@@ -27,12 +27,12 @@ impl KolibriApp {
                 self.last_saved_version = self.scene.version;
                 self.console_push("INFO", format!("[File] 已儲存: {}", path));
                 self.file_message = Some((format!("已儲存: {}", path), std::time::Instant::now()));
-                log::info!("Scene saved to {}", path);
+                tracing::info!("Scene saved to {}", path);
             }
             Err(e) => {
                 self.console_push("ERROR", format!("[File] 儲存失敗: {}", e));
                 self.file_message = Some((format!("儲存失敗: {}", e), std::time::Instant::now()));
-                log::error!("Save failed: {}", e);
+                tracing::error!("Save failed: {}", e);
             }
         }
     }
@@ -73,12 +73,12 @@ impl KolibriApp {
                     self.last_saved_version = self.scene.version;
                     self.console_push("INFO", format!("[File] 已載入 {} 個物件", count));
                     self.file_message = Some((format!("已載入 {} 個物件: {}", count, path), std::time::Instant::now()));
-                    log::info!("Scene loaded from {}", path);
+                    tracing::info!("Scene loaded from {}", path);
                 }
                 Err(e) => {
                     self.console_push("ERROR", format!("[File] 載入失敗: {}", e));
                     self.file_message = Some((format!("載入失敗: {}", e), std::time::Instant::now()));
-                    log::error!("Open failed: {}", e);
+                    tracing::error!("Open failed: {}", e);
                 }
             }
         }
@@ -93,7 +93,7 @@ impl KolibriApp {
             if let Ok(()) = self.scene.save_to_file(path) {
                 self.auto_save_version = self.scene.version;
                 self.last_auto_save = std::time::Instant::now();
-                log::info!("Auto-saved to {}", path);
+                tracing::info!("Auto-saved to {}", path);
             }
         }
     }
@@ -109,7 +109,7 @@ impl KolibriApp {
 
     pub(crate) fn poll_test_bridge(&mut self) {
         if let Some(input) = crate::test_bridge::check_pending() {
-            log::info!("Test bridge: executing {} commands", input.commands.len());
+            tracing::info!("Test bridge: executing {} commands", input.commands.len());
 
             let device = self.device.clone();
             let queue = self.queue.clone();
@@ -131,7 +131,7 @@ impl KolibriApp {
             self.editor.selected_ids = bridge_selected.into_iter().collect();
 
             crate::test_bridge::signal_done();
-            log::info!("Test bridge: done");
+            tracing::info!("Test bridge: done");
         }
     }
 }

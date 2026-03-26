@@ -625,7 +625,8 @@ impl Scene {
     }
 
     /// Save scene to a JSON file
-    pub fn save_to_file(&self, path: &str) -> Result<(), String> {
+    pub fn save_to_file(&self, path: &str) -> Result<(), crate::error::FileError> {
+        use crate::error::FileError;
         let file_data = SceneFile {
             version: "1.0".into(),
             app: "Kolibri_Ai3D".into(),
@@ -633,19 +634,19 @@ impl Scene {
             groups: self.groups.values().cloned().collect(),
             component_defs: self.component_defs.values().cloned().collect(),
         };
-        let json = serde_json::to_string_pretty(&file_data)
-            .map_err(|e| format!("序列化失敗: {}", e))?;
+        let json = serde_json::to_string_pretty(&file_data)?;
         std::fs::write(path, json)
-            .map_err(|e| format!("寫入失敗: {}", e))?;
+            .map_err(|e| FileError::Write { path: path.to_string(), source: e })?;
         Ok(())
     }
 
     /// Load scene from a JSON file
-    pub fn load_from_file(&mut self, path: &str) -> Result<usize, String> {
+    pub fn load_from_file(&mut self, path: &str) -> Result<usize, crate::error::FileError> {
+        use crate::error::FileError;
         let json = std::fs::read_to_string(path)
-            .map_err(|e| format!("讀取失敗: {}", e))?;
+            .map_err(|e| FileError::Read { path: path.to_string(), source: e })?;
         let file_data: SceneFile = serde_json::from_str(&json)
-            .map_err(|e| format!("解析失敗: {}", e))?;
+            .map_err(|e| FileError::Deserialize(e.to_string()))?;
         self.snapshot();
         self.objects.clear();
         self.groups.clear();

@@ -128,7 +128,9 @@ impl KolibriApp {
                     // Ctrl held at drag START: duplicate objects first, then move clones
                     if !self.editor.selected_ids.is_empty() {
                         if !self.editor.drag_snapshot_taken {
-                            self.scene.snapshot();
+                            // Diff undo: 只備份即將被修改的物件
+                            let ids: Vec<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
+                            self.scene.snapshot_ids(&ids, "移動");
                             // If Ctrl held at drag start, duplicate objects first
                             let ctrl_at_start = ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd);
                             if ctrl_at_start {
@@ -334,7 +336,7 @@ impl KolibriApp {
         if let DrawState::Scaling { ref obj_id, handle, original_dims: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
                 if !self.editor.drag_snapshot_taken {
-                    self.scene.snapshot();
+                    self.scene.snapshot_ids(&[&obj_id], "縮放");
                     self.editor.drag_snapshot_taken = true;
                 }
                 let dy = -response.drag_delta().y;
@@ -493,7 +495,7 @@ impl KolibriApp {
             if let Some((ref obj_id, face)) = self.editor.selected_face.clone() {
                 if response.dragged_by(egui::PointerButton::Primary) {
                     if !self.editor.drag_snapshot_taken {
-                        self.scene.snapshot();
+                        self.scene.snapshot_ids(&[&obj_id], "推拉");
                         self.editor.last_pull_distance = 0.0; // reset accumulator at drag start
                         // C3: Save original position & dims for dashed reference lines
                         if let Some(obj) = self.scene.objects.get(&*obj_id) {
@@ -1114,7 +1116,7 @@ impl KolibriApp {
                     self.pick(mx, my, vw, vh)
                 });
                 if let Some(ref id) = target_id {
-                    self.scene.snapshot();
+                    self.scene.snapshot_ids(&[id], "材質");
                     let mut log_msg: Option<String> = None;
                     if let Some(obj) = self.scene.objects.get_mut(id) {
                         let old_mat = obj.material.label().to_string();
@@ -1318,7 +1320,8 @@ impl KolibriApp {
                             let original_rotations: Vec<f32> = obj_ids.iter().map(|id| {
                                 self.scene.objects.get(id).map_or(0.0, |o| o.rotation_y)
                             }).collect();
-                            self.scene.snapshot();
+                            let ids: Vec<&str> = obj_ids.iter().map(|s| s.as_str()).collect();
+                            self.scene.snapshot_ids(&ids, "旋轉");
                             self.editor.draw_state = DrawState::RotateAngle {
                                 obj_ids,
                                 center,

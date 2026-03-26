@@ -590,8 +590,8 @@ impl ViewportRenderer {
 
         if let Some(img) = image::RgbaImage::from_raw(w, h, pixels) {
             match img.save(path) {
-                Ok(_) => log::info!("Screenshot saved: {}", path),
-                Err(e) => log::error!("Screenshot save failed: {}", e),
+                Ok(_) => tracing::info!("Screenshot saved: {}", path),
+                Err(e) => tracing::error!("Screenshot save failed: {}", e),
             }
         }
     }

@@ -186,7 +186,7 @@ pub fn check_pending() -> Option<TestInput> {
             match serde_json::from_str(&content) {
                 Ok(input) => Some(input),
                 Err(e) => {
-                    log::error!("Test input parse error: {}", e);
+                    tracing::error!("Test input parse error: {}", e);
                     // Write error and remove input
                     let _ = write_error(&format!("Parse error: {}", e));
                     let _ = std::fs::remove_file(INPUT_FILE);
