@@ -1,0 +1,25 @@
+[package]
+name = "kolibri-mcp"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "kolibri-mcp-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "kolibri-mcp-test"
+path = "src/bin/test_harness.rs"
+
+[dependencies]
+kolibri-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+async-stream = "0.3"
+futures-core = "0.3"
