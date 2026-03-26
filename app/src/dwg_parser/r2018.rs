@@ -86,7 +86,9 @@ fn find_data_regions(data: &[u8]) -> Vec<(usize, usize)> {
             zero_count += 1;
             if zero_count > 64 && region_start.is_some() {
                 // End of data region
-                regions.push((region_start.unwrap(), i - zero_count));
+                if let Some(start) = region_start {
+                    regions.push((start, i - zero_count));
+                }
                 region_start = None;
             }
         } else {

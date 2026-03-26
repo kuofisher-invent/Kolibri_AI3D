@@ -180,8 +180,8 @@ fn parse_pdf_operators(
             "m" => {
                 // moveto: x y m
                 if number_stack.len() >= 2 {
-                    let y = number_stack.pop().unwrap();
-                    let x = number_stack.pop().unwrap();
+                    let y = number_stack.pop().unwrap_or(0.0);
+                    let x = number_stack.pop().unwrap_or(0.0);
                     current_point = Some([x, y]);
                     points.push([x, y]);
                 }
@@ -190,8 +190,8 @@ fn parse_pdf_operators(
             "l" => {
                 // lineto: x y l
                 if number_stack.len() >= 2 {
-                    let y = number_stack.pop().unwrap();
-                    let x = number_stack.pop().unwrap();
+                    let y = number_stack.pop().unwrap_or(0.0);
+                    let x = number_stack.pop().unwrap_or(0.0);
                     let new_point = [x, y];
                     if let Some(prev) = current_point {
                         lines.push((prev, new_point));
@@ -204,10 +204,10 @@ fn parse_pdf_operators(
             "re" => {
                 // rectangle: x y w h re
                 if number_stack.len() >= 4 {
-                    let h = number_stack.pop().unwrap();
-                    let w = number_stack.pop().unwrap();
-                    let y = number_stack.pop().unwrap();
-                    let x = number_stack.pop().unwrap();
+                    let h = number_stack.pop().unwrap_or(0.0);
+                    let w = number_stack.pop().unwrap_or(0.0);
+                    let y = number_stack.pop().unwrap_or(0.0);
+                    let x = number_stack.pop().unwrap_or(0.0);
                     points.push([x, y]);
                     points.push([x + w, y + h]);
                     lines.push(([x, y], [x + w, y]));
@@ -221,8 +221,8 @@ fn parse_pdf_operators(
             "c" | "v" | "y" => {
                 // curveto variants — take last pair as endpoint
                 if number_stack.len() >= 2 {
-                    let ey = number_stack.pop().unwrap();
-                    let ex = number_stack.pop().unwrap();
+                    let ey = number_stack.pop().unwrap_or(0.0);
+                    let ex = number_stack.pop().unwrap_or(0.0);
                     let new_point = [ex, ey];
                     if let Some(prev) = current_point {
                         lines.push((prev, new_point));

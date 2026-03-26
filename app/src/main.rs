@@ -5,6 +5,7 @@ mod ai_assist;
 mod ai_log;
 mod app;
 mod builders;
+mod editor;   // EditorState, Tool, DrawState 等型別定義
 mod cad_import;
 mod camera;
 mod collision;
@@ -26,6 +27,7 @@ mod mcp_server;
 mod measure;
 mod menu;
 mod obj_io;
+mod overlay;  // ArcInfo, compute_arc, draw_dashed_line
 mod panels;
 mod preview;
 mod renderer;
@@ -35,6 +37,7 @@ mod stl_io;
 mod test_bridge;
 mod texture_manager;
 mod tools;
+mod viewer;   // ViewerState, RenderMode
 
 use eframe::egui;
 
@@ -48,7 +51,11 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     }
 
-    env_logger::init();
+    // 結構化日誌（tracing 取代 env_logger）
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
 
     let icon = load_icon_from_file()
         .unwrap_or_else(|| create_app_icon());

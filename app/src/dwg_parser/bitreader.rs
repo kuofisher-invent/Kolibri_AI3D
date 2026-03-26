@@ -101,7 +101,7 @@ impl<'a> BitReader<'a> {
     /// Read a raw 64-bit double (RD)
     pub fn read_rd(&mut self) -> Result<f64, DwgReadError> {
         let bytes = self.read_bytes(8)?;
-        Ok(f64::from_le_bytes(bytes.try_into().unwrap()))
+        Ok(f64::from_le_bytes(bytes.try_into().map_err(|_| DwgReadError::Eof)?))
     }
 
     // ═══════════════════════════════════════════════════════════════════
