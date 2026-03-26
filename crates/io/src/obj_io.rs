@@ -5,21 +5,29 @@ use std::io::{Write, BufRead, BufReader};
 
 /// Export scene to OBJ format
 pub fn export_obj(scene: &Scene, path: &str) -> Result<(), String> {
+    // 生成 .mtl 檔案路徑
+    let mtl_path = path.replace(".obj", ".mtl");
+    let mtl_filename = mtl_path.rsplit(['/', '\\']).next().unwrap_or("materials.mtl");
+
+    // 寫入 .mtl 材質檔
+    write_mtl_file(&mtl_path, scene).map_err(|e| e.to_string())?;
+
     let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
 
     writeln!(file, "# Kolibri_Ai3D OBJ Export").map_err(|e| e.to_string())?;
     writeln!(file, "# Objects: {}", scene.objects.len()).map_err(|e| e.to_string())?;
+    writeln!(file, "mtllib {}", mtl_filename).map_err(|e| e.to_string())?;
     writeln!(file, "").map_err(|e| e.to_string())?;
 
-    let mut vertex_offset = 1u32; // OBJ is 1-indexed
+    let mut vertex_offset = 1u32;
     let mut normal_offset = 1u32;
 
     for obj in scene.objects.values() {
         writeln!(file, "o {}", obj.name).map_err(|e| e.to_string())?;
 
-        // Write material color as a comment
-        let c = obj.material.color();
-        writeln!(file, "# material: {:.3} {:.3} {:.3}", c[0], c[1], c[2]).map_err(|e| e.to_string())?;
+        // 引用材質
+        let mat_name = material_name(&obj.material);
+        writeln!(file, "usemtl {}", mat_name).map_err(|e| e.to_string())?;
 
         let (verts, normals, faces) = generate_obj_mesh(obj);
 
@@ -262,39 +270,75 @@ fn generate_obj_mesh(obj: &SceneObject) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<Ve
     }
 }
 
-/// Import OBJ file into scene (basic: creates one box per object based on bounding box)
+/// Import OBJ file into scene — creates real Shape::Mesh geometry
 pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
+    use kolibri_core::halfedge::HeMesh;
+
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
     let reader = BufReader::new(file);
 
     let mut vertices: Vec<[f32; 3]> = Vec::new();
     let mut current_name = String::from("imported");
-    let mut object_verts: Vec<usize> = Vec::new(); // vertex indices for current object
+    // 每個 object 的面（每面 = Vec<vertex indices>）
+    let mut object_faces: Vec<Vec<usize>> = Vec::new();
     let mut objects_created = 0usize;
 
-    let flush_object = |scene: &mut Scene, name: &str, verts: &[[f32; 3]], indices: &[usize], count: &mut usize| {
-        if indices.is_empty() { return; }
+    let flush_mesh = |scene: &mut Scene, name: &str, verts: &[[f32; 3]],
+                      faces: &[Vec<usize>], count: &mut usize| {
+        if faces.is_empty() { return; }
 
-        // Compute bounding box
-        let mut min = [f32::MAX; 3];
-        let mut max = [f32::MIN; 3];
-        for &idx in indices {
-            if idx < verts.len() {
-                let v = verts[idx];
-                for i in 0..3 {
-                    min[i] = min[i].min(v[i]);
-                    max[i] = max[i].max(v[i]);
+        // 收集此 object 用到的頂點，建立 local index mapping
+        let mut used: std::collections::HashMap<usize, u32> = std::collections::HashMap::new();
+        let mut local_verts: Vec<[f32; 3]> = Vec::new();
+        for face in faces {
+            for &vi in face {
+                if !used.contains_key(&vi) && vi < verts.len() {
+                    let v = verts[vi];
+                    // OBJ 通常是 meters，轉 mm
+                    used.insert(vi, local_verts.len() as u32);
+                    local_verts.push([v[0] * 1000.0, v[1] * 1000.0, v[2] * 1000.0]);
                 }
             }
         }
+        if local_verts.is_empty() { return; }
 
-        // Convert from meters to mm (* 1000)
-        let pos = [min[0] * 1000.0, min[1] * 1000.0, min[2] * 1000.0];
-        let w = ((max[0] - min[0]) * 1000.0).max(10.0);
-        let h = ((max[1] - min[1]) * 1000.0).max(10.0);
-        let d = ((max[2] - min[2]) * 1000.0).max(10.0);
+        // 計算 bounding box 找位置偏移
+        let mut min = [f32::MAX; 3];
+        for v in &local_verts {
+            for i in 0..3 { min[i] = min[i].min(v[i]); }
+        }
 
-        scene.add_box(name.to_string(), pos, w, h, d, MaterialKind::White);
+        // 建立 HeMesh
+        let mut mesh = HeMesh::new();
+        for v in &local_verts {
+            mesh.add_vertex([v[0] - min[0], v[1] - min[1], v[2] - min[2]]);
+        }
+        for face in faces {
+            let local_ids: Vec<u32> = face.iter()
+                .filter_map(|vi| used.get(vi).copied())
+                .collect();
+            if local_ids.len() >= 3 {
+                mesh.add_face(&local_ids);
+            }
+        }
+
+        let id = scene.next_id_pub();
+        scene.objects.insert(id.clone(), kolibri_core::scene::SceneObject {
+            id,
+            name: name.to_string(),
+            shape: Shape::Mesh(mesh),
+            position: min,
+            material: MaterialKind::White,
+            rotation_y: 0.0,
+            tag: "匯入".to_string(),
+            visible: true,
+            roughness: 0.5,
+            metallic: 0.0,
+            texture_path: None,
+            component_kind: Default::default(),
+            parent_id: None,
+        });
+        scene.version += 1;
         *count += 1;
     };
 
@@ -310,24 +354,57 @@ pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
                 vertices.push([parts[0], parts[1], parts[2]]);
             }
         } else if line.starts_with("o ") || line.starts_with("g ") {
-            // Flush previous object
-            flush_object(scene, &current_name, &vertices, &object_verts, &mut objects_created);
-            object_verts.clear();
+            flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created);
+            object_faces.clear();
             current_name = line[2..].trim().to_string();
         } else if line.starts_with("f ") {
-            // Parse face - collect vertex indices
-            for part in line[2..].split_whitespace() {
-                if let Some(vi) = part.split('/').next().and_then(|s| s.parse::<usize>().ok()) {
-                    if vi > 0 {
-                        object_verts.push(vi - 1); // OBJ is 1-indexed
-                    }
-                }
+            let face_verts: Vec<usize> = line[2..].split_whitespace()
+                .filter_map(|part| part.split('/').next().and_then(|s| s.parse::<usize>().ok()))
+                .filter(|&vi| vi > 0)
+                .map(|vi| vi - 1)
+                .collect();
+            if face_verts.len() >= 3 {
+                object_faces.push(face_verts);
             }
         }
     }
 
-    // Flush last object
-    flush_object(scene, &current_name, &vertices, &object_verts, &mut objects_created);
+    flush_mesh(scene, &current_name, &vertices, &object_faces, &mut objects_created);
 
     Ok(objects_created)
+}
+
+// ─── MTL 材質檔生成 ─────────────────────────────────────────────────────────
+
+fn material_name(mat: &MaterialKind) -> String {
+    mat.label().replace(' ', "_").replace('/', "_")
+}
+
+fn write_mtl_file(path: &str, scene: &Scene) -> Result<(), std::io::Error> {
+    use std::collections::HashSet;
+    let mut file = std::fs::File::create(path)?;
+    writeln!(file, "# Kolibri_Ai3D MTL Material Library")?;
+
+    let mut written: HashSet<String> = HashSet::new();
+    for obj in scene.objects.values() {
+        let name = material_name(&obj.material);
+        if written.contains(&name) { continue; }
+        written.insert(name.clone());
+
+        let c = obj.material.color();
+        writeln!(file)?;
+        writeln!(file, "newmtl {}", name)?;
+        writeln!(file, "Ka {:.4} {:.4} {:.4}", c[0] * 0.2, c[1] * 0.2, c[2] * 0.2)?; // ambient
+        writeln!(file, "Kd {:.4} {:.4} {:.4}", c[0], c[1], c[2])?; // diffuse
+        writeln!(file, "Ks 0.2000 0.2000 0.2000")?; // specular
+        writeln!(file, "Ns {:.1}", (1.0 - obj.roughness) * 200.0)?; // shininess from roughness
+        // 透明度
+        if c[3] < 0.9 {
+            writeln!(file, "d {:.4}", c[3])?;
+        } else {
+            writeln!(file, "d 1.0000")?;
+        }
+        writeln!(file, "illum 2")?; // Blinn-Phong
+    }
+    Ok(())
 }

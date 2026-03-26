@@ -362,6 +362,9 @@ pub struct ViewportRenderer {
     cached_idx: Vec<u32>,
     cached_edge_thickness: f32,
     cached_render_mode: u32,
+    // ── Performance: shadow caching ──
+    cached_shadow_verts: Vec<Vertex>,
+    cached_shadow_idx: Vec<u32>,
     // ── Performance: pre-allocated GPU buffers ──
     scene_vb: Option<wgpu::Buffer>,
     scene_ib: Option<wgpu::Buffer>,
@@ -532,6 +535,8 @@ impl ViewportRenderer {
             cached_edge_thickness: -1.0,
             cached_render_mode: u32::MAX,
             // Pre-allocated GPU buffers (None = not yet created)
+            cached_shadow_verts: Vec::new(),
+            cached_shadow_idx: Vec::new(),
             scene_vb: None,
             scene_ib: None,
             scene_vb_capacity: 0,
@@ -815,25 +820,29 @@ impl ViewportRenderer {
             }
         }
 
-        // Generate ground shadow vertices (planar projection onto Y=0 plane)
-        let light_dir = glam::Vec3::new(-0.3, -1.0, -0.5).normalize();
-        let shadow_color = [0.0_f32, 0.0, 0.0, 0.10];
-        let shadow_verts: Vec<Vertex> = tri_verts.iter().map(|v| {
-            let pos = glam::Vec3::from(v.position);
-            let (proj_x, proj_z) = if light_dir.y.abs() > 0.001 {
-                let t = -pos.y / light_dir.y;
-                let proj = pos + light_dir * t;
-                (proj.x, proj.z)
-            } else {
-                (pos.x, pos.z)
-            };
-            Vertex {
-                position: [proj_x, 0.5, proj_z],
-                normal: [0.0, 1.0, 0.0],
-                color: shadow_color,
-            }
-        }).collect();
-        let shadow_idx = tri_idx.clone();
+        // Generate ground shadow vertices (cached — only rebuild when scene dirty)
+        if scene_dirty {
+            let light_dir = glam::Vec3::new(-0.3, -1.0, -0.5).normalize();
+            let shadow_color = [0.0_f32, 0.0, 0.0, 0.10];
+            self.cached_shadow_verts = tri_verts.iter().map(|v| {
+                let pos = glam::Vec3::from(v.position);
+                let (proj_x, proj_z) = if light_dir.y.abs() > 0.001 {
+                    let t = -pos.y / light_dir.y;
+                    let proj = pos + light_dir * t;
+                    (proj.x, proj.z)
+                } else {
+                    (pos.x, pos.z)
+                };
+                Vertex {
+                    position: [proj_x, 0.5, proj_z],
+                    normal: [0.0, 1.0, 0.0],
+                    color: shadow_color,
+                }
+            }).collect();
+            self.cached_shadow_idx = tri_idx.clone();
+        }
+        let shadow_verts = &self.cached_shadow_verts;
+        let shadow_idx = &self.cached_shadow_idx;
 
         // ── Pre-allocated GPU buffer reuse ──
         let grid_buf = make_buffer(device, queue, &self.grid_verts, wgpu::BufferUsages::VERTEX);

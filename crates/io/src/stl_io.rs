@@ -103,8 +103,10 @@ fn sphere_n(phi:f32,theta:f32) -> [f32;3] {
     [phi.sin()*theta.cos(), phi.cos(), phi.sin()*theta.sin()]
 }
 
-/// Import binary STL (creates boxes from bounding regions)
+/// Import binary STL — creates real Shape::Mesh geometry
 pub fn import_stl(scene: &mut Scene, path: &str) -> Result<usize, String> {
+    use kolibri_core::halfedge::HeMesh;
+
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     if data.len() < 84 { return Err("File too small".into()); }
 
@@ -112,30 +114,74 @@ pub fn import_stl(scene: &mut Scene, path: &str) -> Result<usize, String> {
     let expected = 84 + tri_count * 50;
     if data.len() < expected { return Err("Truncated file".into()); }
 
-    // Compute overall bounding box
-    let mut min = [f32::MAX; 3];
-    let mut max = [f32::MIN; 3];
+    // 讀取所有三角面頂點
+    let mut mesh = HeMesh::new();
+    let mut vert_map: std::collections::HashMap<[i32; 3], u32> = std::collections::HashMap::new();
+    let mut min_pos = [f32::MAX; 3];
+
+    let read_f32 = |off: usize| -> f32 {
+        f32::from_le_bytes([data[off], data[off+1], data[off+2], data[off+3]])
+    };
+
+    // First pass: collect all vertices and find min
     let mut offset = 84usize;
+    let mut all_tris: Vec<[[f32; 3]; 3]> = Vec::with_capacity(tri_count);
     for _ in 0..tri_count {
         offset += 12; // skip normal
-        for _ in 0..3 {
+        let mut tri = [[0.0_f32; 3]; 3];
+        for v in 0..3 {
             for j in 0..3 {
-                let f = f32::from_le_bytes([data[offset], data[offset+1], data[offset+2], data[offset+3]]);
-                min[j] = min[j].min(f);
-                max[j] = max[j].max(f);
+                tri[v][j] = read_f32(offset);
+                min_pos[j] = min_pos[j].min(tri[v][j]);
                 offset += 4;
             }
         }
+        all_tris.push(tri);
         offset += 2; // skip attribute
     }
 
-    let w = (max[0] - min[0]).max(1.0);
-    let h = (max[1] - min[1]).max(1.0);
-    let d = (max[2] - min[2]).max(1.0);
+    // Second pass: build mesh with deduped vertices
+    for tri in &all_tris {
+        let mut vids = [0u32; 3];
+        for v in 0..3 {
+            // 量化到 0.01mm 精度做去重
+            let key = [
+                (tri[v][0] * 100.0) as i32,
+                (tri[v][1] * 100.0) as i32,
+                (tri[v][2] * 100.0) as i32,
+            ];
+            let vid = *vert_map.entry(key).or_insert_with(|| {
+                mesh.add_vertex([
+                    tri[v][0] - min_pos[0],
+                    tri[v][1] - min_pos[1],
+                    tri[v][2] - min_pos[2],
+                ])
+            });
+            vids[v] = vid;
+        }
+        mesh.add_face(&vids);
+    }
+
     let name = std::path::Path::new(path).file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "STL_Import".to_string());
 
-    scene.add_box(name, [min[0], min[1], min[2]], w, h, d, MaterialKind::White);
+    let id = scene.next_id_pub();
+    scene.objects.insert(id.clone(), kolibri_core::scene::SceneObject {
+        id,
+        name,
+        shape: Shape::Mesh(mesh),
+        position: min_pos,
+        material: MaterialKind::White,
+        rotation_y: 0.0,
+        tag: "匯入".to_string(),
+        visible: true,
+        roughness: 0.5,
+        metallic: 0.0,
+        texture_path: None,
+        component_kind: Default::default(),
+        parent_id: None,
+    });
+    scene.version += 1;
     Ok(1)
 }

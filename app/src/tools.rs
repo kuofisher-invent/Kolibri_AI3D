@@ -2159,6 +2159,66 @@ impl KolibriApp {
             }
         }
 
+        // Polar array: "6r" or "4R" — N copies rotated equally around Y at selection center
+        if (self.editor.measure_input.ends_with('r') || self.editor.measure_input.ends_with('R'))
+            && self.editor.measure_input.len() > 1
+            && !self.editor.selected_ids.is_empty()
+        {
+            let count_str = &self.editor.measure_input[..self.editor.measure_input.len() - 1];
+            if let Ok(count) = count_str.parse::<usize>() {
+                if count >= 2 && count <= 100 {
+                    // 計算選取物件的中心
+                    let selected_objs: Vec<_> = self.editor.selected_ids.iter()
+                        .filter_map(|id| self.scene.objects.get(id).cloned())
+                        .collect();
+                    if !selected_objs.is_empty() {
+                        let mut cx = 0.0_f32;
+                        let mut cz = 0.0_f32;
+                        for o in &selected_objs {
+                            let (w, _, d) = match &o.shape {
+                                Shape::Box { width, depth, .. } => (*width, 0.0, *depth),
+                                Shape::Cylinder { radius, .. } => (*radius * 2.0, 0.0, *radius * 2.0),
+                                _ => (0.0, 0.0, 0.0),
+                            };
+                            cx += o.position[0] + w / 2.0;
+                            cz += o.position[2] + d / 2.0;
+                        }
+                        cx /= selected_objs.len() as f32;
+                        cz /= selected_objs.len() as f32;
+
+                        self.scene.snapshot();
+                        let angle_step = std::f32::consts::TAU / count as f32;
+                        let mut new_ids = Vec::new();
+                        for i in 1..count {
+                            let angle = angle_step * i as f32;
+                            let (sin_a, cos_a) = angle.sin_cos();
+                            for base in &selected_objs {
+                                let mut clone = base.clone();
+                                clone.id = self.scene.next_id_pub();
+                                // 繞 (cx, cz) 旋轉
+                                let dx = clone.position[0] - cx;
+                                let dz = clone.position[2] - cz;
+                                clone.position[0] = cx + dx * cos_a - dz * sin_a;
+                                clone.position[2] = cz + dx * sin_a + dz * cos_a;
+                                clone.rotation_y += angle;
+                                new_ids.push(clone.id.clone());
+                                self.scene.objects.insert(clone.id.clone(), clone);
+                            }
+                        }
+                        self.scene.version += 1;
+                        self.editor.selected_ids.extend(new_ids);
+                        self.file_message = Some((
+                            format!("極座標陣列：{} 個副本（{:.0}° 間隔）",
+                                count, angle_step.to_degrees()),
+                            std::time::Instant::now(),
+                        ));
+                        self.editor.measure_input.clear();
+                        return;
+                    }
+                }
+            }
+        }
+
         let parts: Vec<f32> = self.editor.measure_input
             .split(|c: char| c == ',' || c == 'x')
             .filter_map(|s| s.trim().parse().ok())

@@ -106,6 +106,61 @@ impl HeMesh {
         (e1, e2)
     }
 
+    /// Add a face from a list of vertex IDs (used for mesh import).
+    /// Creates edges between consecutive vertices and assigns them to a face.
+    pub fn add_face(&mut self, vertex_ids: &[u32]) {
+        if vertex_ids.len() < 3 { return; }
+
+        // 計算面法線
+        let p0 = self.vertices.get(&vertex_ids[0]).map(|v| v.pos).unwrap_or([0.0; 3]);
+        let p1 = self.vertices.get(&vertex_ids[1]).map(|v| v.pos).unwrap_or([0.0; 3]);
+        let p2 = self.vertices.get(&vertex_ids[2]).map(|v| v.pos).unwrap_or([0.0; 3]);
+        let a = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]];
+        let b = [p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]];
+        let nx = a[1]*b[2] - a[2]*b[1];
+        let ny = a[2]*b[0] - a[0]*b[2];
+        let nz = a[0]*b[1] - a[1]*b[0];
+        let len = (nx*nx + ny*ny + nz*nz).sqrt().max(1e-10);
+        let normal = [nx/len, ny/len, nz/len];
+
+        // 建立面
+        let fid = self.next_fid;
+        self.next_fid += 1;
+
+        // 為每對連續頂點建立 half-edge
+        let n = vertex_ids.len();
+        let mut edge_ids: Vec<EId> = Vec::with_capacity(n);
+        for i in 0..n {
+            let v1 = vertex_ids[i];
+            let v2 = vertex_ids[(i + 1) % n];
+            // 找既有 edge 或建立新的
+            let eid = if let Some(e) = self.find_edge(v1, v2) {
+                e
+            } else {
+                let (e, _) = self.add_edge_between(v1, v2);
+                e
+            };
+            edge_ids.push(eid);
+        }
+
+        // 設定 face 和 next/prev 鏈結
+        for i in 0..edge_ids.len() {
+            let eid = edge_ids[i];
+            let next_eid = edge_ids[(i + 1) % edge_ids.len()];
+            let prev_eid = edge_ids[(i + edge_ids.len() - 1) % edge_ids.len()];
+            if let Some(e) = self.edges.get_mut(&eid) {
+                e.face = Some(fid);
+                e.next = Some(next_eid);
+                e.prev = Some(prev_eid);
+            }
+        }
+
+        self.faces.insert(fid, HeFace {
+            edge: edge_ids[0],
+            normal,
+        });
+    }
+
     /// Find half-edge from v1 to v2
     pub fn find_edge(&self, v1: VId, v2: VId) -> Option<EId> {
         for (&id, e) in &self.edges {
