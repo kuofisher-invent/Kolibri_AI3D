@@ -673,6 +673,28 @@ impl KolibriApp {
                     (Tool::ZoomExtents, "全部顯示\n自動縮放至顯示所有物件 (Z)"),
                     (Tool::Eraser,      "橡皮擦\n點擊物件直接刪除 (E)"),
                 ]);
+                ui.separator();
+                ui.label(egui::RichText::new("建築").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                self.tool_row(ui, bsz, &[
+                    (Tool::Wall, "牆\n兩點畫牆（W）"),
+                    (Tool::Slab, "板\n兩角畫板"),
+                ]);
+                // 牆/板參數（啟用時顯示）
+                if matches!(self.editor.tool, Tool::Wall | Tool::Slab) {
+                    ui.add_space(4.0);
+                    figma_group(ui, |ui| {
+                        if matches!(self.editor.tool, Tool::Wall) {
+                            ui.add(egui::DragValue::new(&mut self.editor.wall_thickness)
+                                .speed(10.0).prefix("牆厚: ").suffix(" mm").range(50.0..=1000.0));
+                            ui.add(egui::DragValue::new(&mut self.editor.wall_height)
+                                .speed(50.0).prefix("牆高: ").suffix(" mm").range(500.0..=20000.0));
+                        }
+                        if matches!(self.editor.tool, Tool::Slab) {
+                            ui.add(egui::DragValue::new(&mut self.editor.slab_thickness)
+                                .speed(10.0).prefix("板厚: ").suffix(" mm").range(50.0..=1000.0));
+                        }
+                    });
+                }
             }
             WorkMode::Steel => {
                 // Steel tools

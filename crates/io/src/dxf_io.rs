@@ -9,6 +9,20 @@ pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
     // Header
     write!(file, "0\nSECTION\n2\nHEADER\n0\nENDSEC\n").map_err(|e| e.to_string())?;
 
+    // Tables section — LAYER definitions with ACI colors
+    write!(file, "0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n").map_err(|e| e.to_string())?;
+    {
+        let mut layers_written = std::collections::HashSet::new();
+        for obj in scene.objects.values() {
+            if !obj.visible || layers_written.contains(&obj.name) { continue; }
+            layers_written.insert(obj.name.clone());
+            let aci = material_to_aci(&obj.material);
+            write!(file, "0\nLAYER\n2\n{}\n70\n0\n62\n{}\n6\nCONTINUOUS\n",
+                obj.name, aci).map_err(|e| e.to_string())?;
+        }
+    }
+    write!(file, "0\nENDTAB\n0\nENDSEC\n").map_err(|e| e.to_string())?;
+
     // Entities section
     write!(file, "0\nSECTION\n2\nENTITIES\n").map_err(|e| e.to_string())?;
 
@@ -287,4 +301,29 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
 
     if count == 0 { return Err("No geometry found in DXF".into()); }
     Ok(count)
+}
+
+/// Map MaterialKind to DXF ACI (AutoCAD Color Index) — approximate
+fn material_to_aci(mat: &kolibri_core::scene::MaterialKind) -> i32 {
+    use kolibri_core::scene::MaterialKind;
+    match mat {
+        MaterialKind::White | MaterialKind::Plaster => 7,       // white
+        MaterialKind::Black => 250,                              // dark grey
+        MaterialKind::Concrete | MaterialKind::ConcreteSmooth => 8, // grey
+        MaterialKind::Stone | MaterialKind::Granite => 9,       // light grey
+        MaterialKind::Wood | MaterialKind::WoodLight |
+        MaterialKind::WoodDark | MaterialKind::Bamboo | MaterialKind::Plywood => 30, // brown
+        MaterialKind::Metal | MaterialKind::Steel |
+        MaterialKind::Aluminum => 254,                           // light grey
+        MaterialKind::Copper => 40,                              // orange
+        MaterialKind::Gold => 50,                                // yellow
+        MaterialKind::Brick | MaterialKind::BrickWhite => 1,    // red
+        MaterialKind::Glass | MaterialKind::GlassTinted |
+        MaterialKind::GlassFrosted => 4,                         // cyan
+        MaterialKind::Tile | MaterialKind::TileDark => 5,       // blue
+        MaterialKind::Asphalt | MaterialKind::Gravel => 251,    // medium grey
+        MaterialKind::Grass | MaterialKind::Soil => 3,          // green
+        MaterialKind::Marble => 7,                               // white
+        _ => 7,                                                   // default white
+    }
 }
