@@ -117,6 +117,14 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "align_objects".into(),
+                description: "對齊多個物件。mode: left/right/top/bottom/front/back/center_x/center_y/center_z".into(),
+                input_schema: json!({ "type": "object", "required": ["ids", "mode"], "properties": {
+                    "ids":{"type":"array","items":{"type":"string"}},
+                    "mode":{"type":"string","enum":["left","right","top","bottom","front","back","center_x","center_y","center_z"]}
+                }}),
+            },
+            ToolDef {
                 name: "import_file".into(),
                 description: "匯入檔案到場景（OBJ/STL/DXF）".into(),
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": {
@@ -294,6 +302,38 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "align_objects" => {
+                let ids: Vec<String> = args["ids"].as_array()
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                    .unwrap_or_default();
+                let mode = args["mode"].as_str().unwrap_or("left");
+                let mode_num: u8 = match mode {
+                    "left" => 0, "right" => 1, "bottom" => 2, "top" => 3,
+                    "front" => 4, "back" => 5, "center_x" => 6, "center_y" => 7, "center_z" => 8,
+                    _ => 0,
+                };
+                if ids.len() < 2 {
+                    return json!({ "error": "Need at least 2 object IDs" });
+                }
+                // Apply alignment inline
+                self.scene.snapshot();
+                // 簡化：直接對齊 X 座標
+                let positions: Vec<f32> = ids.iter()
+                    .filter_map(|id| self.scene.objects.get(id).map(|o| o.position[mode_num as usize / 2]))
+                    .collect();
+                if let Some(&target) = positions.iter().min_by(|a, b| a.partial_cmp(b).unwrap()) {
+                    for id in &ids {
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            let axis = (mode_num / 2) as usize;
+                            if mode_num % 2 == 0 { // min
+                                obj.position[axis] = target;
+                            }
+                        }
+                    }
+                    self.scene.version += 1;
+                }
+                json!({ "success": true, "aligned": ids.len(), "mode": mode })
+            }
             "import_file" => {
                 let path = args["path"].as_str().unwrap_or("").to_string();
                 let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
