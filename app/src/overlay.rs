@@ -1364,10 +1364,10 @@ impl KolibriApp {
                         egui::FontId::proportional(13.0), egui::Color32::from_gray(180));
                 }
 
-                // ── Floating view buttons (top-right of viewport) ──
+                // ── Floating view buttons (top-right, below render pill) ──
                 {
                     let view_rect = egui::Rect::from_min_size(
-                        egui::pos2(rect.right() - 250.0, rect.top() + 16.0),
+                        egui::pos2(rect.right() - 250.0, rect.top() + 38.0),
                         egui::vec2(240.0, 44.0),
                     );
 
