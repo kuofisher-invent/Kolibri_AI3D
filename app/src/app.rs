@@ -269,6 +269,9 @@ impl KolibriApp {
                 editing_dim_text: String::new(),
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
+                wall_thickness: 200.0,
+                wall_height: 3000.0,
+                slab_thickness: 200.0,
                 command_palette_open: false,
                 command_palette_query: String::new(),
                 gizmo_hovered_axis: None,
@@ -378,6 +381,8 @@ impl KolibriApp {
             "匯出 DXF" => self.handle_menu_action(crate::menu::MenuAction::ExportDxf),
             "匯入 OBJ" => self.handle_menu_action(crate::menu::MenuAction::ImportObj),
             "匯入 DXF" => self.handle_menu_action(crate::menu::MenuAction::ImportDxf),
+            "牆工具" => self.editor.tool = Tool::Wall,
+            "板工具" => self.editor.tool = Tool::Slab,
             _ => {},
         }
     }
@@ -481,6 +486,7 @@ impl eframe::App for KolibriApp {
                 ("匯出 OBJ", ""), ("匯出 STL", ""), ("匯出 DXF", ""),
                 ("匯入 OBJ", ""), ("匯入 DXF", ""),
                 ("清空場景", ""), ("MCP Server", ""),
+                ("牆工具", "W"), ("板工具", ""),
             ];
             let mut close = false;
             egui::Area::new(egui::Id::new("command_palette"))

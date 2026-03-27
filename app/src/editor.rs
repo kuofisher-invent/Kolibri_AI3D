@@ -41,6 +41,9 @@ pub enum Tool {
     Component,
     // ── Edit ──
     Eraser,
+    // ── Architecture ──
+    Wall,       // 參數化牆（兩點 + 厚度 + 高度）
+    Slab,       // 參數化板（矩形 + 厚度）
     // ── Steel Mode Tools ──
     SteelGrid,
     SteelColumn,
@@ -91,6 +94,8 @@ pub(crate) enum DrawState {
     FollowPath { source_id: String, path_points: Vec<[f32; 3]> },
     Measuring { start: [f32; 3] },
     PullingFreeMesh { face_id: u32 },
+    WallFrom { p1: [f32; 3] },
+    SlabCorner { p1: [f32; 3] },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -277,6 +282,10 @@ pub(crate) struct EditorState {
     pub(crate) clipboard: Vec<crate::scene::SceneObject>,
     /// 選取模式（Object/Face/Edge）
     pub(crate) selection_mode: SelectionMode,
+    /// 建築參數
+    pub(crate) wall_thickness: f32,  // mm, 預設 200
+    pub(crate) wall_height: f32,     // mm, 預設 3000
+    pub(crate) slab_thickness: f32,  // mm, 預設 200
     /// Command Palette 狀態
     pub(crate) command_palette_open: bool,
     pub(crate) command_palette_query: String,

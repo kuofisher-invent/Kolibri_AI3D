@@ -21,9 +21,14 @@ app/test_input.json
 app/test_output.json
 app/*.png
 !app/icon.png
+test_mcp_output.k3d
+skp_*.json
+test_*.json
 
 # Auto-save
 app/autosave.k3d
+*.k3d
+!app/assets/**/*.k3d
 
 # Temp
 *.tmp

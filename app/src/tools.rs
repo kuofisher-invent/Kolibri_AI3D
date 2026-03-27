@@ -915,6 +915,7 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::Z) { self.zoom_extents(); }
                     if i.key_pressed(egui::Key::G) { set(Tool::Group, self); }
                     if i.key_pressed(egui::Key::E) { set(Tool::Eraser, self); }
+                    if i.key_pressed(egui::Key::W) && !ctrl { set(Tool::Wall, self); }
 
                     // Standard view shortcuts
                     if i.key_pressed(egui::Key::Num1) { self.viewer.camera.set_front(); }
@@ -1823,6 +1824,80 @@ impl KolibriApp {
                                 format!("路徑 {} 點 — 繼續點擊或按 Enter/ESC 完成擠出", pts.len()),
                                 std::time::Instant::now(),
                             ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // ── Architecture Tools ──
+            Tool::Wall => {
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        if let Some(p) = self.ground_snapped() {
+                            self.editor.draw_state = DrawState::WallFrom { p1: p };
+                        }
+                    }
+                    DrawState::WallFrom { p1 } => {
+                        let p1 = *p1;
+                        if let Some(p2) = self.ground_snapped() {
+                            // 計算牆的方向和法線
+                            let dx = p2[0] - p1[0];
+                            let dz = p2[2] - p1[2];
+                            let len = (dx * dx + dz * dz).sqrt();
+                            if len > 10.0 {
+                                let t = self.editor.wall_thickness;
+                                let h = self.editor.wall_height;
+                                // 法線方向（垂直於牆線段，在 XZ 平面上）
+                                let nx = -dz / len * (t / 2.0);
+                                let nz = dx / len * (t / 2.0);
+
+                                self.scene.snapshot();
+                                let name = self.next_name("Wall");
+                                // 牆體：以 Box 表示，位置和尺寸根據兩端點計算
+                                let min_x = p1[0].min(p2[0]) - nx.abs();
+                                let min_z = p1[2].min(p2[2]) - nz.abs();
+                                let w = (p2[0] - p1[0]).abs() + t;
+                                let d = (p2[2] - p1[2]).abs() + t;
+                                self.scene.add_box(name.clone(), [min_x, 0.0, min_z], w, h, d, MaterialKind::Concrete);
+
+                                self.file_message = Some((
+                                    format!("牆 {} — {:.0}mm × {:.0}mm × {:.0}mm", name, len, t, h),
+                                    std::time::Instant::now(),
+                                ));
+                                // 繼續畫下一面牆（連續）
+                                self.editor.draw_state = DrawState::WallFrom { p1: p2 };
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Tool::Slab => {
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        if let Some(p) = self.ground_snapped() {
+                            self.editor.draw_state = DrawState::SlabCorner { p1: p };
+                        }
+                    }
+                    DrawState::SlabCorner { p1 } => {
+                        let p1 = *p1;
+                        if let Some(p2) = self.ground_snapped() {
+                            let w = (p2[0] - p1[0]).abs().max(10.0);
+                            let d = (p2[2] - p1[2]).abs().max(10.0);
+                            let t = self.editor.slab_thickness;
+                            let min_x = p1[0].min(p2[0]);
+                            let min_z = p1[2].min(p2[2]);
+                            let y = p1[1]; // 板底標高
+
+                            self.scene.snapshot();
+                            let name = self.next_name("Slab");
+                            self.scene.add_box(name.clone(), [min_x, y, min_z], w, t, d, MaterialKind::Concrete);
+                            self.file_message = Some((
+                                format!("板 {} — {:.0}×{:.0}×{:.0}mm", name, w, d, t),
+                                std::time::Instant::now(),
+                            ));
+                            self.editor.draw_state = DrawState::Idle;
                         }
                     }
                     _ => {}

@@ -260,9 +260,8 @@ impl KolibriApp {
                 }
             }
 
-            DrawState::PullingFreeMesh { .. } => {
-                // Preview handled by tools.rs
-            }
+            DrawState::PullingFreeMesh { .. } => {}
+            DrawState::WallFrom { .. } | DrawState::SlabCorner { .. } => {}
 
             DrawState::FollowPath { ref source_id, ref path_points } => {
                 // Show path line preview during Follow Me extrusion

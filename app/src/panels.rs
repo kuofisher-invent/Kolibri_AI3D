@@ -2007,6 +2007,8 @@ impl KolibriApp {
                 Tool::SteelBrace  => "斜撐 — 點擊起點，再點擊終點".into(),
                 Tool::SteelPlate  => "鋼板 — 畫矩形，再推拉厚度".into(),
                 Tool::SteelConnection => "接頭 — 選取兩個構件".into(),
+                Tool::Wall => format!("牆 (W) — 點擊兩點畫牆（厚{:.0}mm 高{:.0}mm）", self.editor.wall_thickness, self.editor.wall_height),
+                Tool::Slab => format!("板 — 點擊兩角畫板（厚{:.0}mm）", self.editor.slab_thickness),
             },
             DrawState::BoxBase { .. } => "移動滑鼠拖出底面矩形, 點擊確認".into(),
             DrawState::BoxHeight { .. } => "上下移動設定高度, 點擊確認 (或輸入數字+Enter)".into(),
@@ -2062,6 +2064,8 @@ impl KolibriApp {
                 }
             }
             DrawState::PullingFreeMesh { .. } => "推拉自由面 — 拖曳拉伸, 放開確認".into(),
+            DrawState::WallFrom { .. } => "牆工具 — 點擊設定終點（連續畫牆，ESC 結束）".into(),
+            DrawState::SlabCorner { .. } => "板工具 — 點擊設定第二角".into(),
             DrawState::FollowPath { path_points, .. } => {
                 if path_points.is_empty() {
                     "跟隨 — 點擊地面定義路徑".into()

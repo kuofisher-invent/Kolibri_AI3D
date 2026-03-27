@@ -591,5 +591,14 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::SteelBrace      => steel_brace(p, r, color),
         Tool::SteelPlate      => steel_plate(p, r, color),
         Tool::SteelConnection => steel_connection(p, r, color),
+        Tool::Wall => { // 牆圖示：矩形 + 門洞
+            p.line_segment([egui::pos2(r.left()+2.0, r.bottom()-2.0), egui::pos2(r.left()+2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));
+            p.line_segment([egui::pos2(r.left()+2.0, r.top()+2.0), egui::pos2(r.right()-2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));
+            p.line_segment([egui::pos2(r.right()-2.0, r.top()+2.0), egui::pos2(r.right()-2.0, r.bottom()-2.0)], egui::Stroke::new(2.0, color));
+        }
+        Tool::Slab => { // 板圖示：水平矩形
+            p.rect_stroke(r.shrink(3.0), 2.0, egui::Stroke::new(1.5, color));
+            p.line_segment([egui::pos2(r.left()+3.0, r.center().y), egui::pos2(r.right()-3.0, r.center().y)], egui::Stroke::new(1.0, color));
+        }
     }
 }
