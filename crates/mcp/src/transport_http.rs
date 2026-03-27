@@ -86,7 +86,23 @@ async fn handle_mcp_post(
                 tool_result(id, result)
             }
         }
-        "resources/list" => JsonRpcResponse::ok(id, serde_json::json!({"resources": []})),
+        "resources/list" => JsonRpcResponse::ok(id, serde_json::json!({"resources": [
+            {"uri": "kolibri://scene", "name": "Current Scene", "mimeType": "application/json"}
+        ]})),
+        "resources/read" => {
+            let uri = req.params.as_ref()
+                .and_then(|p| p["uri"].as_str())
+                .unwrap_or("");
+            if uri == "kolibri://scene" {
+                let state = { adapter.lock().unwrap().execute_tool("get_scene_state", &serde_json::json!({})) };
+                JsonRpcResponse::ok(id, serde_json::json!({
+                    "contents": [{"uri": "kolibri://scene", "mimeType": "application/json",
+                                  "text": serde_json::to_string_pretty(&state).unwrap_or_default()}]
+                }))
+            } else {
+                JsonRpcResponse::err(id, -32602, &format!("Unknown resource: {}", uri))
+            }
+        }
         "prompts/list" => JsonRpcResponse::ok(id, serde_json::json!({"prompts": crate::adapter::prompt_templates()})),
         other => JsonRpcResponse::err(id, -32601, &format!("Method not found: {}", other)),
     };
