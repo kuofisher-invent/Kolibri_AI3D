@@ -132,8 +132,10 @@ pub const DASHBOARD_HTML: &str = r##"<!DOCTYPE html>
           <div>
             <label>Scene Preview</label>
             <div id="scenePreview" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;min-height:150px;text-align:center;overflow:hidden"></div>
-            <label style="margin-top:8px">Scene State</label>
-            <div class="result-box" id="sceneBox" style="max-height:250px">// 點擊 Refresh 更新</div>
+            <label style="margin-top:8px">Scene Objects</label>
+            <div id="objectList" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;max-height:200px;overflow-y:auto;font-size:12px"></div>
+            <label style="margin-top:8px">Scene State (JSON)</label>
+            <div class="result-box" id="sceneBox" style="max-height:150px">// 點擊 Refresh 更新</div>
           </div>
           <button class="btn btn-sm btn-primary" onclick="refreshScene()">↻ Refresh Scene</button>
         </div>
@@ -259,20 +261,40 @@ async function executeTool() {
     resultBox.classList.add('error');
   }
 
-  refreshHealth(); refreshPreview();
+  refreshHealth(); refreshPreview(); refreshObjectList();
 }
 
 async function clearScene() {
   await callTool('clear_scene', {});
   document.getElementById('resultBox').textContent = '// Scene cleared';
   refreshScene();
-  refreshHealth(); refreshPreview();
+  refreshHealth(); refreshPreview(); refreshObjectList();
 }
 
 async function refreshPreview() {
   try {
     const res = await fetch(BASE + '/scene_svg');
     document.getElementById('scenePreview').innerHTML = await res.text();
+  } catch(_) {}
+}
+
+async function refreshObjectList() {
+  try {
+    const res = await callTool('get_scene_state', {});
+    if (res.result && res.result.content) {
+      const data = JSON.parse(res.result.content[0].text);
+      const el = document.getElementById('objectList');
+      if (data.objects && data.objects.length > 0) {
+        el.innerHTML = data.objects.map(o =>
+          `<div style="padding:2px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between">
+            <span style="color:var(--text)">${o.name || o.id}</span>
+            <span style="color:var(--muted);font-size:11px">${o.material || ''}</span>
+          </div>`
+        ).join('');
+      } else {
+        el.innerHTML = '<span style="color:var(--muted)">場景為空</span>';
+      }
+    }
   } catch(_) {}
 }
 
@@ -324,7 +346,7 @@ function addEvent(tool, text) {
   log.prepend(div);
   // Keep max 50 events
   while (log.children.length > 50) log.removeChild(log.lastChild);
-  refreshHealth(); refreshPreview();
+  refreshHealth(); refreshPreview(); refreshObjectList();
 }
 
 init();

@@ -144,3 +144,23 @@ fn make_box(name: &str, min: [f32; 3], max: [f32; 3], material: MaterialKind) ->
         locked: false,
     }
 }
+
+/// Generic CSG — converts any shape to AABB box approximation first
+pub fn shape_csg(a: &SceneObject, b: &SceneObject, op: CsgOp) -> Vec<SceneObject> {
+    let to_box = |obj: &SceneObject| -> SceneObject {
+        let p = obj.position;
+        let (w, h, d) = match &obj.shape {
+            Shape::Box { width, height, depth } => (*width, *height, *depth),
+            Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+            Shape::Sphere { radius, .. } => (*radius * 2.0, *radius * 2.0, *radius * 2.0),
+            _ => return obj.clone(),
+        };
+        SceneObject {
+            shape: Shape::Box { width: w, height: h, depth: d },
+            ..obj.clone()
+        }
+    };
+    let box_a = to_box(a);
+    let box_b = to_box(b);
+    box_csg(&box_a, &box_b, op)
+}
