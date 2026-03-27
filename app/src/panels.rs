@@ -1944,16 +1944,22 @@ impl KolibriApp {
                 // 子物件（縮排）
                 for child_id in &group.children {
                     grouped_obj_ids.insert(child_id.clone());
-                    if let Some(obj) = self.scene.objects.get(child_id) {
+                    let child_info = self.scene.objects.get(child_id)
+                        .map(|o| (shape_icon(&o.shape).to_string(), o.name.clone(), o.visible));
+                    if let Some((icon, name, visible)) = child_info {
                         ui.horizontal(|ui| {
-                            ui.add_space(16.0); // 縮排
+                            ui.add_space(16.0);
                             let selected = self.editor.selected_ids.iter().any(|s| s == child_id);
-                            let icon = shape_icon(&obj.shape);
-                            if ui.selectable_label(selected, format!("{} {}", icon, obj.name)).clicked() {
+                            if ui.selectable_label(selected, format!("{} {}", icon, name)).clicked() {
                                 self.editor.selected_ids = vec![child_id.clone()];
                                 self.right_tab = RightTab::Properties;
                             }
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                let eye = if visible { "👁" } else { "  " };
+                                if ui.small_button(eye).clicked() {
+                                    if let Some(obj) = self.scene.objects.get_mut(child_id) { obj.visible = !obj.visible; }
+                                    self.scene.version += 1;
+                                }
                                 if ui.small_button("✕").clicked() { to_delete = Some(child_id.clone()); }
                             });
                         });
@@ -1978,6 +1984,10 @@ impl KolibriApp {
                     self.right_tab = RightTab::Properties;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(obj) = self.scene.objects.get_mut(oid) {
+                        let eye = if obj.visible { "👁" } else { "  " };
+                        if ui.small_button(eye).clicked() { obj.visible = !obj.visible; self.scene.version += 1; }
+                    }
                     if ui.small_button("✕").clicked() { to_delete = Some(oid.clone()); }
                 });
             });

@@ -383,8 +383,90 @@ impl KolibriApp {
             "匯入 DXF" => self.handle_menu_action(crate::menu::MenuAction::ImportDxf),
             "牆工具" => self.editor.tool = Tool::Wall,
             "板工具" => self.editor.tool = Tool::Slab,
+            "對齊左" => self.align_selected(0),
+            "對齊右" => self.align_selected(1),
+            "對齊上" => self.align_selected(3),
+            "對齊下" => self.align_selected(2),
+            "X中心對齊" => self.align_selected(6),
+            "Y中心對齊" => self.align_selected(7),
+            "Z中心對齊" => self.align_selected(8),
+            "X等距分佈" => self.distribute_selected(0),
+            "Y等距分佈" => self.distribute_selected(1),
+            "Z等距分佈" => self.distribute_selected(2),
             _ => {},
         }
+    }
+
+    /// 對齊選取物件：axis=0(X左), 1(X右), 2(Y下), 3(Y上), 4(Z前), 5(Z後), 6(X中), 7(Y中), 8(Z中)
+    pub(crate) fn align_selected(&mut self, mode: u8) {
+        if self.editor.selected_ids.len() < 2 { return; }
+        let objs: Vec<_> = self.editor.selected_ids.iter()
+            .filter_map(|id| self.scene.objects.get(id).cloned())
+            .collect();
+        if objs.len() < 2 { return; }
+
+        let bbox = |o: &crate::scene::SceneObject| -> ([f32;3], [f32;3]) {
+            let p = o.position;
+            match &o.shape {
+                Shape::Box { width, height, depth } => (p, [p[0]+width, p[1]+height, p[2]+depth]),
+                Shape::Cylinder { radius, height, .. } => (p, [p[0]+radius*2.0, p[1]+height, p[2]+radius*2.0]),
+                Shape::Sphere { radius, .. } => (p, [p[0]+radius*2.0, p[1]+radius*2.0, p[2]+radius*2.0]),
+                _ => (p, [p[0]+100.0, p[1]+100.0, p[2]+100.0]),
+            }
+        };
+
+        let target = match mode {
+            0 => objs.iter().map(|o| bbox(o).0[0]).fold(f32::MAX, f32::min), // align left
+            1 => objs.iter().map(|o| bbox(o).1[0]).fold(f32::MIN, f32::max), // align right
+            2 => objs.iter().map(|o| bbox(o).0[1]).fold(f32::MAX, f32::min), // align bottom
+            3 => objs.iter().map(|o| bbox(o).1[1]).fold(f32::MIN, f32::max), // align top
+            4 => objs.iter().map(|o| bbox(o).0[2]).fold(f32::MAX, f32::min), // align front
+            5 => objs.iter().map(|o| bbox(o).1[2]).fold(f32::MIN, f32::max), // align back
+            6 => { let s: f32 = objs.iter().map(|o| (bbox(o).0[0]+bbox(o).1[0])*0.5).sum(); s / objs.len() as f32 } // center X
+            7 => { let s: f32 = objs.iter().map(|o| (bbox(o).0[1]+bbox(o).1[1])*0.5).sum(); s / objs.len() as f32 } // center Y
+            _ => { let s: f32 = objs.iter().map(|o| (bbox(o).0[2]+bbox(o).1[2])*0.5).sum(); s / objs.len() as f32 } // center Z
+        };
+
+        self.scene.snapshot();
+        for id in &self.editor.selected_ids {
+            if let Some(obj) = self.scene.objects.get_mut(id) {
+                let (mn, mx) = bbox(obj);
+                match mode {
+                    0 => obj.position[0] += target - mn[0],
+                    1 => obj.position[0] += target - mx[0],
+                    2 => obj.position[1] += target - mn[1],
+                    3 => obj.position[1] += target - mx[1],
+                    4 => obj.position[2] += target - mn[2],
+                    5 => obj.position[2] += target - mx[2],
+                    6 => obj.position[0] += target - (mn[0]+mx[0])*0.5,
+                    7 => obj.position[1] += target - (mn[1]+mx[1])*0.5,
+                    _ => obj.position[2] += target - (mn[2]+mx[2])*0.5,
+                }
+            }
+        }
+        self.scene.version += 1;
+    }
+
+    /// 等距分佈選取物件：axis 0=X, 1=Y, 2=Z
+    pub(crate) fn distribute_selected(&mut self, axis: u8) {
+        if self.editor.selected_ids.len() < 3 { return; }
+        let mut items: Vec<(String, f32)> = self.editor.selected_ids.iter()
+            .filter_map(|id| self.scene.objects.get(id).map(|o| (id.clone(), o.position[axis as usize])))
+            .collect();
+        items.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        if items.len() < 3 { return; }
+
+        let first = items.first().unwrap().1;
+        let last = items.last().unwrap().1;
+        let step = (last - first) / (items.len() - 1) as f32;
+
+        self.scene.snapshot();
+        for (i, (id, _)) in items.iter().enumerate() {
+            if let Some(obj) = self.scene.objects.get_mut(id) {
+                obj.position[axis as usize] = first + step * i as f32;
+            }
+        }
+        self.scene.version += 1;
     }
 
     pub(crate) fn has_unsaved_changes(&self) -> bool {
@@ -489,6 +571,9 @@ impl eframe::App for KolibriApp {
                 ("牆工具", "W"), ("板工具", ""),
                 ("就地複製", "Ctrl+D"), ("反轉選取", "Ctrl+I"),
                 ("鏡射 X", "Ctrl+M"),
+                ("對齊左", ""), ("對齊右", ""), ("對齊上", ""), ("對齊下", ""),
+                ("X中心對齊", ""), ("Y中心對齊", ""), ("Z中心對齊", ""),
+                ("X等距分佈", ""), ("Y等距分佈", ""), ("Z等距分佈", ""),
             ];
             let mut close = false;
             egui::Area::new(egui::Id::new("command_palette"))
