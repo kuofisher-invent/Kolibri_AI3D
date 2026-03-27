@@ -117,6 +117,14 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "export_scene".into(),
+                description: "匯出場景到檔案（OBJ/STL/DXF/glTF）".into(),
+                input_schema: json!({ "type": "object", "required": ["path"], "properties": {
+                    "path":{"type":"string"},
+                    "format":{"type":"string","enum":["obj","stl","dxf","gltf"],"description":"auto-detect from extension if omitted"}
+                }}),
+            },
+            ToolDef {
                 name: "undo".into(),
                 description: "撤銷上一步".into(),
                 input_schema: json!({ "type": "object", "properties": {} }),
@@ -279,6 +287,27 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "export_scene" => {
+                let path = args["path"].as_str().unwrap_or("export.obj").to_string();
+                let format = args["format"].as_str().unwrap_or("").to_string();
+                let fmt = if !format.is_empty() { format } else {
+                    if path.ends_with(".stl") { "stl".into() }
+                    else if path.ends_with(".dxf") { "dxf".into() }
+                    else if path.ends_with(".gltf") || path.ends_with(".glb") { "gltf".into() }
+                    else { "obj".into() }
+                };
+                let result = match fmt.as_str() {
+                    "obj" => kolibri_io::obj_io::export_obj(&self.scene, &path),
+                    "stl" => kolibri_io::stl_io::export_stl(&self.scene, &path),
+                    "dxf" => kolibri_io::dxf_io::export_dxf(&self.scene, &path),
+                    "gltf" => kolibri_io::gltf_io::export_gltf(&self.scene, &path),
+                    _ => Err(format!("Unknown format: {}", fmt)),
+                };
+                match result {
+                    Ok(()) => json!({ "success": true, "path": path, "format": fmt }),
+                    Err(e) => json!({ "error": e }),
+                }
+            }
             _ => json!({ "error": format!("Unknown tool: {}", tool) }),
         }
     }
