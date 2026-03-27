@@ -126,7 +126,7 @@ impl KolibriApp {
 
     pub(crate) fn smart_snap(&mut self, raw_ground: [f32; 3], from_point: Option<[f32; 3]>) -> SnapResult {
         let grid = 500.0;
-        let screen_threshold = 18.0_f32; // pixels
+        let screen_threshold = self.editor.snap_threshold;
 
         // Build view-projection matrix and viewport rect for screen-space distance checks
         let aspect = if self.viewer.viewport_size[1] > 0.0 { self.viewer.viewport_size[0] / self.viewer.viewport_size[1] } else { 1.0 };

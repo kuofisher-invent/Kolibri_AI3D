@@ -1843,9 +1843,13 @@ impl KolibriApp {
         section_header(ui, "SNAP");
         figma_group(ui, |ui| {
             ui.columns(3, |cols| {
-                cols[0].label(egui::RichText::new("\u{25cf} \u{7aef}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                cols[1].label(egui::RichText::new("\u{25cb} \u{4e2d}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                cols[2].label(egui::RichText::new("\u{2716} \u{4ea4}\u{9ede}").size(10.0).color(egui::Color32::from_rgb(31, 36, 48)));
+                cols[0].label(egui::RichText::new("● 端點").size(10.0));
+                cols[1].label(egui::RichText::new("○ 中點").size(10.0));
+                cols[2].label(egui::RichText::new("✖ 交點").size(10.0));
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("靈敏度").size(10.0));
+                ui.add(egui::Slider::new(&mut self.editor.snap_threshold, 5.0..=40.0).step_by(1.0).suffix("px"));
             });
         });
 
