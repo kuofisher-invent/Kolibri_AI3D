@@ -1473,6 +1473,30 @@ impl KolibriApp {
                     crate::icons::draw_tool_icon(ui.painter(), inner_rect, self.editor.tool, egui::Color32::WHITE);
                 }
 
+                // ── Viewport 資訊欄（左下角）──
+                {
+                    let obj_count = self.scene.objects.len();
+                    let mode_name = match self.viewer.render_mode {
+                        RenderMode::Shaded => "著色",
+                        RenderMode::Wireframe => "線框",
+                        RenderMode::XRay => "X光",
+                        RenderMode::HiddenLine => "隱藏線",
+                        RenderMode::Monochrome => "單色",
+                        RenderMode::Sketch => "草稿",
+                    };
+                    let plane = match self.viewer.work_plane {
+                        1 => "XY", 2 => "YZ", _ => "XZ",
+                    };
+                    let info = format!("{} 物件 | {} | 平面:{}", obj_count, mode_name, plane);
+                    ui.painter().text(
+                        egui::pos2(rect.min.x + 8.0, rect.max.y - 8.0),
+                        egui::Align2::LEFT_BOTTOM,
+                        &info,
+                        egui::FontId::proportional(10.0),
+                        egui::Color32::from_rgba_unmultiplied(160, 165, 180, 150),
+                    );
+                }
+
                 // ── Toast 通知（右下角堆疊）──
                 {
                     let now = std::time::Instant::now();

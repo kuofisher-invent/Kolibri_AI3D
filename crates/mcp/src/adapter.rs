@@ -117,6 +117,13 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "import_file".into(),
+                description: "匯入檔案到場景（OBJ/STL/DXF）".into(),
+                input_schema: json!({ "type": "object", "required": ["path"], "properties": {
+                    "path":{"type":"string"}
+                }}),
+            },
+            ToolDef {
                 name: "export_scene".into(),
                 description: "匯出場景到檔案（OBJ/STL/DXF/glTF）".into(),
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": {
@@ -287,6 +294,20 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "import_file" => {
+                let path = args["path"].as_str().unwrap_or("").to_string();
+                let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+                let result = match ext.as_str() {
+                    "obj" => kolibri_io::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "stl" => kolibri_io::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "dxf" => kolibri_io::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    _ => Err(format!("Unsupported format: {}", ext)),
+                };
+                match result {
+                    Ok(data) => { let mut d = data; d["success"] = json!(true); d["path"] = json!(path); d }
+                    Err(e) => json!({ "error": e }),
+                }
+            }
             "export_scene" => {
                 let path = args["path"].as_str().unwrap_or("export.obj").to_string();
                 let format = args["format"].as_str().unwrap_or("").to_string();

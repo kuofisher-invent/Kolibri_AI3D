@@ -85,14 +85,23 @@ impl KolibriApp {
     }
 
     pub(crate) fn check_auto_save(&mut self) {
-        if self.last_auto_save.elapsed().as_secs() >= 60
+        if self.last_auto_save.elapsed().as_secs() >= 120
             && self.scene.version != self.auto_save_version
             && !self.scene.objects.is_empty()
         {
-            let path = "D:\\AI_Design\\Kolibri_Ai3D\\app\\autosave.k3d";
-            if let Ok(()) = self.scene.save_to_file(path) {
+            // 使用目前開啟檔案的目錄，或專案目錄
+            let path = if let Some(ref current) = self.current_file {
+                let dir = std::path::Path::new(current).parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| ".".to_string());
+                format!("{}/autosave.k3d", dir)
+            } else {
+                "autosave.k3d".to_string()
+            };
+            if let Ok(()) = self.scene.save_to_file(&path) {
                 self.auto_save_version = self.scene.version;
                 self.last_auto_save = std::time::Instant::now();
+                self.toasts.push(("自動儲存完成".into(), std::time::Instant::now()));
                 tracing::info!("Auto-saved to {}", path);
             }
         }
