@@ -5,6 +5,10 @@ use kolibri_core::scene::{Scene, Shape, MaterialKind};
 use serde_json::{json, Value};
 use crate::protocol::ToolDef;
 
+pub fn prompt_templates() -> Vec<Value> {
+    Vec::new()
+}
+
 /// Kolibri 3D engine adapter — 持有 Scene，執行 MCP 工具
 pub struct KolibriAdapter {
     pub scene: Scene,
@@ -526,4 +530,37 @@ fn parse_material(s: &str) -> MaterialKind {
         "plaster" => MaterialKind::Plaster,
         _ => MaterialKind::Concrete,
     }
+}
+
+/// MCP prompt templates — 預設建築場景生成提示
+pub fn prompt_templates() -> Vec<serde_json::Value> {
+    vec![
+        serde_json::json!({
+            "name": "simple_building",
+            "description": "生成一棟簡易建築（地板+牆壁+柱子）",
+            "arguments": [
+                {"name": "width", "description": "建築寬度(mm)", "required": false},
+                {"name": "depth", "description": "建築深度(mm)", "required": false},
+                {"name": "height", "description": "樓高(mm)", "required": false},
+            ]
+        }),
+        serde_json::json!({
+            "name": "column_grid",
+            "description": "生成柱列網格（指定行列數和間距）",
+            "arguments": [
+                {"name": "rows", "description": "行數", "required": true},
+                {"name": "cols", "description": "列數", "required": true},
+                {"name": "spacing", "description": "間距(mm)", "required": false},
+            ]
+        }),
+        serde_json::json!({
+            "name": "room_layout",
+            "description": "生成一個房間（四面牆+地板+天花板）",
+            "arguments": [
+                {"name": "width", "description": "寬(mm)", "required": false},
+                {"name": "depth", "description": "深(mm)", "required": false},
+                {"name": "wall_thickness", "description": "牆厚(mm)", "required": false},
+            ]
+        }),
+    ]
 }

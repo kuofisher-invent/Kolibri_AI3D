@@ -270,6 +270,7 @@ impl KolibriApp {
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
                 snap_threshold: 18.0,
+                recovery_checked: false,
                 renaming_id: None,
                 rename_buf: String::new(),
                 wall_thickness: 200.0,
@@ -531,6 +532,20 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // ── Crash recovery: 啟動時檢查 autosave ──
+        if !self.editor.recovery_checked {
+            self.editor.recovery_checked = true;
+            let auto_path = "autosave.k3d";
+            if self.scene.objects.is_empty() && std::path::Path::new(auto_path).exists() {
+                if let Ok(n) = self.scene.load_from_file(auto_path) {
+                    if n > 0 {
+                        self.toasts.push((format!("已從自動儲存恢復 {} 個物件", n), std::time::Instant::now()));
+                        self.file_message = Some((format!("已恢復自動儲存 ({} 物件)", n), std::time::Instant::now()));
+                    }
+                }
+            }
+        }
+
         // 深色模式切換（每幀檢查，因為使用者可能隨時切換）
         if self.viewer.dark_mode != ctx.style().visuals.dark_mode {
             if self.viewer.dark_mode {

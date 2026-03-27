@@ -1519,6 +1519,60 @@ impl KolibriApp {
                     crate::icons::draw_tool_icon(ui.painter(), inner_rect, self.editor.tool, egui::Color32::WHITE);
                 }
 
+                // ── Scale bar（左下角比例尺）──
+                {
+                    // 用兩個已知距離的 3D 點投影到螢幕，計算 pixel/mm
+                    let origin = [0.0_f32, 0.0, 0.0];
+                    let x1000 = [1000.0, 0.0, 0.0]; // 1m
+                    if let (Some(sp0), Some(sp1)) = (
+                        Self::world_to_screen_vp(origin, &vp, &rect),
+                        Self::world_to_screen_vp(x1000, &vp, &rect),
+                    ) {
+                        let px_per_mm = ((sp1.x - sp0.x).powi(2) + (sp1.y - sp0.y).powi(2)).sqrt() / 1000.0;
+                        if px_per_mm > 0.001 {
+                            // 選擇適合的比例尺長度（50-150px）
+                            let target_px = 100.0;
+                            let mm_at_target = target_px / px_per_mm;
+                            // 取整到好看的數字
+                            let nice = [100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0, 20000.0];
+                            let scale_mm = nice.iter().copied()
+                                .min_by_key(|v| ((v - mm_at_target).abs() * 100.0) as i64)
+                                .unwrap_or(1000.0);
+                            let bar_px = scale_mm * px_per_mm;
+                            let bar_y = rect.max.y - 32.0;
+                            let bar_x = rect.min.x + 8.0;
+
+                            let bar_color = egui::Color32::from_rgba_unmultiplied(160, 165, 180, 150);
+                            // 橫線
+                            ui.painter().line_segment(
+                                [egui::pos2(bar_x, bar_y), egui::pos2(bar_x + bar_px, bar_y)],
+                                egui::Stroke::new(2.0, bar_color),
+                            );
+                            // 左端帽
+                            ui.painter().line_segment(
+                                [egui::pos2(bar_x, bar_y - 4.0), egui::pos2(bar_x, bar_y + 4.0)],
+                                egui::Stroke::new(1.5, bar_color),
+                            );
+                            // 右端帽
+                            ui.painter().line_segment(
+                                [egui::pos2(bar_x + bar_px, bar_y - 4.0), egui::pos2(bar_x + bar_px, bar_y + 4.0)],
+                                egui::Stroke::new(1.5, bar_color),
+                            );
+                            // 標籤
+                            let label = if scale_mm >= 1000.0 {
+                                format!("{:.0} m", scale_mm / 1000.0)
+                            } else {
+                                format!("{:.0} mm", scale_mm)
+                            };
+                            ui.painter().text(
+                                egui::pos2(bar_x + bar_px / 2.0, bar_y - 6.0),
+                                egui::Align2::CENTER_BOTTOM, &label,
+                                egui::FontId::proportional(9.0), bar_color,
+                            );
+                        }
+                    }
+                }
+
                 // ── Viewport 資訊欄（左下角）──
                 {
                     let obj_count = self.scene.objects.len();

@@ -2034,6 +2034,37 @@ impl KolibriApp {
             self.scene.delete(&id);
         }
 
+        // ── Undo History ──
+        ui.separator();
+        section_header(ui, "UNDO HISTORY");
+        figma_group(ui, |ui| {
+            let undo_count = self.scene.undo_count();
+            let redo_count = self.scene.redo_count();
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(format!("↩ {} 步可復原", undo_count)).size(11.0));
+                ui.label(egui::RichText::new(format!("↪ {} 步可重做", redo_count)).size(11.0));
+            });
+            ui.horizontal(|ui| {
+                if ui.add_enabled(self.scene.can_undo(), egui::Button::new("復原").small()).clicked() {
+                    self.scene.undo();
+                }
+                if ui.add_enabled(self.scene.can_redo(), egui::Button::new("重做").small()).clicked() {
+                    self.scene.redo();
+                }
+                if ui.add_enabled(undo_count > 0, egui::Button::new("全部復原").small()).clicked() {
+                    while self.scene.can_undo() { self.scene.undo(); }
+                }
+            });
+            // 顯示 undo stack 條目標籤（如果有 Diff 類型）
+            for (i, entry) in self.scene.undo_stack_v2.iter().rev().enumerate().take(8) {
+                let label = match entry {
+                    kolibri_core::command::UndoEntry::Diff(d) => format!("  {} — {}", undo_count - i, d.label),
+                    kolibri_core::command::UndoEntry::Full(..) => format!("  {} — 快照", undo_count - i),
+                };
+                ui.label(egui::RichText::new(label).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+            }
+        });
+
         ui.separator();
         if ui.button("🧹 清空").clicked() { self.scene.clear(); self.editor.selected_ids.clear(); }
     }

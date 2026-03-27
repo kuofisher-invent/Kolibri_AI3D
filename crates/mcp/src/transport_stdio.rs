@@ -56,7 +56,7 @@ fn handle_request(req: JsonRpcRequest, adapter: &mut KolibriAdapter) -> JsonRpcR
             tool_result(id, result)
         }
         "resources/list" => JsonRpcResponse::ok(id, serde_json::json!({"resources": []})),
-        "prompts/list" => JsonRpcResponse::ok(id, serde_json::json!({"prompts": []})),
+        "prompts/list" => JsonRpcResponse::ok(id, serde_json::json!({"prompts": crate::adapter::prompt_templates()})),
         other => JsonRpcResponse::err(id, -32601, &format!("Method not found: {}", other)),
     }
 }

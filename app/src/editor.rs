@@ -284,6 +284,8 @@ pub(crate) struct EditorState {
     pub(crate) selection_mode: SelectionMode,
     /// Snap 靈敏度（像素，預設 18）
     pub(crate) snap_threshold: f32,
+    /// Crash recovery: 啟動時檢查是否有 autosave
+    pub(crate) recovery_checked: bool,
     /// Outliner rename 狀態
     pub(crate) renaming_id: Option<String>,
     pub(crate) rename_buf: String,
