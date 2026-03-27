@@ -33,3 +33,8 @@ app/autosave.k3d
 # Temp
 *.tmp
 *.bak
+tmp_*.json
+
+# Sample SKP files (GPT dev, pending review)
+docs/sample/*.skp
+docs/sample/*.metadata.json
