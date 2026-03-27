@@ -130,7 +130,9 @@ pub const DASHBOARD_HTML: &str = r##"<!DOCTYPE html>
             <div class="result-box" id="resultBox">// 點擊 Execute 執行工具</div>
           </div>
           <div>
-            <label>Scene State</label>
+            <label>Scene Preview</label>
+            <div id="scenePreview" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;min-height:150px;text-align:center;overflow:hidden"></div>
+            <label style="margin-top:8px">Scene State</label>
             <div class="result-box" id="sceneBox" style="max-height:250px">// 點擊 Refresh 更新</div>
           </div>
           <button class="btn btn-sm btn-primary" onclick="refreshScene()">↻ Refresh Scene</button>
@@ -176,6 +178,8 @@ async function init() {
       renderToolSelect();
     }
 
+    // Scene preview
+    refreshPreview();
     // SSE events
     connectSSE();
   } catch (e) {
@@ -255,14 +259,21 @@ async function executeTool() {
     resultBox.classList.add('error');
   }
 
-  refreshHealth();
+  refreshHealth(); refreshPreview();
 }
 
 async function clearScene() {
   await callTool('clear_scene', {});
   document.getElementById('resultBox').textContent = '// Scene cleared';
   refreshScene();
-  refreshHealth();
+  refreshHealth(); refreshPreview();
+}
+
+async function refreshPreview() {
+  try {
+    const res = await fetch(BASE + '/scene_svg');
+    document.getElementById('scenePreview').innerHTML = await res.text();
+  } catch(_) {}
 }
 
 async function refreshScene() {
@@ -313,7 +324,7 @@ function addEvent(tool, text) {
   log.prepend(div);
   // Keep max 50 events
   while (log.children.length > 50) log.removeChild(log.lastChild);
-  refreshHealth();
+  refreshHealth(); refreshPreview();
 }
 
 init();

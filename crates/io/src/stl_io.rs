@@ -3,8 +3,13 @@
 use kolibri_core::scene::{Scene, Shape, MaterialKind};
 use std::io::Write;
 
-/// Export scene to binary STL
+/// Export scene to binary STL (mm)
 pub fn export_stl(scene: &Scene, path: &str) -> Result<(), String> {
+    export_stl_options(scene, path, 1.0, false)
+}
+
+/// Export STL with options: scale (1.0=mm, 0.001=m), ascii flag
+pub fn export_stl_options(scene: &Scene, path: &str, scale: f32, ascii: bool) -> Result<(), String> {
     let mut triangles: Vec<([f32; 3], [[f32; 3]; 3])> = Vec::new(); // (normal, [v1,v2,v3])
 
     for obj in scene.objects.values() {
@@ -95,20 +100,44 @@ pub fn export_stl(scene: &Scene, path: &str) -> Result<(), String> {
         }
     }
 
-    // Write binary STL
-    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
-    // Header: exactly 80 bytes
-    let mut header = [0u8; 80];
-    let tag = b"Kolibri_Ai3D STL Export";
-    header[..tag.len()].copy_from_slice(tag);
-    file.write_all(&header).map_err(|e| e.to_string())?;
-    file.write_all(&(triangles.len() as u32).to_le_bytes()).map_err(|e| e.to_string())?;
-    for (n, verts) in &triangles {
-        for f in n { file.write_all(&f.to_le_bytes()).map_err(|e| e.to_string())?; }
-        for v in verts {
-            for f in v { file.write_all(&f.to_le_bytes()).map_err(|e| e.to_string())?; }
+    // Apply scale
+    if (scale - 1.0).abs() > 0.0001 {
+        for (_, verts) in &mut triangles {
+            for v in verts.iter_mut() {
+                v[0] *= scale; v[1] *= scale; v[2] *= scale;
+            }
         }
-        file.write_all(&0u16.to_le_bytes()).map_err(|e| e.to_string())?; // attribute
+    }
+
+    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+
+    if ascii {
+        // ASCII STL
+        writeln!(file, "solid Kolibri_Ai3D").map_err(|e| e.to_string())?;
+        for (n, verts) in &triangles {
+            writeln!(file, "  facet normal {:.6} {:.6} {:.6}", n[0], n[1], n[2]).map_err(|e| e.to_string())?;
+            writeln!(file, "    outer loop").map_err(|e| e.to_string())?;
+            for v in verts {
+                writeln!(file, "      vertex {:.6} {:.6} {:.6}", v[0], v[1], v[2]).map_err(|e| e.to_string())?;
+            }
+            writeln!(file, "    endloop").map_err(|e| e.to_string())?;
+            writeln!(file, "  endfacet").map_err(|e| e.to_string())?;
+        }
+        writeln!(file, "endsolid Kolibri_Ai3D").map_err(|e| e.to_string())?;
+    } else {
+        // Binary STL
+        let mut header = [0u8; 80];
+        let tag = b"Kolibri_Ai3D STL Export";
+        header[..tag.len()].copy_from_slice(tag);
+        file.write_all(&header).map_err(|e| e.to_string())?;
+        file.write_all(&(triangles.len() as u32).to_le_bytes()).map_err(|e| e.to_string())?;
+        for (n, verts) in &triangles {
+            for f in n { file.write_all(&f.to_le_bytes()).map_err(|e| e.to_string())?; }
+            for v in verts {
+                for f in v { file.write_all(&f.to_le_bytes()).map_err(|e| e.to_string())?; }
+            }
+            file.write_all(&0u16.to_le_bytes()).map_err(|e| e.to_string())?;
+        }
     }
     Ok(())
 }

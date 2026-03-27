@@ -30,6 +30,7 @@ pub async fn run_http(port: u16) {
         .route("/mcp", post(handle_mcp_post))
         .route("/sse", get(handle_sse))
         .route("/health", get(handle_health))
+        .route("/scene_svg", get(handle_scene_svg))
         .layer(
             tower_http::cors::CorsLayer::permissive()
         )
@@ -107,6 +108,63 @@ async fn handle_sse(
         }
     };
     Sse::new(stream)
+}
+
+/// GET /scene_svg — 場景 SVG 預覽（isometric wireframe）
+async fn handle_scene_svg(
+    State((adapter, _)): State<(SharedAdapter, Arc<broadcast::Sender<String>>)>,
+) -> axum::response::Html<String> {
+    let adapter = adapter.lock().unwrap();
+    let mut lines = Vec::new();
+    let w = 400.0_f32;
+    let h = 300.0_f32;
+
+    // Simple isometric projection
+    let project = |x: f32, y: f32, z: f32| -> (f32, f32) {
+        let scale = 0.05;
+        let px = w / 2.0 + (x - z) * 0.866 * scale;
+        let py = h / 2.0 - y * scale + (x + z) * 0.5 * scale;
+        (px, py)
+    };
+
+    for obj in adapter.scene.objects.values() {
+        let p = obj.position;
+        let c = obj.material.color();
+        let color = format!("rgb({},{},{})", (c[0]*255.0) as u8, (c[1]*255.0) as u8, (c[2]*255.0) as u8);
+        match &obj.shape {
+            kolibri_core::scene::Shape::Box { width, height, depth } => {
+                let corners = [
+                    (p[0],p[1],p[2]), (p[0]+width,p[1],p[2]),
+                    (p[0]+width,p[1],p[2]+depth), (p[0],p[1],p[2]+depth),
+                    (p[0],p[1]+height,p[2]), (p[0]+width,p[1]+height,p[2]),
+                    (p[0]+width,p[1]+height,p[2]+depth), (p[0],p[1]+height,p[2]+depth),
+                ];
+                let edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)];
+                for (a,b) in &edges {
+                    let (x1,y1) = project(corners[*a].0, corners[*a].1, corners[*a].2);
+                    let (x2,y2) = project(corners[*b].0, corners[*b].1, corners[*b].2);
+                    lines.push(format!(r#"<line x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{}" stroke-width="1.5" opacity="0.8"/>"#, x1,y1,x2,y2, color));
+                }
+            }
+            kolibri_core::scene::Shape::Cylinder { radius, height, .. } => {
+                let cx = p[0]+radius; let cz = p[2]+radius;
+                let (px, py) = project(cx, p[1]+height/2.0, cz);
+                let r_screen = radius * 0.05;
+                lines.push(format!(r#"<ellipse cx="{:.1}" cy="{:.1}" rx="{:.1}" ry="{:.1}" fill="none" stroke="{}" stroke-width="1.5" opacity="0.8"/>"#, px, py, r_screen*0.866, r_screen*0.5, color));
+            }
+            _ => {}
+        }
+    }
+
+    let obj_count = adapter.scene.objects.len();
+    let body = lines.join("\n");
+    let svg = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" style="background:#1a1b2e">
+<text x="10" y="20" fill="rgb(136,136,170)" font-size="12">{obj_count} objects</text>
+{body}
+</svg>"#
+    );
+    axum::response::Html(svg)
 }
 
 /// GET / — Dashboard UI
