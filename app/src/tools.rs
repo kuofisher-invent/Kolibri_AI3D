@@ -35,7 +35,14 @@ impl KolibriApp {
                         if t > 0.0 { Some([x, origin.y + dir.y * t, origin.z + dir.z * t]) } else { None }
                     } else { None }
                 }
-                _ => camera::ray_ground(origin, dir).map(|p| [p.x, p.y, p.z]), // Ground XZ (Y=0)
+                _ => {
+                    // Ground XZ，偏移樓層高度
+                    let floor_y = self.viewer.current_floor as f32 * self.viewer.floor_height;
+                    if dir.y.abs() > 1e-6 {
+                        let t = (floor_y - origin.y) / dir.y;
+                        if t > 0.0 { Some([origin.x + dir.x * t, floor_y, origin.z + dir.z * t]) } else { None }
+                    } else { None }
+                }
             };
 
             // Shift-lock axis (SketchUp-style: hold Shift to lock detected axis)

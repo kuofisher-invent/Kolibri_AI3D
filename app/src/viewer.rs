@@ -47,6 +47,9 @@ pub(crate) struct ViewerState {
     pub(crate) show_grid: bool,
     pub(crate) grid_spacing: f32,  // mm, default 1000.0 (1m)
     pub(crate) dark_mode: bool,
+    /// 樓層管理
+    pub(crate) current_floor: i32,   // 0=GF, 1=1F, 2=2F, -1=B1
+    pub(crate) floor_height: f32,    // mm, 預設 3000
     /// 工作平面：0=Ground(Y=0), 1=XY(front), 2=YZ(side)
     pub(crate) work_plane: u8,
     /// 工作平面高度偏移 (mm)

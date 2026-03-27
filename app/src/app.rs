@@ -219,6 +219,8 @@ impl KolibriApp {
                 show_grid: true,
                 grid_spacing: 1000.0,
                 dark_mode: false,
+                current_floor: 0,
+                floor_height: 3000.0,
                 work_plane: 0,
                 work_plane_offset: 0.0,
             },

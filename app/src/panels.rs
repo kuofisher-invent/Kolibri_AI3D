@@ -1051,6 +1051,19 @@ impl KolibriApp {
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
                 ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
                 ui.checkbox(&mut self.viewer.dark_mode, "深色模式");
+                // 樓層切換
+                ui.horizontal(|ui| {
+                    ui.label("樓層");
+                    if ui.small_button("▼").clicked() { self.viewer.current_floor -= 1; }
+                    let floor_name = match self.viewer.current_floor {
+                        f if f < 0 => format!("B{}", -f),
+                        0 => "GF".to_string(),
+                        f => format!("{}F", f),
+                    };
+                    ui.label(egui::RichText::new(&floor_name).strong().size(13.0));
+                    if ui.small_button("▲").clicked() { self.viewer.current_floor += 1; }
+                    ui.add(egui::DragValue::new(&mut self.viewer.floor_height).speed(50.0).prefix("h:").suffix("mm").range(2000.0..=10000.0));
+                });
                 ui.horizontal(|ui| {
                     ui.label("格線間距");
                     let options = [100.0_f32, 250.0, 500.0, 1000.0, 2000.0, 5000.0];
