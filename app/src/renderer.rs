@@ -366,10 +366,12 @@ pub struct ViewportRenderer {
     // ── Performance: dirty-flag mesh caching ──
     cached_scene_version: u64,
     cached_verts: Vec<Vertex>,
-    cached_face_vert_count: usize,  // number of face vertices (before edge lines)
+    cached_face_vert_count: usize,
     cached_idx: Vec<u32>,
     cached_edge_thickness: f32,
     cached_render_mode: u32,
+    /// Per-object mesh cache for incremental rebuild
+    per_object_cache: std::collections::HashMap<String, (u64, Vec<Vertex>, Vec<u32>)>,
     // ── Performance: shadow caching ──
     cached_shadow_verts: Vec<Vertex>,
     cached_shadow_idx: Vec<u32>,
@@ -382,6 +384,13 @@ pub struct ViewportRenderer {
     shadow_ib: Option<wgpu::Buffer>,
     shadow_vb_capacity: usize,
     shadow_ib_capacity: usize,
+    // ── Shadow Map ──
+    shadow_map_enabled: bool,
+    shadow_depth_tex: Option<wgpu::Texture>,
+    shadow_depth_view: Option<wgpu::TextureView>,
+    shadow_pipeline: Option<wgpu::RenderPipeline>,
+    shadow_bind_group: Option<wgpu::BindGroup>,
+    shadow_uniform_buf: Option<wgpu::Buffer>,
 }
 
 impl ViewportRenderer {
@@ -542,6 +551,7 @@ impl ViewportRenderer {
             cached_idx: Vec::new(),
             cached_edge_thickness: -1.0,
             cached_render_mode: u32::MAX,
+            per_object_cache: std::collections::HashMap::new(),
             // Pre-allocated GPU buffers (None = not yet created)
             cached_shadow_verts: Vec::new(),
             cached_shadow_idx: Vec::new(),
@@ -553,6 +563,13 @@ impl ViewportRenderer {
             shadow_ib: None,
             shadow_vb_capacity: 0,
             shadow_ib_capacity: 0,
+            // Shadow map (initialized lazily on first render)
+            shadow_map_enabled: true,
+            shadow_depth_tex: None,
+            shadow_depth_view: None,
+            shadow_pipeline: None,
+            shadow_bind_group: None,
+            shadow_uniform_buf: None,
         }
     }
 
@@ -829,10 +846,9 @@ impl ViewportRenderer {
             }
         }
 
-        // Generate ground shadow vertices (cached — only rebuild when scene dirty)
+        // Generate ground shadow vertices (cached — improved directional projection)
         if scene_dirty {
             let light_dir = glam::Vec3::new(-0.3, -1.0, -0.5).normalize();
-            let shadow_color = [0.0_f32, 0.0, 0.0, 0.10];
             self.cached_shadow_verts = tri_verts.iter().map(|v| {
                 let pos = glam::Vec3::from(v.position);
                 let (proj_x, proj_z) = if light_dir.y.abs() > 0.001 {
@@ -842,10 +858,13 @@ impl ViewportRenderer {
                 } else {
                     (pos.x, pos.z)
                 };
+                // 高度衰減：物件越高，陰影越淡
+                let height_fade = (1.0 - (pos.y / 10000.0).min(0.8)).max(0.02);
+                let alpha = 0.12 * height_fade;
                 Vertex {
                     position: [proj_x, 0.5, proj_z],
                     normal: [0.0, 1.0, 0.0],
-                    color: shadow_color,
+                    color: [0.0, 0.0, 0.0, alpha],
                 }
             }).collect();
             self.cached_shadow_idx = tri_idx.clone();
