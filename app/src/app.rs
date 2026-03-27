@@ -269,6 +269,8 @@ impl KolibriApp {
                 editing_dim_text: String::new(),
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
+                command_palette_open: false,
+                command_palette_query: String::new(),
                 gizmo_hovered_axis: None,
                 gizmo_drag_axis: None,
             },
@@ -324,6 +326,60 @@ impl KolibriApp {
     pub(crate) fn next_name(&mut self, prefix: &str) -> String {
         self.obj_counter += 1;
         format!("{}_{}", prefix, self.obj_counter)
+    }
+
+    pub(crate) fn execute_command_by_name(&mut self, name: &str) {
+        match name {
+            "建立方塊" => self.editor.tool = Tool::CreateBox,
+            "建立圓柱" => self.editor.tool = Tool::CreateCylinder,
+            "建立球體" => self.editor.tool = Tool::CreateSphere,
+            "選取工具" => self.editor.tool = Tool::Select,
+            "移動工具" => self.editor.tool = Tool::Move,
+            "旋轉工具" => self.editor.tool = Tool::Rotate,
+            "縮放工具" => self.editor.tool = Tool::Scale,
+            "線段工具" => self.editor.tool = Tool::Line,
+            "弧線工具" => self.editor.tool = Tool::Arc,
+            "矩形工具" => self.editor.tool = Tool::Rectangle,
+            "圓形工具" => self.editor.tool = Tool::Circle,
+            "推拉工具" => self.editor.tool = Tool::PushPull,
+            "偏移工具" => self.editor.tool = Tool::Offset,
+            "量尺工具" => self.editor.tool = Tool::TapeMeasure,
+            "標註工具" => self.editor.tool = Tool::Dimension,
+            "橡皮擦" => self.editor.tool = Tool::Eraser,
+            "軌道瀏覽" => self.editor.tool = Tool::Orbit,
+            "平移瀏覽" => self.editor.tool = Tool::Pan,
+            "全部顯示" => self.zoom_extents(),
+            "群組工具" => self.editor.tool = Tool::Group,
+            "復原" => { self.scene.undo(); },
+            "重做" => { self.scene.redo(); },
+            "儲存" => self.save_scene(),
+            "開啟" => self.open_scene(),
+            "全選" => { self.editor.selected_ids = self.scene.objects.keys().cloned().collect(); },
+            "切換線框" => self.viewer.render_mode = RenderMode::Wireframe,
+            "切換X光" => self.viewer.render_mode = RenderMode::XRay,
+            "切換草稿" => self.viewer.render_mode = RenderMode::Sketch,
+            "深色模式" => self.viewer.dark_mode = !self.viewer.dark_mode,
+            "顯示格線" => self.viewer.show_grid = !self.viewer.show_grid,
+            "清空場景" => { self.scene.snapshot(); self.scene.objects.clear(); self.scene.version += 1; },
+            "MCP Server" => {
+                if !self.mcp_http_running {
+                    let port = self.mcp_http_port;
+                    std::thread::spawn(move || {
+                        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+                        rt.block_on(kolibri_mcp::transport_http::run_http(port));
+                    });
+                    self.mcp_http_running = true;
+                }
+                let url = format!("http://localhost:{}", self.mcp_http_port);
+                let _ = std::process::Command::new("cmd").args(["/C", "start", &url]).spawn();
+            },
+            "匯出 OBJ" => self.handle_menu_action(crate::menu::MenuAction::ExportObj),
+            "匯出 STL" => self.handle_menu_action(crate::menu::MenuAction::ExportStl),
+            "匯出 DXF" => self.handle_menu_action(crate::menu::MenuAction::ExportDxf),
+            "匯入 OBJ" => self.handle_menu_action(crate::menu::MenuAction::ImportObj),
+            "匯入 DXF" => self.handle_menu_action(crate::menu::MenuAction::ImportDxf),
+            _ => {},
+        }
     }
 
     pub(crate) fn has_unsaved_changes(&self) -> bool {
@@ -399,6 +455,80 @@ impl eframe::App for KolibriApp {
                 v.selection.bg_fill = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 36);
                 v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
                 ctx.set_visuals(v);
+            }
+        }
+
+        // ── Command Palette (Ctrl+P) ──
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::P)) {
+            self.editor.command_palette_open = !self.editor.command_palette_open;
+            self.editor.command_palette_query.clear();
+        }
+        if self.editor.command_palette_open {
+            let commands: &[(&str, &str)] = &[
+                ("建立方塊", "B"), ("建立圓柱", ""), ("建立球體", ""),
+                ("選取工具", "Space"), ("移動工具", "M"), ("旋轉工具", "Q"),
+                ("縮放工具", "S"), ("線段工具", "L"), ("弧線工具", "A"),
+                ("矩形工具", "R"), ("圓形工具", "C"), ("推拉工具", "P"),
+                ("偏移工具", "F"), ("量尺工具", "T"), ("標註工具", "D"),
+                ("橡皮擦", "E"), ("軌道瀏覽", "O"), ("平移瀏覽", "H"),
+                ("全部顯示", "Z"), ("群組工具", "G"),
+                ("復原", "Ctrl+Z"), ("重做", "Ctrl+Y"),
+                ("儲存", "Ctrl+S"), ("開啟", "Ctrl+O"),
+                ("複製", "Ctrl+C"), ("貼上", "Ctrl+V"), ("剪下", "Ctrl+X"),
+                ("全選", "Ctrl+A"),
+                ("切換線框", ""), ("切換X光", ""), ("切換草稿", ""),
+                ("深色模式", ""), ("顯示格線", ""),
+                ("匯出 OBJ", ""), ("匯出 STL", ""), ("匯出 DXF", ""),
+                ("匯入 OBJ", ""), ("匯入 DXF", ""),
+                ("清空場景", ""), ("MCP Server", ""),
+            ];
+            let mut close = false;
+            egui::Area::new(egui::Id::new("command_palette"))
+                .fixed_pos(egui::pos2(ctx.screen_rect().center().x - 200.0, 80.0))
+                .show(ctx, |ui| {
+                    let frame = egui::Frame::none()
+                        .fill(egui::Color32::from_rgba_unmultiplied(30, 32, 48, 240))
+                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245)))
+                        .rounding(12.0)
+                        .inner_margin(egui::Margin::same(8.0));
+                    frame.show(ui, |ui| {
+                        ui.set_min_width(400.0);
+                        let resp = ui.add(egui::TextEdit::singleline(&mut self.editor.command_palette_query)
+                            .hint_text("搜尋指令...")
+                            .desired_width(384.0)
+                            .font(egui::FontId::proportional(14.0)));
+                        if !resp.has_focus() { resp.request_focus(); }
+                        ui.add_space(4.0);
+
+                        let query = self.editor.command_palette_query.to_lowercase();
+                        let mut shown = 0;
+                        for (name, shortcut) in commands {
+                            if !query.is_empty() && !name.to_lowercase().contains(&query) { continue; }
+                            if shown >= 12 { break; }
+                            shown += 1;
+                            ui.horizontal(|ui| {
+                                if ui.add(egui::Label::new(
+                                    egui::RichText::new(*name).size(13.0).color(egui::Color32::from_rgb(220, 225, 240))
+                                ).sense(egui::Sense::click())).clicked() {
+                                    // 執行對應指令
+                                    self.execute_command_by_name(name);
+                                    close = true;
+                                }
+                                if !shortcut.is_empty() {
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.label(egui::RichText::new(*shortcut).size(10.0).color(egui::Color32::from_rgb(120, 130, 150)));
+                                    });
+                                }
+                            });
+                        }
+
+                        // ESC 關閉
+                        if ui.input(|i| i.key_pressed(egui::Key::Escape)) { close = true; }
+                    });
+                });
+            if close {
+                self.editor.command_palette_open = false;
+                self.editor.command_palette_query.clear();
             }
         }
 

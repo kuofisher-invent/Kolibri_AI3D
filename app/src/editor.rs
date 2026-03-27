@@ -277,6 +277,9 @@ pub(crate) struct EditorState {
     pub(crate) clipboard: Vec<crate::scene::SceneObject>,
     /// 選取模式（Object/Face/Edge）
     pub(crate) selection_mode: SelectionMode,
+    /// Command Palette 狀態
+    pub(crate) command_palette_open: bool,
+    pub(crate) command_palette_query: String,
     /// Gizmo hover 狀態：None / Some(0=X, 1=Y, 2=Z)
     pub(crate) gizmo_hovered_axis: Option<u8>,
     /// Gizmo drag 狀態：拖曳中鎖定的軸

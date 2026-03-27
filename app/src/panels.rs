@@ -1894,16 +1894,55 @@ impl KolibriApp {
             return;
         }
 
-        let items: Vec<(String, String, String)> = self.scene.objects.values()
-            .map(|o| {
-                let icon = match &o.shape { Shape::Box{..}=>"⬜", Shape::Cylinder{..}=>"○", Shape::Sphere{..}=>"◎", Shape::Line{..}=>"╱", Shape::Mesh{..}=>"◇" };
-                (o.id.clone(), o.name.clone(), icon.to_string())
-            }).collect();
-
+        // ── Scene Outliner 樹狀結構 ──
+        let shape_icon = |s: &Shape| -> &str {
+            match s { Shape::Box{..}=>"⬜", Shape::Cylinder{..}=>"○", Shape::Sphere{..}=>"◎", Shape::Line{..}=>"╱", Shape::Mesh{..}=>"◇" }
+        };
         let mut to_delete = None;
-        for (oid, name, icon) in &items {
+
+        // 先畫群組（含子物件縮排）
+        let group_ids: Vec<String> = self.scene.groups.keys().cloned().collect();
+        let mut grouped_obj_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for gid in &group_ids {
+            if let Some(group) = self.scene.groups.get(gid) {
+                // 群組標題
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(format!("📁 {}", group.name)).strong().size(12.0));
+                    ui.label(egui::RichText::new(format!("({})", group.children.len())).size(10.0).color(egui::Color32::GRAY));
+                });
+                // 子物件（縮排）
+                for child_id in &group.children {
+                    grouped_obj_ids.insert(child_id.clone());
+                    if let Some(obj) = self.scene.objects.get(child_id) {
+                        ui.horizontal(|ui| {
+                            ui.add_space(16.0); // 縮排
+                            let selected = self.editor.selected_ids.iter().any(|s| s == child_id);
+                            let icon = shape_icon(&obj.shape);
+                            if ui.selectable_label(selected, format!("{} {}", icon, obj.name)).clicked() {
+                                self.editor.selected_ids = vec![child_id.clone()];
+                                self.right_tab = RightTab::Properties;
+                            }
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.small_button("✕").clicked() { to_delete = Some(child_id.clone()); }
+                            });
+                        });
+                    }
+                }
+                ui.add_space(2.0);
+            }
+        }
+
+        // 再畫不屬於任何群組的根物件
+        let mut root_items: Vec<(String, String, String)> = self.scene.objects.values()
+            .filter(|o| !grouped_obj_ids.contains(&o.id))
+            .map(|o| (o.id.clone(), o.name.clone(), shape_icon(&o.shape).to_string()))
+            .collect();
+        root_items.sort_by(|a, b| a.1.cmp(&b.1)); // 按名稱排序
+
+        for (oid, name, icon) in &root_items {
             ui.horizontal(|ui| {
-                if ui.selectable_label(self.editor.selected_ids.iter().any(|s| s == oid), format!("{} {}", icon, name)).clicked() {
+                let selected = self.editor.selected_ids.iter().any(|s| s == oid);
+                if ui.selectable_label(selected, format!("{} {}", icon, name)).clicked() {
                     self.editor.selected_ids = vec![oid.clone()];
                     self.right_tab = RightTab::Properties;
                 }
@@ -1912,6 +1951,7 @@ impl KolibriApp {
                 });
             });
         }
+
         if let Some(id) = to_delete {
             self.editor.selected_ids.retain(|s| s != &id);
             self.scene.delete(&id);

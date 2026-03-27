@@ -160,6 +160,64 @@ impl KolibriApp {
         rect: egui::Rect,
         response: &egui::Response,
     ) {
+                // ── 渲染模式 Pill（右上角快速切換）──
+                {
+                    let modes = [
+                        (RenderMode::Shaded, "著色"),
+                        (RenderMode::Wireframe, "線框"),
+                        (RenderMode::XRay, "X光"),
+                        (RenderMode::HiddenLine, "隱藏線"),
+                        (RenderMode::Sketch, "草稿"),
+                    ];
+                    let pill_h = 22.0;
+                    let pill_w = 42.0;
+                    let total_w = modes.len() as f32 * pill_w + 2.0;
+                    let pill_x = rect.max.x - total_w - 8.0;
+                    let pill_y = rect.min.y + 8.0;
+
+                    // 背景膠囊
+                    let bg_rect = egui::Rect::from_min_size(
+                        egui::pos2(pill_x, pill_y),
+                        egui::vec2(total_w, pill_h),
+                    );
+                    ui.painter().rect_filled(bg_rect, pill_h / 2.0,
+                        egui::Color32::from_rgba_unmultiplied(30, 32, 45, 200));
+
+                    for (i, (mode, label)) in modes.iter().enumerate() {
+                        let active = self.viewer.render_mode == *mode;
+                        let btn_rect = egui::Rect::from_min_size(
+                            egui::pos2(pill_x + 1.0 + i as f32 * pill_w, pill_y + 1.0),
+                            egui::vec2(pill_w - 1.0, pill_h - 2.0),
+                        );
+                        let mouse = egui::pos2(self.editor.mouse_screen[0] + rect.min.x,
+                                               self.editor.mouse_screen[1] + rect.min.y);
+                        let hovered = btn_rect.contains(mouse);
+
+                        if active {
+                            ui.painter().rect_filled(btn_rect, pill_h / 2.0 - 1.0,
+                                egui::Color32::from_rgb(76, 139, 245));
+                        } else if hovered {
+                            ui.painter().rect_filled(btn_rect, pill_h / 2.0 - 1.0,
+                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 60));
+                        }
+
+                        let text_color = if active {
+                            egui::Color32::WHITE
+                        } else {
+                            egui::Color32::from_rgb(180, 185, 200)
+                        };
+                        ui.painter().text(
+                            btn_rect.center(), egui::Align2::CENTER_CENTER,
+                            label, egui::FontId::proportional(10.0), text_color,
+                        );
+
+                        // 點擊切換
+                        if hovered && response.clicked() {
+                            self.viewer.render_mode = *mode;
+                        }
+                    }
+                }
+
                 // ── Draw guide/construction lines ──
                 if !self.scene.guide_lines.is_empty() {
                     let guide_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(150, 50, 50, 180));
