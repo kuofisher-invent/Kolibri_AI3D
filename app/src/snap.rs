@@ -1,7 +1,7 @@
 use eframe::egui;
 
 use crate::app::{
-    AiSuggestion, DrawState, KolibriApp, SnapResult, SnapType, SuggestionAction,
+    AiSuggestion, DrawState, KolibriApp, SnapResult, SnapType, SuggestionAction, Tool,
 };
 use crate::scene::Shape;
 
@@ -464,6 +464,31 @@ impl KolibriApp {
                         }
                     }
                 }
+            }
+        }
+
+        // ── Object boundary snapping（物件間 AABB 邊界吸附）──
+        // 當 Move 工具拖曳時，吸附到其他物件的 min/max 邊界
+        if matches!(self.editor.tool, Tool::Move) && !self.editor.selected_ids.is_empty() {
+            let snap_dist = 30.0_f32; // mm 容差
+            let selected_set: std::collections::HashSet<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
+            for obj in self.scene.objects.values() {
+                if selected_set.contains(obj.id.as_str()) || !obj.visible { continue; }
+                let p = obj.position;
+                let (mx, my, mz) = match &obj.shape {
+                    Shape::Box { width, height, depth } => (p[0] + width, p[1] + height, p[2] + depth),
+                    Shape::Cylinder { radius, height, .. } => (p[0] + radius * 2.0, p[1] + height, p[2] + radius * 2.0),
+                    _ => continue,
+                };
+                // X 軸邊界
+                if (best_pos[0] - p[0]).abs() < snap_dist { best_pos[0] = p[0]; }
+                else if (best_pos[0] - mx).abs() < snap_dist { best_pos[0] = mx; }
+                // Y 軸邊界
+                if (best_pos[1] - p[1]).abs() < snap_dist { best_pos[1] = p[1]; }
+                else if (best_pos[1] - my).abs() < snap_dist { best_pos[1] = my; }
+                // Z 軸邊界
+                if (best_pos[2] - p[2]).abs() < snap_dist { best_pos[2] = p[2]; }
+                else if (best_pos[2] - mz).abs() < snap_dist { best_pos[2] = mz; }
             }
         }
 

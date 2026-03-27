@@ -1519,6 +1519,33 @@ impl KolibriApp {
                     crate::icons::draw_tool_icon(ui.painter(), inner_rect, self.editor.tool, egui::Color32::WHITE);
                 }
 
+                // ── 樓層指示線 ──
+                if self.viewer.current_floor != 0 {
+                    let floor_y = self.viewer.current_floor as f32 * self.viewer.floor_height;
+                    // 畫水平虛線標示樓層
+                    let left_world = [-10000.0, floor_y, 0.0];
+                    let right_world = [10000.0, floor_y, 0.0];
+                    if let (Some(sl), Some(sr)) = (
+                        Self::world_to_screen_vp(left_world, &vp, &rect),
+                        Self::world_to_screen_vp(right_world, &vp, &rect),
+                    ) {
+                        let floor_color = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 80);
+                        draw_dashed_line(ui.painter(), sl, sr, egui::Stroke::new(1.0, floor_color), 8.0, 6.0);
+                        let floor_name = match self.viewer.current_floor {
+                            f if f < 0 => format!("B{}", -f),
+                            0 => "GF".to_string(),
+                            f => format!("{}F", f),
+                        };
+                        ui.painter().text(
+                            egui::pos2(rect.min.x + 8.0, sl.y - 10.0),
+                            egui::Align2::LEFT_BOTTOM,
+                            &format!("── {} ({:.0}m) ──", floor_name, floor_y / 1000.0),
+                            egui::FontId::proportional(10.0),
+                            egui::Color32::from_rgba_unmultiplied(76, 139, 245, 120),
+                        );
+                    }
+                }
+
                 // ── Scale bar（左下角比例尺）──
                 {
                     // 用兩個已知距離的 3D 點投影到螢幕，計算 pixel/mm

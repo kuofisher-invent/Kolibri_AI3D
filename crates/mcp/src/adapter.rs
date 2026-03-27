@@ -5,10 +5,6 @@ use kolibri_core::scene::{Scene, Shape, MaterialKind};
 use serde_json::{json, Value};
 use crate::protocol::ToolDef;
 
-pub fn prompt_templates() -> Vec<Value> {
-    Vec::new()
-}
-
 /// Kolibri 3D engine adapter — 持有 Scene，執行 MCP 工具
 pub struct KolibriAdapter {
     pub scene: Scene,
@@ -119,6 +115,27 @@ impl KolibriAdapter {
                 name: "load_scene".into(),
                 description: "載入場景".into(),
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
+            },
+            ToolDef {
+                name: "create_wall".into(),
+                description: "建立牆（兩端點+厚度+高度 mm）".into(),
+                input_schema: json!({ "type": "object", "required": ["start", "end"], "properties": {
+                    "start":{"type":"array","items":{"type":"number"}},
+                    "end":{"type":"array","items":{"type":"number"}},
+                    "thickness":{"type":"number","default":200},
+                    "height":{"type":"number","default":3000},
+                    "material":{"type":"string","default":"concrete"}
+                }}),
+            },
+            ToolDef {
+                name: "create_slab".into(),
+                description: "建立板（兩對角+厚度 mm）".into(),
+                input_schema: json!({ "type": "object", "required": ["corner1", "corner2"], "properties": {
+                    "corner1":{"type":"array","items":{"type":"number"}},
+                    "corner2":{"type":"array","items":{"type":"number"}},
+                    "thickness":{"type":"number","default":200},
+                    "material":{"type":"string","default":"concrete"}
+                }}),
             },
             ToolDef {
                 name: "batch_create".into(),
@@ -340,6 +357,38 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "create_wall" => {
+                let start = parse_pos(&args["start"]);
+                let end = parse_pos(&args["end"]);
+                let t = args["thickness"].as_f64().unwrap_or(200.0) as f32;
+                let h = args["height"].as_f64().unwrap_or(3000.0) as f32;
+                let mat = parse_material(args["material"].as_str().unwrap_or("concrete"));
+                let dx = end[0] - start[0];
+                let dz = end[2] - start[2];
+                let len = (dx*dx + dz*dz).sqrt();
+                let nx = if len > 0.01 { -dz / len * (t / 2.0) } else { t / 2.0 };
+                let nz = if len > 0.01 { dx / len * (t / 2.0) } else { 0.0 };
+                let min_x = start[0].min(end[0]) - nx.abs();
+                let min_z = start[2].min(end[2]) - nz.abs();
+                let w = (end[0] - start[0]).abs() + t;
+                let d = (end[2] - start[2]).abs() + t;
+                let y = start[1].min(end[1]);
+                let id = self.scene.add_box("Wall".into(), [min_x, y, min_z], w, h, d, mat);
+                json!({ "success": true, "id": id, "length_mm": len })
+            }
+            "create_slab" => {
+                let c1 = parse_pos(&args["corner1"]);
+                let c2 = parse_pos(&args["corner2"]);
+                let t = args["thickness"].as_f64().unwrap_or(200.0) as f32;
+                let mat = parse_material(args["material"].as_str().unwrap_or("concrete"));
+                let min_x = c1[0].min(c2[0]);
+                let min_z = c1[2].min(c2[2]);
+                let w = (c2[0] - c1[0]).abs().max(10.0);
+                let d = (c2[2] - c1[2]).abs().max(10.0);
+                let y = c1[1].min(c2[1]);
+                let id = self.scene.add_box("Slab".into(), [min_x, y, min_z], w, t, d, mat);
+                json!({ "success": true, "id": id })
+            }
             "batch_create" => {
                 let objects = args["objects"].as_array().cloned().unwrap_or_default();
                 let mut ids = Vec::new();
