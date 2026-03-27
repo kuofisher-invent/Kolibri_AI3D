@@ -219,6 +219,7 @@ impl KolibriApp {
                 show_grid: true,
                 grid_spacing: 1000.0,
                 dark_mode: false,
+                language: 0, // 0=繁中, 1=English
                 current_floor: 0,
                 floor_height: 3000.0,
                 work_plane: 0,

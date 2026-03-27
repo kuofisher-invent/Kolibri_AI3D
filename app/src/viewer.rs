@@ -47,6 +47,8 @@ pub(crate) struct ViewerState {
     pub(crate) show_grid: bool,
     pub(crate) grid_spacing: f32,  // mm, default 1000.0 (1m)
     pub(crate) dark_mode: bool,
+    /// 語言：0=繁體中文, 1=English
+    pub(crate) language: u8,
     /// 樓層管理
     pub(crate) current_floor: i32,   // 0=GF, 1=1F, 2=2F, -1=B1
     pub(crate) floor_height: f32,    // mm, 預設 3000

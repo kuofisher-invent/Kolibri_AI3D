@@ -1051,6 +1051,11 @@ impl KolibriApp {
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
                 ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
                 ui.checkbox(&mut self.viewer.dark_mode, "深色模式");
+                ui.horizontal(|ui| {
+                    ui.label("語言");
+                    if ui.selectable_label(self.viewer.language == 0, "繁中").clicked() { self.viewer.language = 0; }
+                    if ui.selectable_label(self.viewer.language == 1, "EN").clicked() { self.viewer.language = 1; }
+                });
                 // 樓層切換
                 ui.horizontal(|ui| {
                     ui.label("樓層");
