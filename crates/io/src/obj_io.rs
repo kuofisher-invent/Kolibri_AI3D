@@ -21,6 +21,7 @@ pub fn export_obj(scene: &Scene, path: &str) -> Result<(), String> {
 
     let mut vertex_offset = 1u32;
     let mut normal_offset = 1u32;
+    let mut uv_offset = 1u32;
 
     for obj in scene.objects.values() {
         writeln!(file, "o {}", obj.name).map_err(|e| e.to_string())?;
@@ -33,9 +34,14 @@ pub fn export_obj(scene: &Scene, path: &str) -> Result<(), String> {
 
         // Write vertices
         for v in &verts {
-            // Convert mm to meters for standard OBJ (divide by 1000)
             writeln!(file, "v {:.6} {:.6} {:.6}", v[0] / 1000.0, v[1] / 1000.0, v[2] / 1000.0)
                 .map_err(|e| e.to_string())?;
+        }
+
+        // Write UVs (triplanar: world-space / 1m)
+        for (v, n) in verts.iter().zip(normals.iter()) {
+            let (u, vt) = triplanar_uv(v, n);
+            writeln!(file, "vt {:.6} {:.6}", u, vt).map_err(|e| e.to_string())?;
         }
 
         // Write normals
@@ -44,15 +50,16 @@ pub fn export_obj(scene: &Scene, path: &str) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
         }
 
-        // Write faces (vertex//normal format)
+        // Write faces (vertex/uv/normal format)
         for f in &faces {
             let face_str: Vec<String> = f.iter()
-                .map(|(vi, ni)| format!("{}//{}", vi + vertex_offset, ni + normal_offset))
+                .map(|(vi, ni)| format!("{}/{}/{}", vi + vertex_offset, vi + uv_offset, ni + normal_offset))
                 .collect();
             writeln!(file, "f {}", face_str.join(" ")).map_err(|e| e.to_string())?;
         }
 
         vertex_offset += verts.len() as u32;
+        uv_offset += verts.len() as u32;
         normal_offset += normals.len() as u32;
         writeln!(file, "").map_err(|e| e.to_string())?;
     }
@@ -446,6 +453,21 @@ fn color_to_material(kd: [f32; 3]) -> MaterialKind {
         }
     }
     best
+}
+
+/// Triplanar UV 投影（世界空間 / 1000mm = 1m 一個 repeat）
+fn triplanar_uv(pos: &[f32; 3], normal: &[f32; 3]) -> (f32, f32) {
+    let scale = 0.001; // 1m repeat
+    let ax = normal[0].abs();
+    let ay = normal[1].abs();
+    let az = normal[2].abs();
+    if ay > ax && ay > az {
+        (pos[0] * scale, pos[2] * scale) // Y-dominant: XZ
+    } else if ax > az {
+        (pos[1] * scale, pos[2] * scale) // X-dominant: YZ
+    } else {
+        (pos[0] * scale, pos[1] * scale) // Z-dominant: XY
+    }
 }
 
 // ─── MTL 材質檔生成 ─────────────────────────────────────────────────────────
