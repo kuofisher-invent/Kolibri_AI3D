@@ -20,9 +20,10 @@ pub struct Vertex {
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct Uniforms {
     view_proj: [[f32; 4]; 4],
-    sky_color: [f32; 4],     // rgb + padding
-    ground_color: [f32; 4],  // rgb + padding
-    camera_pos: [f32; 4],    // xyz + padding (for PBR specular)
+    sky_color: [f32; 4],
+    ground_color: [f32; 4],
+    camera_pos: [f32; 4],
+    light_vp: [[f32; 4]; 4],
 }
 
 pub const COLOR_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -56,8 +57,11 @@ struct Uniforms {
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,
     camera_pos: vec4<f32>,
+    light_vp: mat4x4<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
+@group(1) @binding(0) var shadow_tex: texture_depth_2d;
+@group(1) @binding(1) var shadow_sampler: sampler_comparison;
 
 struct VsIn {
     @location(0) pos: vec3<f32>,
@@ -295,10 +299,23 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
     // Resolve final alpha: sentinel values (>0.9) become opaque
     let final_alpha = select(alpha, 1.0, alpha > 0.9);
 
-    // PBR 合成：diffuse + specular
+    // Shadow mapping
+    let light_clip = u.light_vp * vec4<f32>(i.world_pos, 1.0);
+    var shadow = 1.0;
+    if light_clip.w > 0.0 {
+        let light_ndc = light_clip.xyz / light_clip.w;
+        let shadow_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, -light_ndc.y * 0.5 + 0.5);
+        let shadow_depth = light_ndc.z;
+        if shadow_uv.x >= 0.0 && shadow_uv.x <= 1.0 && shadow_uv.y >= 0.0 && shadow_uv.y <= 1.0 {
+            shadow = textureSampleCompare(shadow_tex, shadow_sampler, shadow_uv, shadow_depth - 0.002);
+            shadow = mix(0.4, 1.0, shadow); // 陰影不會全黑
+        }
+    }
+
+    // PBR 合成：diffuse + specular + shadow
     let kd = (1.0 - metallic) * base_color;
-    let diffuse_term = kd * (ambient + 0.6 * ndl);
-    let spec_term = specular * ndl;
+    let diffuse_term = kd * (ambient + 0.6 * ndl * shadow);
+    let spec_term = specular * ndl * shadow;
     var col = vec4<f32>(diffuse_term + spec_term, final_alpha);
 
     // Edge detection: subtle shader-based edges (explicit geometric edges handle most cases)
@@ -319,6 +336,7 @@ struct Uniforms {
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,
     camera_pos: vec4<f32>,
+    light_vp: mat4x4<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -411,6 +429,9 @@ pub struct ViewportRenderer {
     shadow_pipeline: Option<wgpu::RenderPipeline>,
     shadow_bind_group: Option<wgpu::BindGroup>,
     shadow_uniform_buf: Option<wgpu::Buffer>,
+    shadow_tex_bgl: Option<wgpu::BindGroupLayout>,
+    shadow_tex_bind_group: Option<wgpu::BindGroup>,
+    shadow_sampler: Option<wgpu::Sampler>,
 }
 
 impl ViewportRenderer {
@@ -450,9 +471,35 @@ impl ViewportRenderer {
             }],
         });
 
+        // Shadow texture bind group layout (@group(1))
+        let shadow_tex_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("shadow_tex_bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0, visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1, visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+            ],
+        });
+
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("pipeline_layout"),
-            bind_group_layouts: &[&bgl],
+            bind_group_layouts: &[&bgl, &shadow_tex_bgl],
+            push_constant_ranges: &[],
+        });
+        let sky_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("sky_pipeline_layout"),
+            bind_group_layouts: &[&bgl], // sky only needs group 0
             push_constant_ranges: &[],
         });
 
@@ -521,7 +568,7 @@ impl ViewportRenderer {
         });
         let sky_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("sky_pipe"),
-            layout: Some(&layout),
+            layout: Some(&sky_layout),
             vertex: wgpu::VertexState {
                 module: &sky_shader, entry_point: "vs_sky",
                 buffers: &[],
@@ -590,6 +637,9 @@ impl ViewportRenderer {
             shadow_pipeline: None,
             shadow_bind_group: None,
             shadow_uniform_buf: None,
+            shadow_tex_bgl: Some(shadow_tex_bgl),
+            shadow_tex_bind_group: None,
+            shadow_sampler: None,
         }
     }
 
@@ -822,6 +872,29 @@ impl ViewportRenderer {
             multiview: None,
         });
 
+        // Shadow comparison sampler
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("shadow_sampler"),
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        // Shadow texture bind group for main shader (@group(1))
+        if let Some(ref bgl) = self.shadow_tex_bgl {
+            let tex_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("shadow_tex_bg"),
+                layout: bgl,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&sampler) },
+                ],
+            });
+            self.shadow_tex_bind_group = Some(tex_bg);
+        }
+
+        self.shadow_sampler = Some(sampler);
         self.shadow_depth_tex = Some(tex);
         self.shadow_depth_view = Some(view);
         self.shadow_uniform_buf = Some(buf);
@@ -859,11 +932,19 @@ impl ViewportRenderer {
         // 從 view_proj 的逆矩陣提取相機位置
         let inv_vp = view_proj.inverse();
         let cam_pos = inv_vp.col(3).truncate();
+        // Light VP for shadow mapping
+        let light_dir = glam::Vec3::new(0.3, -1.0, 0.5).normalize();
+        let light_pos = -light_dir * 20000.0;
+        let light_view = glam::Mat4::look_at_rh(light_pos, glam::Vec3::ZERO, glam::Vec3::Y);
+        let light_proj = glam::Mat4::orthographic_rh(-15000.0, 15000.0, -15000.0, 15000.0, 0.1, 50000.0);
+        let light_vp = light_proj * light_view;
+
         let uniforms = Uniforms {
             view_proj: view_proj.to_cols_array_2d(),
             sky_color: [sky_color[0], sky_color[1], sky_color[2], 0.0],
             ground_color: [ground_color[0], ground_color[1], ground_color[2], 0.0],
             camera_pos: [cam_pos.x, cam_pos.y, cam_pos.z, 0.0],
+            light_vp: light_vp.to_cols_array_2d(),
         };
         queue.write_buffer(&self.uniform_buf, 0, bytemuck::bytes_of(&uniforms));
 
@@ -1090,8 +1171,11 @@ impl ViewportRenderer {
                 occlusion_query_set: None,
             });
 
-            // Set bind group for all passes (sky now uses uniform buffer too)
+            // Set bind groups
             pass.set_bind_group(0, &self.bind_group, &[]);
+            if let Some(ref shadow_tex_bg) = self.shadow_tex_bind_group {
+                pass.set_bind_group(1, shadow_tex_bg, &[]);
+            }
 
             // Sky gradient (fullscreen triangle, no vertex buffer) — skip in Sketch mode
             if render_mode != 5 {
