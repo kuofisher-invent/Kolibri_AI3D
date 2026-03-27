@@ -136,7 +136,8 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
 
     let mut line_segments: Vec<([f32; 3], [f32; 3])> = Vec::new();
     let mut faces_3d: Vec<[[f32; 3]; 4]> = Vec::new();
-    let mut circles: Vec<([f32; 3], f32)> = Vec::new(); // center, radius
+    let mut circles: Vec<([f32; 3], f32)> = Vec::new();
+    let mut arcs: Vec<([f32; 3], f32, f32, f32)> = Vec::new(); // center, radius, start_angle, end_angle
 
     // DXF parser state
     let mut i = 0;
@@ -182,6 +183,37 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
                                   coords.get(&20).copied().unwrap_or(0.0)];
                     let radius = coords.get(&40).copied().unwrap_or(100.0);
                     circles.push((center, radius));
+                }
+                "ARC" => {
+                    let center = [coords.get(&10).copied().unwrap_or(0.0),
+                                  coords.get(&30).copied().unwrap_or(0.0),
+                                  coords.get(&20).copied().unwrap_or(0.0)];
+                    let radius = coords.get(&40).copied().unwrap_or(100.0);
+                    let start_angle = coords.get(&50).copied().unwrap_or(0.0).to_radians();
+                    let end_angle = coords.get(&51).copied().unwrap_or(360.0).to_radians();
+                    arcs.push((center, radius, start_angle, end_angle));
+                }
+                "LWPOLYLINE" | "POLYLINE" => {
+                    // 收集所有頂點座標（group code 10/20）
+                    let mut pts = Vec::new();
+                    for vi in 0..100 {
+                        let x_key = if vi == 0 { 10 } else { 10 }; // LWPOLYLINE 用重複的 10/20
+                        // 簡化：只取第一組座標點
+                        if vi == 0 {
+                            if let (Some(&x), Some(&z)) = (coords.get(&10), coords.get(&20)) {
+                                let y = coords.get(&30).copied().unwrap_or(0.0);
+                                pts.push([x, y, z]);
+                            }
+                        }
+                        let _ = x_key;
+                        break;
+                    }
+                    // 為簡化，把 polyline 的所有頂點座標生成為 line segments
+                    if pts.len() >= 2 {
+                        for pair in pts.windows(2) {
+                            line_segments.push((pair[0], pair[1]));
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -298,6 +330,31 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
             *radius, 10.0, 32,
             kolibri_core::scene::MaterialKind::White,
         );
+        count += 1;
+    }
+
+    // ARC entities → Shape::Line (polyline approximation)
+    for (idx, (center, radius, start, end)) in arcs.iter().enumerate() {
+        let segments = 24;
+        let mut pts = Vec::new();
+        let sweep = if end > start { end - start } else { end - start + std::f32::consts::TAU };
+        for s in 0..=segments {
+            let t = *start + sweep * (s as f32 / segments as f32);
+            pts.push([
+                center[0] + radius * t.cos(),
+                center[1],
+                center[2] + radius * t.sin(),
+            ]);
+        }
+        let id = scene.next_id_pub();
+        scene.objects.insert(id.clone(), kolibri_core::scene::SceneObject {
+            id, name: format!("{}_arc_{}", base_name, idx),
+            shape: Shape::Line { points: pts, thickness: 2.0, arc_center: Some(*center), arc_radius: Some(*radius), arc_angle_deg: Some(sweep.to_degrees()) },
+            position: [0.0; 3], material: kolibri_core::scene::MaterialKind::White,
+            rotation_y: 0.0, tag: "匯入".to_string(), visible: true,
+            roughness: 0.5, metallic: 0.0, texture_path: None,
+            component_kind: Default::default(), parent_id: None, locked: false,
+        });
         count += 1;
     }
 
