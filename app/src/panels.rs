@@ -880,10 +880,10 @@ impl KolibriApp {
 
     pub(crate) fn right_panel_ui(&mut self, ui: &mut egui::Ui) {
         let tabs = [
-            (RightTab::Create, "\u{8a2d}\u{8a08}"),       // 設計
-            (RightTab::Properties, "\u{5c6c}\u{6027}"),   // 屬性
-            (RightTab::Scene, "\u{5834}\u{666f}"),         // 場景
-            (RightTab::AiLog, "\u{8f38}\u{51fa}"),         // 輸出
+            (RightTab::Create, "設計"),
+            (RightTab::Properties, "屬性"),
+            (RightTab::Scene, "場景"),
+            (RightTab::AiLog, "輸出"),
         ];
 
         ui.horizontal(|ui| {
@@ -1542,7 +1542,7 @@ impl KolibriApp {
 
         ui.add_space(8.0);
         section_frame_full(ui, |ui| {
-            section_header_text(ui, "AI \u{5efa}\u{8b70}");
+            section_header_text(ui, "AI 建議");
             for sug in &suggestions {
                 ui.horizontal(|ui| {
                     ui.label(sug.icon);
@@ -1560,7 +1560,7 @@ impl KolibriApp {
                     match action {
                         crate::ai_assist::SuggestedAction::SwitchTool(tool) => {
                             let t = *tool;
-                            if ui.small_button("\u{5957}\u{7528}").clicked() {
+                            if ui.small_button("套用").clicked() {
                                 self.editor.tool = t;
                             }
                         }
@@ -1572,7 +1572,7 @@ impl KolibriApp {
                             let oid = obj_id.clone();
                             let ax = *axis;
                             let val = *value;
-                            if ui.small_button("\u{5c0d}\u{9f4a}").clicked() {
+                            if ui.small_button("對齊").clicked() {
                                 self.scene.snapshot();
                                 if let Some(obj) = self.scene.objects.get_mut(&oid) {
                                     obj.position[ax as usize] = val;
@@ -1584,7 +1584,7 @@ impl KolibriApp {
                             material: _,
                         } => {
                             let oid = obj_id.clone();
-                            if ui.small_button("\u{5957}\u{7528}").clicked() {
+                            if ui.small_button("套用").clicked() {
                                 if self.scene.objects.contains_key(&oid) {
                                     self.scene.snapshot();
                                     if let Some(obj) = self.scene.objects.get_mut(&oid) {
@@ -1782,15 +1782,15 @@ impl KolibriApp {
     }
 
     pub(crate) fn tab_ai_log(&mut self, ui: &mut egui::Ui) {
-        ui.heading("AI \u{4fee}\u{6539}\u{8a18}\u{9304}");
+        ui.heading("AI 修改記錄");
         ui.separator();
 
         ui.horizontal(|ui| {
-            if ui.button("\u{532f}\u{51fa}\u{8a18}\u{9304}").clicked() {
+            if ui.button("匯出記錄").clicked() {
                 let _ = self.ai_log.save_to_file("ai_log.json");
-                self.file_message = Some(("\u{8a18}\u{9304}\u{5df2}\u{532f}\u{51fa}".into(), std::time::Instant::now()));
+                self.file_message = Some(("記錄已匯出".into(), std::time::Instant::now()));
             }
-            if ui.button("\u{6e05}\u{9664}\u{8a18}\u{9304}").clicked() {
+            if ui.button("清除記錄").clicked() {
                 self.ai_log.clear();
             }
         });
@@ -1802,7 +1802,7 @@ impl KolibriApp {
                 ui.horizontal(|ui| {
                     let color = match entry.actor.name.as_str() {
                         "Claude" => egui::Color32::from_rgb(100, 180, 255),
-                        "\u{4f7f}\u{7528}\u{8005}" => egui::Color32::from_rgb(180, 220, 180),
+                        "使用者" => egui::Color32::from_rgb(180, 220, 180),
                         _ => egui::Color32::from_rgb(255, 180, 100),
                     };
                     ui.colored_label(color, &entry.actor.display_name());
@@ -1813,13 +1813,13 @@ impl KolibriApp {
                     ui.label(&entry.details);
                 }
                 if !entry.objects_affected.is_empty() {
-                    ui.small(format!("\u{7269}\u{4ef6}: {}", entry.objects_affected.join(", ")));
+                    ui.small(format!("物件: {}", entry.objects_affected.join(", ")));
                 }
             });
         }
 
         if entries.is_empty() {
-            ui.label("\u{5c1a}\u{7121}\u{8a18}\u{9304}");
+            ui.label("尚無記錄");
         }
     }
 
@@ -1852,28 +1852,28 @@ impl KolibriApp {
         section_header(ui, "QUICK ACTIONS");
         figma_group(ui, |ui| {
             ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("+ \u{65b0}\u{5834}\u{666f}").size(11.0)).clicked() {
+                if cols[0].button(egui::RichText::new("+ 新場景").size(11.0)).clicked() {
                     self.handle_menu_action(crate::menu::MenuAction::NewScene);
                 }
-                if cols[1].button(egui::RichText::new("\u{1f4c2} \u{958b}\u{555f}").size(11.0)).clicked() {
+                if cols[1].button(egui::RichText::new("\u{1f4c2} 開啟").size(11.0)).clicked() {
                     self.handle_menu_action(crate::menu::MenuAction::OpenScene);
                 }
             });
             ui.add_space(2.0);
             ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("\u{1f4e5} \u{532f}\u{5165} OBJ").size(11.0)).clicked() {
+                if cols[0].button(egui::RichText::new("\u{1f4e5} 匯入 OBJ").size(11.0)).clicked() {
                     self.handle_menu_action(crate::menu::MenuAction::ImportObj);
                 }
-                if cols[1].button(egui::RichText::new("\u{1f4e4} \u{532f}\u{51fa}").size(11.0)).clicked() {
+                if cols[1].button(egui::RichText::new("\u{1f4e4} 匯出").size(11.0)).clicked() {
                     self.handle_menu_action(crate::menu::MenuAction::ExportObj);
                 }
             });
             ui.add_space(2.0);
             ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("\u{1f4e6} \u{7fa4}\u{7d44}").size(11.0)).clicked() {
+                if cols[0].button(egui::RichText::new("\u{1f4e6} 群組").size(11.0)).clicked() {
                     self.editor.tool = Tool::Group;
                 }
-                if cols[1].button(egui::RichText::new("\u{1f50d} \u{5168}\u{90e8}\u{986f}\u{793a}").size(11.0)).clicked() {
+                if cols[1].button(egui::RichText::new("\u{1f50d} 全部顯示").size(11.0)).clicked() {
                     self.zoom_extents();
                 }
             });
@@ -1979,102 +1979,7 @@ impl KolibriApp {
             });
             return;
         }
-
-        // ── Scene Outliner 樹狀結構 ──
-        let shape_icon = |s: &Shape| -> &str {
-            match s { Shape::Box{..}=>"⬜", Shape::Cylinder{..}=>"○", Shape::Sphere{..}=>"◎", Shape::Line{..}=>"╱", Shape::Mesh{..}=>"◇" }
-        };
-        let mut to_delete = None;
-
-        // 先畫群組（含子物件縮排）
-        let group_ids: Vec<String> = self.scene.groups.keys().cloned().collect();
-        let mut grouped_obj_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for gid in &group_ids {
-            if let Some(group) = self.scene.groups.get(gid) {
-                // 群組標題
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new(format!("📁 {}", group.name)).strong().size(12.0));
-                    ui.label(egui::RichText::new(format!("({})", group.children.len())).size(10.0).color(egui::Color32::GRAY));
-                });
-                // 子物件（縮排）
-                for child_id in &group.children {
-                    grouped_obj_ids.insert(child_id.clone());
-                    let child_info = self.scene.objects.get(child_id)
-                        .map(|o| (shape_icon(&o.shape).to_string(), o.name.clone(), o.visible));
-                    if let Some((icon, name, visible)) = child_info {
-                        ui.horizontal(|ui| {
-                            ui.add_space(16.0);
-                            let selected = self.editor.selected_ids.iter().any(|s| s == child_id);
-                            if ui.selectable_label(selected, format!("{} {}", icon, name)).clicked() {
-                                self.editor.selected_ids = vec![child_id.clone()];
-                                self.right_tab = RightTab::Properties;
-                            }
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                let eye = if visible { "👁" } else { "  " };
-                                if ui.small_button(eye).clicked() {
-                                    if let Some(obj) = self.scene.objects.get_mut(child_id) { obj.visible = !obj.visible; }
-                                    self.scene.version += 1;
-                                }
-                                if ui.small_button("✕").clicked() { to_delete = Some(child_id.clone()); }
-                            });
-                        });
-                    }
-                }
-                ui.add_space(2.0);
-            }
-        }
-
-        // 再畫不屬於任何群組的根物件
-        let mut root_items: Vec<(String, String, String)> = self.scene.objects.values()
-            .filter(|o| !grouped_obj_ids.contains(&o.id))
-            .map(|o| (o.id.clone(), o.name.clone(), shape_icon(&o.shape).to_string()))
-            .collect();
-        root_items.sort_by(|a, b| a.1.cmp(&b.1)); // 按名稱排序
-
-        for (oid, name, icon) in &root_items {
-            let is_renaming = self.editor.renaming_id.as_ref() == Some(oid);
-            ui.horizontal(|ui| {
-                if is_renaming {
-                    // Inline rename text edit
-                    let resp = ui.text_edit_singleline(&mut self.editor.rename_buf);
-                    if !resp.has_focus() { resp.request_focus(); }
-                    if resp.lost_focus() {
-                        // Enter or click away → apply
-                        if !self.editor.rename_buf.is_empty() {
-                            if let Some(obj) = self.scene.objects.get_mut(oid) {
-                                obj.name = self.editor.rename_buf.clone();
-                                self.scene.version += 1;
-                            }
-                        }
-                        self.editor.renaming_id = None;
-                        self.editor.rename_buf.clear();
-                    }
-                } else {
-                    let selected = self.editor.selected_ids.iter().any(|s| s == oid);
-                    let resp = ui.selectable_label(selected, format!("{} {}", icon, name));
-                    if resp.clicked() {
-                        self.editor.selected_ids = vec![oid.clone()];
-                        self.right_tab = RightTab::Properties;
-                    }
-                    if resp.double_clicked() {
-                        self.editor.renaming_id = Some(oid.clone());
-                        self.editor.rename_buf = name.clone();
-                    }
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if let Some(obj) = self.scene.objects.get_mut(oid) {
-                        let eye = if obj.visible { "👁" } else { "  " };
-                        if ui.small_button(eye).clicked() { obj.visible = !obj.visible; self.scene.version += 1; }
-                    }
-                    if ui.small_button("✕").clicked() { to_delete = Some(oid.clone()); }
-                });
-            });
-        }
-
-        if let Some(id) = to_delete {
-            self.editor.selected_ids.retain(|s| s != &id);
-            self.scene.delete(&id);
-        }
+        self.render_scene_hierarchy(ui);
 
         // ── Undo History ──
         ui.separator();
@@ -2191,12 +2096,12 @@ impl KolibriApp {
             }
             DrawState::Scaling { handle, .. } => {
                 let axis = match handle {
-                    ScaleHandle::Uniform => "\u{7b49}\u{6bd4}\u{7e2e}\u{653e}",
-                    ScaleHandle::AxisX => "X\u{8ef8}\u{7e2e}\u{653e}\u{ff08}\u{5bec}\u{5ea6}\u{ff09}",
-                    ScaleHandle::AxisY => "Y\u{8ef8}\u{7e2e}\u{653e}\u{ff08}\u{9ad8}\u{5ea6}\u{ff09}",
-                    ScaleHandle::AxisZ => "Z\u{8ef8}\u{7e2e}\u{653e}\u{ff08}\u{6df1}\u{5ea6}\u{ff09}",
+                    ScaleHandle::Uniform => "等比縮放",
+                    ScaleHandle::AxisX => "X軸縮放（寬度）",
+                    ScaleHandle::AxisY => "Y軸縮放（高度）",
+                    ScaleHandle::AxisZ => "Z軸縮放（深度）",
                 };
-                format!("\u{7e2e}\u{653e} \u{2014} {} | \u{8f38}\u{5165}\u{6bd4}\u{4f8b}(x1.5)\u{6216}\u{5c3a}\u{5bf8}(mm)+Enter", axis)
+                format!("縮放 — {} | 輸入比例(x1.5)或尺寸(mm)+Enter", axis)
             }
             DrawState::Offsetting { distance, .. } => {
                 format!("偏移 {:.0}mm — 拖曳調整距離, 放開確認", distance)

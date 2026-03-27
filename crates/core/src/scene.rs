@@ -102,7 +102,7 @@ pub struct SceneObject {
     pub locked: bool,
 }
 
-fn default_tag() -> String { "\u{9810}\u{8a2d}".to_string() }  // "預設"
+fn default_tag() -> String { "預設".to_string() }
 fn default_visible() -> bool { true }
 fn default_roughness() -> f32 { 0.5 }
 
