@@ -125,7 +125,7 @@ pub fn build_scene_from_ir(scene: &mut crate::scene::Scene, ir: &UnifiedIR) -> B
         let mut objects = Vec::new();
         for mesh_id in &comp.mesh_ids {
             let Some(mesh) = mesh_lookup.get(mesh_id).copied() else { continue; };
-            let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+            let Some(he_mesh) = ir_mesh_to_he_mesh(mesh, None) else { continue; };
             let mut obj = imported_mesh_object(
                 scene.next_id_pub(),
                 mesh.name.clone(),
@@ -150,13 +150,13 @@ pub fn build_scene_from_ir(scene: &mut crate::scene::Scene, ir: &UnifiedIR) -> B
 
     for inst in &ir.instances {
         let Some(mesh) = mesh_lookup.get(&inst.mesh_id).copied() else { continue; };
-        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh, Some(inst.transform)) else { continue; };
         referenced_meshes.insert(mesh.id.clone());
 
         let mut obj = imported_mesh_object(
             scene.next_id_pub(),
             if inst.name.is_empty() { mesh.name.clone() } else { inst.name.clone() },
-            translation_from_transform(inst.transform),
+            [0.0, 0.0, 0.0],
             he_mesh,
             material_for_mesh(mesh, &material_lookup),
         );
@@ -190,6 +190,7 @@ pub fn build_scene_from_ir(scene: &mut crate::scene::Scene, ir: &UnifiedIR) -> B
             id: group.id.clone(),
             name: group.name.clone(),
             children,
+            parent_id: group.parent_id.clone(),
             position: [0.0; 3],
             rotation_y: 0.0,
         });
@@ -197,7 +198,7 @@ pub fn build_scene_from_ir(scene: &mut crate::scene::Scene, ir: &UnifiedIR) -> B
 
     for mesh in &ir.meshes {
         if referenced_meshes.contains(&mesh.id) { continue; }
-        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh, None) else { continue; };
         let obj = imported_mesh_object(
             scene.next_id_pub(),
             mesh.name.clone(),
@@ -241,7 +242,10 @@ fn imported_mesh_object(
     }
 }
 
-fn ir_mesh_to_he_mesh(mesh: &super::unified_ir::IrMesh) -> Option<crate::halfedge::HeMesh> {
+fn ir_mesh_to_he_mesh(
+    mesh: &super::unified_ir::IrMesh,
+    transform: Option<[f32; 16]>,
+) -> Option<crate::halfedge::HeMesh> {
     if mesh.vertices.len() < 3 {
         return None;
     }
@@ -249,7 +253,7 @@ fn ir_mesh_to_he_mesh(mesh: &super::unified_ir::IrMesh) -> Option<crate::halfedg
     let mut he = crate::halfedge::HeMesh::new();
     let mut vertex_ids = Vec::with_capacity(mesh.vertices.len());
     for v in &mesh.vertices {
-        vertex_ids.push(he.add_vertex(*v));
+        vertex_ids.push(he.add_vertex(apply_transform(*v, transform)));
     }
 
     if !mesh.indices.is_empty() {
@@ -272,8 +276,16 @@ fn ir_mesh_to_he_mesh(mesh: &super::unified_ir::IrMesh) -> Option<crate::halfedg
 
 /// 從 4x4 column-major transform 矩陣提取平移向量
 /// TODO: 未來 SceneObject 支援完整 transform 時，應提取旋轉/縮放
-fn translation_from_transform(transform: [f32; 16]) -> [f32; 3] {
-    [transform[12], transform[13], transform[14]]
+fn apply_transform(vertex: [f32; 3], transform: Option<[f32; 16]>) -> [f32; 3] {
+    let Some(m) = transform else { return vertex; };
+    let x = vertex[0];
+    let y = vertex[1];
+    let z = vertex[2];
+    [
+        m[0] * x + m[4] * y + m[8] * z + m[12],
+        m[1] * x + m[5] * y + m[9] * z + m[13],
+        m[2] * x + m[6] * y + m[10] * z + m[14],
+    ]
 }
 
 fn material_for_mesh(
@@ -391,6 +403,7 @@ mod tests {
                 id: "grp_1".into(),
                 name: "Main Group".into(),
                 children: vec!["inst_1".into()],
+                parent_id: None,
             }],
             component_defs: vec![unified_ir::IrComponentDef {
                 id: "comp_1".into(),
@@ -415,9 +428,17 @@ mod tests {
         assert!(scene.groups.contains_key("grp_1"));
 
         let obj = scene.objects.values().next().expect("expected imported object");
-        assert_eq!(obj.position, [250.0, 0.0, 500.0]);
+        // Transform baked into vertices, position stays at origin
+        assert_eq!(obj.position, [0.0, 0.0, 0.0]);
         assert_eq!(obj.parent_id.as_deref(), Some("grp_1"));
         assert!(matches!(obj.shape, crate::scene::Shape::Mesh(_)));
         assert_eq!(obj.tag, "元件:comp_1");
+        // Verify transform was applied to vertices
+        if let crate::scene::Shape::Mesh(ref mesh) = obj.shape {
+            let v = mesh.vertices.values().next().expect("mesh should have vertices");
+            // Original vertex [0,0,0] + transform translation [250,0,500]
+            assert!((v.pos[0] - 250.0).abs() < 0.01 || (v.pos[2] - 500.0).abs() < 0.01,
+                "Transform should be baked into vertices");
+        }
     }
 }

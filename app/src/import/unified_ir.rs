@@ -65,6 +65,8 @@ pub struct IrGroup {
     pub id: String,
     pub name: String,
     pub children: Vec<String>,      // instance IDs
+    #[serde(default)]
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

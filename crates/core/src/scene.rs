@@ -10,6 +10,8 @@ pub struct GroupDef {
     pub id: String,
     pub name: String,
     pub children: Vec<String>,  // child object IDs
+    #[serde(default)]
+    pub parent_id: Option<String>,
     pub position: [f32; 3],     // group origin offset
     pub rotation_y: f32,
 }
@@ -511,6 +513,7 @@ impl Scene {
             id: id.clone(),
             name,
             children: child_ids,
+            parent_id: None,
             position: [0.0; 3],
             rotation_y: 0.0,
         });
