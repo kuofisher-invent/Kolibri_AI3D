@@ -929,6 +929,37 @@ impl KolibriApp {
                     ));
                 }
 
+                // Copy properties (Ctrl+Shift+C)
+                if ctrl && shift && i.key_pressed(egui::Key::C) {
+                    if let Some(obj) = self.editor.selected_ids.first()
+                        .and_then(|id| self.scene.objects.get(id))
+                    {
+                        self.editor.property_clipboard = Some((obj.material, obj.roughness, obj.metallic));
+                        self.file_message = Some(("已複製屬性".into(), std::time::Instant::now()));
+                    }
+                }
+                // Paste properties (Ctrl+Shift+V)
+                if ctrl && shift && i.key_pressed(egui::Key::V) {
+                    if let Some((mat, rough, metal)) = self.editor.property_clipboard {
+                        let ids: Vec<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
+                        if !ids.is_empty() {
+                            self.scene.snapshot_ids(&ids, "貼上屬性");
+                            for id in &self.editor.selected_ids.clone() {
+                                if let Some(obj) = self.scene.objects.get_mut(id) {
+                                    obj.material = mat;
+                                    obj.roughness = rough;
+                                    obj.metallic = metal;
+                                }
+                            }
+                            self.scene.version += 1;
+                            self.file_message = Some((
+                                format!("已貼上屬性到 {} 個物件", ids.len()),
+                                std::time::Instant::now(),
+                            ));
+                        }
+                    }
+                }
+
                 // Unsaved changes confirmation Y/N (takes priority)
                 if self.pending_action.is_some() {
                     if i.key_pressed(egui::Key::Y) {

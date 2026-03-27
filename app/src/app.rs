@@ -270,6 +270,7 @@ impl KolibriApp {
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
                 snap_threshold: 18.0,
+                property_clipboard: None,
                 recovery_checked: false,
                 renaming_id: None,
                 rename_buf: String::new(),
@@ -385,6 +386,9 @@ impl KolibriApp {
             "匯出 DXF" => self.handle_menu_action(crate::menu::MenuAction::ExportDxf),
             "匯入 OBJ" => self.handle_menu_action(crate::menu::MenuAction::ImportObj),
             "匯入 DXF" => self.handle_menu_action(crate::menu::MenuAction::ImportDxf),
+            "CSG 聯集" => self.handle_menu_action(crate::menu::MenuAction::CsgUnion),
+            "CSG 差集" => self.handle_menu_action(crate::menu::MenuAction::CsgSubtract),
+            "CSG 交集" => self.handle_menu_action(crate::menu::MenuAction::CsgIntersect),
             "牆工具" => self.editor.tool = Tool::Wall,
             "板工具" => self.editor.tool = Tool::Slab,
             "對齊左" => self.align_selected(0),
@@ -592,6 +596,8 @@ impl eframe::App for KolibriApp {
                 ("對齊左", ""), ("對齊右", ""), ("對齊上", ""), ("對齊下", ""),
                 ("X中心對齊", ""), ("Y中心對齊", ""), ("Z中心對齊", ""),
                 ("X等距分佈", ""), ("Y等距分佈", ""), ("Z等距分佈", ""),
+                ("CSG 聯集", ""), ("CSG 差集", ""), ("CSG 交集", ""),
+                ("複製屬性", "Ctrl+Shift+C"), ("貼上屬性", "Ctrl+Shift+V"),
             ];
             let mut close = false;
             egui::Area::new(egui::Id::new("command_palette"))

@@ -198,6 +198,11 @@ pub fn draw_context_menu_ext(ui: &mut egui::Ui, has_selection: bool) -> (MenuAct
             if ui.button("Y 等距").clicked() { cmd = Some("Y等距分佈".into()); ui.close_menu(); }
             if ui.button("Z 等距").clicked() { cmd = Some("Z等距分佈".into()); ui.close_menu(); }
         });
+        ui.menu_button("CSG 布林", |ui| {
+            if ui.button("聯集（合併）").clicked() { action = MenuAction::CsgUnion; ui.close_menu(); }
+            if ui.button("差集（挖除）").clicked() { action = MenuAction::CsgSubtract; ui.close_menu(); }
+            if ui.button("交集（保留重疊）").clicked() { action = MenuAction::CsgIntersect; ui.close_menu(); }
+        });
         ui.separator();
         if ui.button("建立群組").clicked() { action = MenuAction::GroupSelected; ui.close_menu(); }
         if ui.button("建立元件").clicked() { action = MenuAction::ComponentSelected; ui.close_menu(); }
