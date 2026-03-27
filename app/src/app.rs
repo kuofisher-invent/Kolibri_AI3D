@@ -1418,8 +1418,16 @@ impl eframe::App for KolibriApp {
                         ("Ctrl+Y", "\u{91cd}\u{505a}"),
                         ("Ctrl+S", "\u{5132}\u{5b58}"),
                         ("Ctrl+O", "\u{958b}\u{555f}"),
-                        ("F1", "\u{8aaa}\u{660e}\u{ff08}\u{672c}\u{9801}\u{9762}\u{ff09}"),
-                        ("Delete", "\u{522a}\u{9664}\u{9078}\u{53d6}"),
+                        ("Ctrl+C/V/X", "複製/貼上/剪下"),
+                        ("Ctrl+D", "就地複製"),
+                        ("Ctrl+M", "鏡射 X"),
+                        ("Ctrl+I", "反轉選取"),
+                        ("Ctrl+P", "指令面板"),
+                        ("Ctrl+A", "全選"),
+                        ("W", "牆工具"),
+                        ("F1", "說明（本頁面）"),
+                        ("F12", "Console"),
+                        ("Delete", "刪除選取"),
                     ];
                     for (key, desc) in shortcuts {
                         ui.painter().text(egui::pos2(x2, y), egui::Align2::LEFT_TOP, *key, body_font.clone(), key_color);
