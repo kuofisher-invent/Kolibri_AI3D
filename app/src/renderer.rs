@@ -319,20 +319,28 @@ struct VsOut {
 
 @fragment fn fs_sky(i: VsOut) -> @location(0) vec4<f32> {
     let t = i.uv.y;
-    let sky_top    = u.sky_color.rgb * 0.7;
-    let sky_horizon = mix(u.sky_color.rgb, vec3<f32>(1.0), 0.3);
-    let ground     = u.ground_color.rgb;
+    let sky_zenith  = u.sky_color.rgb * 0.55; // 天頂深藍
+    let sky_mid     = u.sky_color.rgb * 0.85;
+    let sky_horizon = mix(u.sky_color.rgb, vec3<f32>(0.95, 0.92, 0.88), 0.5); // 地平線暖白
+    let ground      = u.ground_color.rgb;
 
     var col: vec3<f32>;
-    if t < 0.45 {
-        let s = t / 0.45;
-        col = mix(sky_top, sky_horizon, s);
+    if t < 0.2 {
+        // 天頂到中天
+        let s = t / 0.2;
+        col = mix(sky_zenith, sky_mid, s * s); // 二次曲線更自然
+    } else if t < 0.45 {
+        // 中天到地平線
+        let s = (t - 0.2) / 0.25;
+        col = mix(sky_mid, sky_horizon, s);
     } else if t < 0.52 {
+        // 地平線帶（窄的過渡）
         let s = (t - 0.45) / 0.07;
-        col = mix(sky_horizon, ground, s);
+        col = mix(sky_horizon, ground, smoothstep(0.0, 1.0, s));
     } else {
+        // 地面漸暗
         let s = (t - 0.52) / 0.48;
-        col = mix(ground, ground * 0.7, s);
+        col = mix(ground, ground * 0.65, s);
     }
     return vec4<f32>(col, 1.0);
 }

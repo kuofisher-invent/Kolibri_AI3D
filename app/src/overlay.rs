@@ -1000,6 +1000,41 @@ impl KolibriApp {
                     }
                 }
 
+                // ── Selection outline（螢幕空間 AABB 描邊）──
+                for sel_id in &self.editor.selected_ids {
+                    if let Some(obj) = self.scene.objects.get(sel_id) {
+                        let p = obj.position;
+                        let ext = match &obj.shape {
+                            Shape::Box { width, height, depth } => [*width, *height, *depth],
+                            Shape::Cylinder { radius, height, .. } => [*radius*2.0, *height, *radius*2.0],
+                            Shape::Sphere { radius, .. } => [*radius*2.0; 3],
+                            _ => continue,
+                        };
+                        // 8 corners → screen → 2D bounding rect
+                        let corners = [
+                            [p[0],p[1],p[2]], [p[0]+ext[0],p[1],p[2]],
+                            [p[0],p[1]+ext[1],p[2]], [p[0]+ext[0],p[1]+ext[1],p[2]],
+                            [p[0],p[1],p[2]+ext[2]], [p[0]+ext[0],p[1],p[2]+ext[2]],
+                            [p[0],p[1]+ext[1],p[2]+ext[2]], [p[0]+ext[0],p[1]+ext[1],p[2]+ext[2]],
+                        ];
+                        let mut min_s = egui::pos2(f32::MAX, f32::MAX);
+                        let mut max_s = egui::pos2(f32::MIN, f32::MIN);
+                        let mut visible = 0;
+                        for c in &corners {
+                            if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
+                                min_s.x = min_s.x.min(sp.x); min_s.y = min_s.y.min(sp.y);
+                                max_s.x = max_s.x.max(sp.x); max_s.y = max_s.y.max(sp.y);
+                                visible += 1;
+                            }
+                        }
+                        if visible >= 2 {
+                            let outline_rect = egui::Rect::from_min_max(min_s, max_s).expand(3.0);
+                            ui.painter().rect_stroke(outline_rect, 4.0,
+                                egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 140)));
+                        }
+                    }
+                }
+
                 // ── Move gizmo: 3D XYZ arrows with interactive hover/drag ──
                 if (self.editor.tool == Tool::Move || self.editor.tool == Tool::Select)
                     && !self.editor.selected_ids.is_empty()
