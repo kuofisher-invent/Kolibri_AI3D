@@ -1066,10 +1066,29 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::E) { set(Tool::Eraser, self); }
                     if i.key_pressed(egui::Key::W) && !ctrl { set(Tool::Wall, self); }
 
-                    // Standard view shortcuts
+                    // Standard view shortcuts (number row + numpad)
                     if i.key_pressed(egui::Key::Num1) { self.viewer.camera.set_front(); }
                     if i.key_pressed(egui::Key::Num2) { self.viewer.camera.set_top(); }
                     if i.key_pressed(egui::Key::Num3) { self.viewer.camera.set_iso(); }
+                    if i.key_pressed(egui::Key::Num4) { self.viewer.camera.set_left(); }
+                    if i.key_pressed(egui::Key::Num6) { self.viewer.camera.set_right(); }
+                    if i.key_pressed(egui::Key::Num8) { self.viewer.camera.set_back(); }
+                    // Zoom to selected (period / numpad decimal)
+                    if i.key_pressed(egui::Key::Period) && !self.editor.selected_ids.is_empty() {
+                        if let Some(obj) = self.editor.selected_ids.first()
+                            .and_then(|id| self.scene.objects.get(id))
+                        {
+                            let p = glam::Vec3::from(obj.position);
+                            let ext = match &obj.shape {
+                                Shape::Box { width, height, depth } => glam::Vec3::new(*width, *height, *depth),
+                                Shape::Cylinder { radius, height, .. } => glam::Vec3::new(*radius*2.0, *height, *radius*2.0),
+                                Shape::Sphere { radius, .. } => glam::Vec3::splat(*radius * 2.0),
+                                _ => glam::Vec3::splat(500.0),
+                            };
+                            self.viewer.camera.target = p + ext * 0.5;
+                            self.viewer.camera.distance = ext.length() * 2.0;
+                        }
+                    }
 
                     // Axis locking
                     if i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowRight) {

@@ -1031,6 +1031,20 @@ impl KolibriApp {
                             let outline_rect = egui::Rect::from_min_max(min_s, max_s).expand(3.0);
                             ui.painter().rect_stroke(outline_rect, 4.0,
                                 egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 140)));
+                            // 尺寸標籤（寬×高×深）
+                            let dim_color = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 200);
+                            let dim_font = egui::FontId::proportional(9.0);
+                            let fmt = |v: f32| if v >= 1000.0 { format!("{:.2}m", v/1000.0) } else { format!("{:.0}", v) };
+                            // 底部：寬度
+                            ui.painter().text(
+                                egui::pos2(outline_rect.center().x, outline_rect.max.y + 10.0),
+                                egui::Align2::CENTER_TOP, &fmt(ext[0]),
+                                dim_font.clone(), dim_color);
+                            // 右側：高度
+                            ui.painter().text(
+                                egui::pos2(outline_rect.max.x + 8.0, outline_rect.center().y),
+                                egui::Align2::LEFT_CENTER, &fmt(ext[1]),
+                                dim_font.clone(), dim_color);
                         }
                     }
                 }

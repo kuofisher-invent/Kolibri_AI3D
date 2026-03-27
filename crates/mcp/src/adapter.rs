@@ -134,6 +134,21 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "create_column_grid".into(),
+                description: "建立柱列網格（rows×cols，指定間距和柱尺寸）".into(),
+                input_schema: json!({ "type": "object", "required": ["rows", "cols"], "properties": {
+                    "rows":{"type":"integer","default":3},
+                    "cols":{"type":"integer","default":4},
+                    "spacing_x":{"type":"number","default":6000},
+                    "spacing_z":{"type":"number","default":6000},
+                    "column_width":{"type":"number","default":400},
+                    "column_depth":{"type":"number","default":400},
+                    "column_height":{"type":"number","default":3000},
+                    "origin":{"type":"array","items":{"type":"number"},"default":[0,0,0]},
+                    "material":{"type":"string","default":"concrete"}
+                }}),
+            },
+            ToolDef {
                 name: "create_wall".into(),
                 description: "建立牆（兩端點+厚度+高度 mm）".into(),
                 input_schema: json!({ "type": "object", "required": ["start", "end"], "properties": {
@@ -420,6 +435,28 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "create_column_grid" => {
+                let rows = args["rows"].as_u64().unwrap_or(3) as usize;
+                let cols = args["cols"].as_u64().unwrap_or(4) as usize;
+                let sx = args["spacing_x"].as_f64().unwrap_or(6000.0) as f32;
+                let sz = args["spacing_z"].as_f64().unwrap_or(6000.0) as f32;
+                let cw = args["column_width"].as_f64().unwrap_or(400.0) as f32;
+                let cd = args["column_depth"].as_f64().unwrap_or(400.0) as f32;
+                let ch = args["column_height"].as_f64().unwrap_or(3000.0) as f32;
+                let origin = parse_pos(&args.get("origin").cloned().unwrap_or(json!([0,0,0])));
+                let mat = parse_material(args["material"].as_str().unwrap_or("concrete"));
+                let mut ids = Vec::new();
+                for r in 0..rows {
+                    for c in 0..cols {
+                        let x = origin[0] + c as f32 * sx - cw / 2.0;
+                        let z = origin[2] + r as f32 * sz - cd / 2.0;
+                        let name = format!("Col_{}_{}", r + 1, c + 1);
+                        let id = self.scene.add_box(name, [x, origin[1], z], cw, ch, cd, mat);
+                        ids.push(id);
+                    }
+                }
+                json!({ "success": true, "created": ids.len(), "grid": format!("{}x{}", rows, cols), "ids": ids })
+            }
             "create_wall" => {
                 let start = parse_pos(&args["start"]);
                 let end = parse_pos(&args["end"]);
