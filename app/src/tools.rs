@@ -19,7 +19,24 @@ impl KolibriApp {
             self.editor.mouse_screen = [local.x, local.y];
             self.viewer.viewport_size = [response.rect.width(), response.rect.height()];
             let (origin, dir) = self.viewer.camera.screen_ray(local.x, local.y, response.rect.width(), response.rect.height());
-            self.editor.mouse_ground = camera::ray_ground(origin, dir).map(|p| [p.x, p.y, p.z]);
+            // 工作平面交點（0=Ground XZ, 1=Front XY, 2=Side YZ）
+            self.editor.mouse_ground = match self.viewer.work_plane {
+                1 => { // XY 平面 (Z = offset)
+                    let z = self.viewer.work_plane_offset;
+                    if dir.z.abs() > 1e-6 {
+                        let t = (z - origin.z) / dir.z;
+                        if t > 0.0 { Some([origin.x + dir.x * t, origin.y + dir.y * t, z]) } else { None }
+                    } else { None }
+                }
+                2 => { // YZ 平面 (X = offset)
+                    let x = self.viewer.work_plane_offset;
+                    if dir.x.abs() > 1e-6 {
+                        let t = (x - origin.x) / dir.x;
+                        if t > 0.0 { Some([x, origin.y + dir.y * t, origin.z + dir.z * t]) } else { None }
+                    } else { None }
+                }
+                _ => camera::ray_ground(origin, dir).map(|p| [p.x, p.y, p.z]), // Ground XZ (Y=0)
+            };
 
             // Shift-lock axis (SketchUp-style: hold Shift to lock detected axis)
             // Only when actively drawing or moving, not when idle (Shift+Middle = Pan)

@@ -189,6 +189,8 @@ impl KolibriApp {
                 layout: Default::default(),
                 show_grid: true,
                 grid_spacing: 1000.0,
+                work_plane: 0,
+                work_plane_offset: 0.0,
             },
 
             editor: EditorState {

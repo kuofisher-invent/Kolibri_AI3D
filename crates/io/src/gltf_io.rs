@@ -162,7 +162,16 @@ fn write_gltf_json(path: &str, positions: &[[f32; 3]], normals: &[[f32; 3]], ind
   "scene": 0,
   "scenes": [{{ "nodes": [0] }}],
   "nodes": [{{ "mesh": 0 }}],
-  "meshes": [{{ "primitives": [{{ "attributes": {{ "POSITION": 1, "NORMAL": 2 }}, "indices": 0 }}] }}],
+  "meshes": [{{ "primitives": [{{ "attributes": {{ "POSITION": 1, "NORMAL": 2 }}, "indices": 0, "material": 0 }}] }}],
+  "materials": [{{
+    "name": "Kolibri_Default",
+    "pbrMetallicRoughness": {{
+      "baseColorFactor": [0.7, 0.7, 0.7, 1.0],
+      "metallicFactor": 0.1,
+      "roughnessFactor": 0.6
+    }},
+    "doubleSided": true
+  }}],
   "accessors": [
     {{ "bufferView": 0, "componentType": 5125, "count": {idx_count}, "type": "SCALAR" }},
     {{ "bufferView": 1, "componentType": 5126, "count": {pos_count}, "type": "VEC3", "min": [{min0},{min1},{min2}], "max": [{max0},{max1},{max2}] }},

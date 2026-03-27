@@ -1035,6 +1035,29 @@ impl KolibriApp {
                         });
                 });
             });
+                // 工作平面
+                ui.horizontal(|ui| {
+                    ui.label("工作平面");
+                    let planes = ["地面(XZ)", "正面(XY)", "側面(YZ)"];
+                    for (i, label) in planes.iter().enumerate() {
+                        let active = self.viewer.work_plane == i as u8;
+                        let btn = egui::Button::new(
+                            egui::RichText::new(*label).size(10.0)
+                                .color(if active { egui::Color32::WHITE } else { egui::Color32::from_rgb(80, 80, 100) })
+                        ).fill(if active { egui::Color32::from_rgb(76, 139, 245) } else { egui::Color32::from_rgb(240, 242, 248) })
+                         .rounding(6.0);
+                        if ui.add(btn).clicked() {
+                            self.viewer.work_plane = i as u8;
+                        }
+                    }
+                });
+                if self.viewer.work_plane != 0 {
+                    ui.horizontal(|ui| {
+                        ui.label("偏移");
+                        ui.add(egui::DragValue::new(&mut self.viewer.work_plane_offset)
+                            .speed(50.0).suffix(" mm"));
+                    });
+                }
 
             ui.add_space(8.0);
 

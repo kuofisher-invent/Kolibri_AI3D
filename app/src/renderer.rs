@@ -748,6 +748,7 @@ impl ViewportRenderer {
                 hovered_face, selected_face,
                 edge_thickness, render_mode,
                 texture_manager,
+                view_proj,
             );
             self.cached_verts = verts;
             self.cached_idx = idx;
@@ -1108,13 +1109,40 @@ fn build_scene_mesh(
     edge_thickness_param: f32,
     render_mode: u32,
     texture_manager: &TextureManager,
+    view_proj: glam::Mat4,
 ) -> (Vec<Vertex>, Vec<u32>) {
     let mut verts = Vec::new();
     let mut idx = Vec::new();
 
     for obj in scene.objects.values() {
-        // Skip invisible objects (hidden by layer/tag)
         if !obj.visible { continue; }
+
+        // ── Frustum culling: 跳過完全在視錐外的物件 ──
+        {
+            let p = glam::Vec3::from(obj.position);
+            let extent = match &obj.shape {
+                Shape::Box { width, height, depth } => glam::Vec3::new(*width, *height, *depth),
+                Shape::Cylinder { radius, height, .. } => glam::Vec3::new(*radius * 2.0, *height, *radius * 2.0),
+                Shape::Sphere { radius, .. } => glam::Vec3::splat(*radius * 2.0),
+                _ => glam::Vec3::splat(1000.0), // Line/Mesh 保守估計
+            };
+            let center = p + extent * 0.5;
+            let radius = extent.length() * 0.5;
+            // 球體 vs frustum 測試：投影到 clip space
+            let clip = view_proj * glam::Vec4::new(center.x, center.y, center.z, 1.0);
+            if clip.w > 0.0 {
+                let ndc_x = clip.x / clip.w;
+                let ndc_y = clip.y / clip.w;
+                let ndc_r = radius / clip.w * 1.5; // 投影半徑（保守放大）
+                // 如果球心 + 半徑完全在 NDC 範圍外，跳過
+                if ndc_x - ndc_r > 1.5 || ndc_x + ndc_r < -1.5
+                    || ndc_y - ndc_r > 1.5 || ndc_y + ndc_r < -1.5
+                {
+                    continue;
+                }
+            }
+            // clip.w <= 0 表示在相機後方但可能很大（不 cull，安全起見）
+        }
 
         // Use texture average color if a texture is loaded, otherwise material color
         let mut color = if let Some(ref tex_path) = obj.texture_path {
@@ -1157,13 +1185,26 @@ fn build_scene_mesh(
 
         let p = obj.position;
         let start_idx = verts.len();
+
+        // LOD: 根據螢幕投影大小降低 segment 數
+        let lod_segments = |base_segs: u32| -> u32 {
+            let center = glam::Vec3::from(p);
+            let clip = view_proj * glam::Vec4::new(center.x, center.y, center.z, 1.0);
+            if clip.w > 0.0 {
+                let screen_size = 500.0 / clip.w; // 粗估螢幕投影大小
+                if screen_size < 20.0 { return (base_segs / 4).max(6); }
+                if screen_size < 80.0 { return (base_segs / 2).max(8); }
+            }
+            base_segs
+        };
+
         match &obj.shape {
             Shape::Box { width, height, depth } =>
                 push_box(&mut verts, &mut idx, p, *width, *height, *depth, color),
             Shape::Cylinder { radius, height, segments } =>
-                push_cylinder(&mut verts, &mut idx, p, *radius, *height, *segments, color),
+                push_cylinder(&mut verts, &mut idx, p, *radius, *height, lod_segments(*segments), color),
             Shape::Sphere { radius, segments } =>
-                push_sphere(&mut verts, &mut idx, p, *radius, *segments, color),
+                push_sphere(&mut verts, &mut idx, p, *radius, lod_segments(*segments), color),
             Shape::Line { points, thickness, .. } =>
                 push_line_segments(&mut verts, &mut idx, points, *thickness, color),
             Shape::Mesh(ref mesh) => {
