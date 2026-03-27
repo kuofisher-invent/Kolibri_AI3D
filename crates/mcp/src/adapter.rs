@@ -134,6 +134,18 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "create_room".into(),
+                description: "建立一個房間（地板+天花板+4面牆）".into(),
+                input_schema: json!({ "type": "object", "properties": {
+                    "width":{"type":"number","default":4000},
+                    "depth":{"type":"number","default":3000},
+                    "height":{"type":"number","default":3000},
+                    "wall_thickness":{"type":"number","default":200},
+                    "origin":{"type":"array","items":{"type":"number"},"default":[0,0,0]},
+                    "material":{"type":"string","default":"concrete"}
+                }}),
+            },
+            ToolDef {
                 name: "create_column_grid".into(),
                 description: "建立柱列網格（rows×cols，指定間距和柱尺寸）".into(),
                 input_schema: json!({ "type": "object", "required": ["rows", "cols"], "properties": {
@@ -435,6 +447,29 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "create_room" => {
+                let w = args["width"].as_f64().unwrap_or(4000.0) as f32;
+                let d = args["depth"].as_f64().unwrap_or(3000.0) as f32;
+                let h = args["height"].as_f64().unwrap_or(3000.0) as f32;
+                let wt = args["wall_thickness"].as_f64().unwrap_or(200.0) as f32;
+                let origin = parse_pos(&args.get("origin").cloned().unwrap_or(json!([0,0,0])));
+                let mat = parse_material(args["material"].as_str().unwrap_or("concrete"));
+                let ox = origin[0]; let oy = origin[1]; let oz = origin[2];
+                let mut ids = Vec::new();
+                // 地板
+                ids.push(self.scene.add_box("Floor".into(), [ox, oy, oz], w, wt, d, mat));
+                // 天花板
+                ids.push(self.scene.add_box("Ceiling".into(), [ox, oy+h, oz], w, wt, d, mat));
+                // 前牆
+                ids.push(self.scene.add_box("Wall_Front".into(), [ox, oy+wt, oz], w, h-wt*2.0, wt, mat));
+                // 後牆
+                ids.push(self.scene.add_box("Wall_Back".into(), [ox, oy+wt, oz+d-wt], w, h-wt*2.0, wt, mat));
+                // 左牆
+                ids.push(self.scene.add_box("Wall_Left".into(), [ox, oy+wt, oz+wt], wt, h-wt*2.0, d-wt*2.0, mat));
+                // 右牆
+                ids.push(self.scene.add_box("Wall_Right".into(), [ox+w-wt, oy+wt, oz+wt], wt, h-wt*2.0, d-wt*2.0, mat));
+                json!({ "success": true, "created": ids.len(), "ids": ids, "dimensions": format!("{:.0}x{:.0}x{:.0}", w, d, h) })
+            }
             "create_column_grid" => {
                 let rows = args["rows"].as_u64().unwrap_or(3) as usize;
                 let cols = args["cols"].as_u64().unwrap_or(4) as usize;

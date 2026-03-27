@@ -2098,6 +2098,10 @@ impl KolibriApp {
         } else {
             String::new()
         };
+        // 滑鼠座標
+        let coord = if let Some(p) = self.editor.mouse_ground {
+            format!("  X:{:.0} Y:{:.0} Z:{:.0}", p[0], p[1], p[2])
+        } else { String::new() };
 
         let base = match &self.editor.draw_state {
             DrawState::Idle => match self.editor.tool {
@@ -2205,7 +2209,7 @@ impl KolibriApp {
 
         // Append cursor world coordinates
         if let Some(p) = self.editor.mouse_ground {
-            format!("{} | X:{:.0} Y:{:.0} Z:{:.0}", base_text, p[0], 0.0, p[2])
+            format!("{}{} | X:{:.0} Y:{:.0} Z:{:.0}", base_text, coord, p[0], p[1], p[2])
         } else {
             base_text
         }

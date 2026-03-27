@@ -1049,6 +1049,35 @@ impl KolibriApp {
                     }
                 }
 
+                // ── Object center pivot（選取物件中心十字）──
+                if self.editor.selected_ids.len() == 1 {
+                    if let Some(obj) = self.editor.selected_ids.first()
+                        .and_then(|id| self.scene.objects.get(id))
+                    {
+                        let center = match &obj.shape {
+                            Shape::Box { width, height, depth } =>
+                                [obj.position[0]+width/2.0, obj.position[1]+height/2.0, obj.position[2]+depth/2.0],
+                            Shape::Cylinder { radius, height, .. } =>
+                                [obj.position[0]+radius, obj.position[1]+height/2.0, obj.position[2]+radius],
+                            Shape::Sphere { radius, .. } =>
+                                [obj.position[0]+radius, obj.position[1]+radius, obj.position[2]+radius],
+                            _ => obj.position,
+                        };
+                        if let Some(sc) = Self::world_to_screen_vp(center, &vp, &rect) {
+                            let cs = 5.0;
+                            let pivot_color = egui::Color32::from_rgba_unmultiplied(255, 200, 60, 200);
+                            ui.painter().line_segment(
+                                [egui::pos2(sc.x-cs, sc.y), egui::pos2(sc.x+cs, sc.y)],
+                                egui::Stroke::new(1.5, pivot_color));
+                            ui.painter().line_segment(
+                                [egui::pos2(sc.x, sc.y-cs), egui::pos2(sc.x, sc.y+cs)],
+                                egui::Stroke::new(1.5, pivot_color));
+                            ui.painter().circle_stroke(sc, 3.0,
+                                egui::Stroke::new(1.0, pivot_color));
+                        }
+                    }
+                }
+
                 // ── Move gizmo: 3D XYZ arrows with interactive hover/drag ──
                 if (self.editor.tool == Tool::Move || self.editor.tool == Tool::Select)
                     && !self.editor.selected_ids.is_empty()
