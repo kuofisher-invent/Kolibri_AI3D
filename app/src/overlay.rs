@@ -218,6 +218,52 @@ impl KolibriApp {
                     }
                 }
 
+                // ── Camera bookmarks（左上角小按鈕）──
+                if !self.viewer.saved_cameras.is_empty() {
+                    let bk_size = 20.0;
+                    let bk_x = rect.min.x + 8.0;
+                    let bk_y = rect.min.y + 8.0;
+                    for (i, (name, _cam)) in self.viewer.saved_cameras.iter().enumerate() {
+                        if i >= 6 { break; } // 最多顯示 6 個
+                        let br = egui::Rect::from_min_size(
+                            egui::pos2(bk_x + i as f32 * (bk_size + 4.0), bk_y),
+                            egui::vec2(bk_size, bk_size),
+                        );
+                        let mouse = egui::pos2(self.editor.mouse_screen[0] + rect.min.x,
+                                               self.editor.mouse_screen[1] + rect.min.y);
+                        let hovered = br.contains(mouse);
+                        ui.painter().rect_filled(br, 4.0,
+                            if hovered { egui::Color32::from_rgba_unmultiplied(76, 139, 245, 200) }
+                            else { egui::Color32::from_rgba_unmultiplied(40, 42, 55, 180) });
+                        ui.painter().text(br.center(), egui::Align2::CENTER_CENTER,
+                            &format!("{}", i + 1),
+                            egui::FontId::proportional(11.0),
+                            if hovered { egui::Color32::WHITE } else { egui::Color32::from_rgb(180, 185, 200) });
+                        if hovered && response.clicked() {
+                            if let Some((_, cam)) = self.viewer.saved_cameras.get(i) {
+                                self.viewer.camera = cam.clone();
+                            }
+                        }
+                    }
+                    // + 按鈕儲存新 bookmark
+                    let plus_rect = egui::Rect::from_min_size(
+                        egui::pos2(bk_x + self.viewer.saved_cameras.len().min(6) as f32 * (bk_size + 4.0), bk_y),
+                        egui::vec2(bk_size, bk_size),
+                    );
+                    let mouse = egui::pos2(self.editor.mouse_screen[0] + rect.min.x,
+                                           self.editor.mouse_screen[1] + rect.min.y);
+                    let plus_hovered = plus_rect.contains(mouse);
+                    ui.painter().rect_filled(plus_rect, 4.0,
+                        egui::Color32::from_rgba_unmultiplied(40, 42, 55, if plus_hovered { 220 } else { 120 }));
+                    ui.painter().text(plus_rect.center(), egui::Align2::CENTER_CENTER, "+",
+                        egui::FontId::proportional(14.0),
+                        egui::Color32::from_rgba_unmultiplied(180, 185, 200, if plus_hovered { 255 } else { 150 }));
+                    if plus_hovered && response.clicked() {
+                        let name = format!("View {}", self.viewer.saved_cameras.len() + 1);
+                        self.viewer.saved_cameras.push((name, self.viewer.camera.clone()));
+                    }
+                }
+
                 // ── Draw guide/construction lines ──
                 if !self.scene.guide_lines.is_empty() {
                     let guide_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(150, 50, 50, 180));
