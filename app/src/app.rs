@@ -273,6 +273,13 @@ impl KolibriApp {
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
                 snap_threshold: 18.0,
+                recent_materials: vec![
+                    crate::scene::MaterialKind::Concrete,
+                    crate::scene::MaterialKind::Wood,
+                    crate::scene::MaterialKind::Steel,
+                    crate::scene::MaterialKind::Glass,
+                    crate::scene::MaterialKind::White,
+                ],
                 property_clipboard: None,
                 recovery_checked: false,
                 renaming_id: None,

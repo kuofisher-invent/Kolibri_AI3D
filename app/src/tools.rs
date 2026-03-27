@@ -1392,6 +1392,10 @@ impl KolibriApp {
                         self.scene.version += 1;
                     }
                     self.file_message = Some((format!("已套用材質: {}", self.create_mat.label()), std::time::Instant::now()));
+                    // 追蹤最近使用材質
+                    self.editor.recent_materials.retain(|m| m != &self.create_mat);
+                    self.editor.recent_materials.insert(0, self.create_mat);
+                    if self.editor.recent_materials.len() > 8 { self.editor.recent_materials.truncate(8); }
                     self.editor.selected_ids.clear();
                 } else if !self.editor.selected_ids.is_empty() {
                     // 批量上色：所有選取物件

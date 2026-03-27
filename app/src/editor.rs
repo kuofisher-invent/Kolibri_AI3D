@@ -286,6 +286,8 @@ pub(crate) struct EditorState {
     pub(crate) snap_threshold: f32,
     /// Crash recovery: 啟動時檢查是否有 autosave
     pub(crate) recovery_checked: bool,
+    /// 最近使用的材質（快速切換）
+    pub(crate) recent_materials: Vec<crate::scene::MaterialKind>,
     /// Property clipboard（材質/roughness/metallic）
     pub(crate) property_clipboard: Option<(crate::scene::MaterialKind, f32, f32)>,
     /// Outliner rename 狀態

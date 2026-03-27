@@ -695,6 +695,30 @@ impl KolibriApp {
                         }
                     });
                 }
+                // 快速材質面板（PaintBucket 啟用時）
+                if self.editor.tool == Tool::PaintBucket {
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new("快速材質").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                    ui.horizontal_wrapped(|ui| {
+                        let mats = self.editor.recent_materials.clone();
+                        for mat in &mats {
+                            let c = mat.color();
+                            let active = self.create_mat == *mat;
+                            let btn_color = egui::Color32::from_rgb(
+                                (c[0]*255.0) as u8, (c[1]*255.0) as u8, (c[2]*255.0) as u8);
+                            let btn = egui::Button::new("")
+                                .fill(btn_color)
+                                .min_size(egui::vec2(22.0, 22.0))
+                                .rounding(4.0)
+                                .stroke(if active {
+                                    egui::Stroke::new(2.0, egui::Color32::from_rgb(76, 139, 245))
+                                } else { egui::Stroke::NONE });
+                            if ui.add(btn).on_hover_text(mat.label()).clicked() {
+                                self.create_mat = *mat;
+                            }
+                        }
+                    });
+                }
             }
             WorkMode::Steel => {
                 // Steel tools
