@@ -284,6 +284,9 @@ pub(crate) struct EditorState {
     pub(crate) selection_mode: SelectionMode,
     /// Snap 靈敏度（像素，預設 18）
     pub(crate) snap_threshold: f32,
+    /// Outliner rename 狀態
+    pub(crate) renaming_id: Option<String>,
+    pub(crate) rename_buf: String,
     /// 建築參數
     pub(crate) wall_thickness: f32,  // mm, 預設 200
     pub(crate) wall_height: f32,     // mm, 預設 3000

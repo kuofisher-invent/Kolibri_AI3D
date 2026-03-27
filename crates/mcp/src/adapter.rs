@@ -117,6 +117,16 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "set_object_property".into(),
+                description: "設定物件屬性（name, tag, visible, locked, roughness, metallic）".into(),
+                input_schema: json!({ "type": "object", "required": ["id"], "properties": {
+                    "id":{"type":"string"},
+                    "name":{"type":"string"}, "tag":{"type":"string"},
+                    "visible":{"type":"boolean"}, "locked":{"type":"boolean"},
+                    "roughness":{"type":"number"}, "metallic":{"type":"number"}
+                }}),
+            },
+            ToolDef {
                 name: "measure_object".into(),
                 description: "測量物件面積和體積".into(),
                 input_schema: json!({ "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } }),
@@ -314,6 +324,19 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "set_object_property" => {
+                let id = args["id"].as_str().unwrap_or("").to_string();
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    if let Some(n) = args["name"].as_str() { obj.name = n.to_string(); }
+                    if let Some(t) = args["tag"].as_str() { obj.tag = t.to_string(); }
+                    if let Some(v) = args["visible"].as_bool() { obj.visible = v; }
+                    if let Some(l) = args["locked"].as_bool() { obj.locked = l; }
+                    if let Some(r) = args["roughness"].as_f64() { obj.roughness = r as f32; }
+                    if let Some(m) = args["metallic"].as_f64() { obj.metallic = m as f32; }
+                    self.scene.version += 1;
+                    json!({ "success": true, "id": id })
+                } else { json!({ "error": "Object not found" }) }
+            }
             "measure_object" => {
                 let id = args["id"].as_str().unwrap_or("");
                 if let Some(obj) = self.scene.objects.get(id) {

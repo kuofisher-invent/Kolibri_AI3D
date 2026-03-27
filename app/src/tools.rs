@@ -1297,27 +1297,29 @@ impl KolibriApp {
                     self.pick(mx, my, vw, vh)
                 });
                 if let Some(ref id) = target_id {
+                    // 單一物件上色
                     self.scene.snapshot_ids(&[id], "材質");
-                    let mut log_msg: Option<String> = None;
                     if let Some(obj) = self.scene.objects.get_mut(id) {
-                        let old_mat = obj.material.label().to_string();
-                        let obj_name = obj.name.clone();
                         obj.material = self.create_mat;
                         self.scene.version += 1;
-                        log_msg = Some(format!("油漆桶: {} 材質 {} → {} (v={})", obj_name, old_mat, self.create_mat.label(), self.scene.version));
-                        self.ai_log.log(&self.current_actor.clone(), "設定材質", &format!("{} → {}", old_mat, self.create_mat.label()), vec![id.clone()]);
-                        self.file_message = Some((format!("已套用材質: {}", self.create_mat.label()), std::time::Instant::now()));
-                    } else {
-                        log_msg = Some(format!("油漆桶: 找不到物件 id={}", id));
                     }
-                    // 油漆桶塗完後取消選取 — 放在借用區塊外確保執行
+                    self.file_message = Some((format!("已套用材質: {}", self.create_mat.label()), std::time::Instant::now()));
                     self.editor.selected_ids.clear();
-                    if let Some(msg) = log_msg {
-                        let level = if msg.contains("找不到") { "WARN" } else { "ACTION" };
-                        self.console_push(level, msg);
+                } else if !self.editor.selected_ids.is_empty() {
+                    // 批量上色：所有選取物件
+                    let ids: Vec<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
+                    self.scene.snapshot_ids(&ids, "批量材質");
+                    let count = self.editor.selected_ids.len();
+                    for id in &self.editor.selected_ids.clone() {
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            obj.material = self.create_mat;
+                        }
                     }
-                } else {
-                    self.console_push("WARN", "油漆桶: 未偵測到物件（未 hover 也未 pick）".to_string());
+                    self.scene.version += 1;
+                    self.file_message = Some((
+                        format!("已批量套用 {} 到 {} 個物件", self.create_mat.label(), count),
+                        std::time::Instant::now(),
+                    ));
                 }
             }
 

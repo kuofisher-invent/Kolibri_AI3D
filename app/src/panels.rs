@@ -1990,11 +1990,34 @@ impl KolibriApp {
         root_items.sort_by(|a, b| a.1.cmp(&b.1)); // 按名稱排序
 
         for (oid, name, icon) in &root_items {
+            let is_renaming = self.editor.renaming_id.as_ref() == Some(oid);
             ui.horizontal(|ui| {
-                let selected = self.editor.selected_ids.iter().any(|s| s == oid);
-                if ui.selectable_label(selected, format!("{} {}", icon, name)).clicked() {
-                    self.editor.selected_ids = vec![oid.clone()];
-                    self.right_tab = RightTab::Properties;
+                if is_renaming {
+                    // Inline rename text edit
+                    let resp = ui.text_edit_singleline(&mut self.editor.rename_buf);
+                    if !resp.has_focus() { resp.request_focus(); }
+                    if resp.lost_focus() {
+                        // Enter or click away → apply
+                        if !self.editor.rename_buf.is_empty() {
+                            if let Some(obj) = self.scene.objects.get_mut(oid) {
+                                obj.name = self.editor.rename_buf.clone();
+                                self.scene.version += 1;
+                            }
+                        }
+                        self.editor.renaming_id = None;
+                        self.editor.rename_buf.clear();
+                    }
+                } else {
+                    let selected = self.editor.selected_ids.iter().any(|s| s == oid);
+                    let resp = ui.selectable_label(selected, format!("{} {}", icon, name));
+                    if resp.clicked() {
+                        self.editor.selected_ids = vec![oid.clone()];
+                        self.right_tab = RightTab::Properties;
+                    }
+                    if resp.double_clicked() {
+                        self.editor.renaming_id = Some(oid.clone());
+                        self.editor.rename_buf = name.clone();
+                    }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if let Some(obj) = self.scene.objects.get_mut(oid) {

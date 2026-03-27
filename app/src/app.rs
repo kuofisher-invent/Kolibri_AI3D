@@ -270,6 +270,8 @@ impl KolibriApp {
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
                 snap_threshold: 18.0,
+                renaming_id: None,
+                rename_buf: String::new(),
                 wall_thickness: 200.0,
                 wall_height: 3000.0,
                 slab_thickness: 200.0,
