@@ -1,6 +1,7 @@
 //! Import Manager — detects file format and routes to appropriate importer
 
 use super::unified_ir::UnifiedIR;
+use std::collections::{HashMap, HashSet};
 
 pub enum ImportFormat {
     Dxf,
@@ -115,35 +116,192 @@ pub fn build_scene_from_ir(scene: &mut crate::scene::Scene, ir: &UnifiedIR) -> B
         }
     }
 
-    // Build meshes as Box approximations
-    for mesh in &ir.meshes {
-        if mesh.vertices.len() < 3 { continue; }
+    let mesh_lookup: HashMap<String, &super::unified_ir::IrMesh> =
+        ir.meshes.iter().map(|m| (m.id.clone(), m)).collect();
+    let material_lookup: HashMap<String, &super::unified_ir::IrMaterial> =
+        ir.materials.iter().map(|m| (m.id.clone(), m)).collect();
 
-        // Compute bounding box
-        let mut min = [f32::MAX; 3];
-        let mut max = [f32::MIN; 3];
-        for v in &mesh.vertices {
-            for i in 0..3 {
-                min[i] = min[i].min(v[i]);
-                max[i] = max[i].max(v[i]);
+    for comp in &ir.component_defs {
+        let mut objects = Vec::new();
+        for mesh_id in &comp.mesh_ids {
+            let Some(mesh) = mesh_lookup.get(mesh_id).copied() else { continue; };
+            let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+            let mut obj = imported_mesh_object(
+                scene.next_id_pub(),
+                mesh.name.clone(),
+                [0.0, 0.0, 0.0],
+                he_mesh,
+                material_for_mesh(mesh, &material_lookup),
+            );
+            obj.tag = format!("元件:{}", comp.id);
+            objects.push(obj);
+        }
+        if !objects.is_empty() {
+            scene.component_defs.insert(comp.id.clone(), crate::scene::ComponentDef {
+                id: comp.id.clone(),
+                name: comp.name.clone(),
+                objects,
+            });
+        }
+    }
+
+    let mut instance_to_object: HashMap<String, String> = HashMap::new();
+    let mut referenced_meshes: HashSet<String> = HashSet::new();
+
+    for inst in &ir.instances {
+        let Some(mesh) = mesh_lookup.get(&inst.mesh_id).copied() else { continue; };
+        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+        referenced_meshes.insert(mesh.id.clone());
+
+        let mut obj = imported_mesh_object(
+            scene.next_id_pub(),
+            if inst.name.is_empty() { mesh.name.clone() } else { inst.name.clone() },
+            translation_from_transform(inst.transform),
+            he_mesh,
+            material_for_mesh(mesh, &material_lookup),
+        );
+        obj.tag = if let Some(def_id) = &inst.component_def_id {
+            format!("元件:{}", def_id)
+        } else if inst.layer.is_empty() {
+            "匯入".into()
+        } else {
+            inst.layer.clone()
+        };
+
+        scene.objects.insert(obj.id.clone(), obj.clone());
+        result.ids.push(obj.id.clone());
+        result.meshes += 1;
+        instance_to_object.insert(inst.id.clone(), obj.id.clone());
+    }
+
+    for group in &ir.groups {
+        let children: Vec<String> = group.children.iter()
+            .filter_map(|child| instance_to_object.get(child).cloned())
+            .collect();
+        if children.is_empty() { continue; }
+
+        for child_id in &children {
+            if let Some(obj) = scene.objects.get_mut(child_id) {
+                obj.parent_id = Some(group.id.clone());
             }
         }
-        let w = (max[0] - min[0]).max(1.0);
-        let h = (max[1] - min[1]).max(1.0);
-        let d = (max[2] - min[2]).max(1.0);
 
-        // Create as box (simplified)
-        let id = scene.add_box(
+        scene.groups.insert(group.id.clone(), crate::scene::GroupDef {
+            id: group.id.clone(),
+            name: group.name.clone(),
+            children,
+            position: [0.0; 3],
+            rotation_y: 0.0,
+        });
+    }
+
+    for mesh in &ir.meshes {
+        if referenced_meshes.contains(&mesh.id) { continue; }
+        let Some(he_mesh) = ir_mesh_to_he_mesh(mesh) else { continue; };
+        let obj = imported_mesh_object(
+            scene.next_id_pub(),
             mesh.name.clone(),
-            min,
-            w, h, d,
-            crate::scene::MaterialKind::White,
+            [0.0, 0.0, 0.0],
+            he_mesh,
+            material_for_mesh(mesh, &material_lookup),
         );
-        result.ids.push(id);
+        scene.objects.insert(obj.id.clone(), obj.clone());
+        result.ids.push(obj.id.clone());
         result.meshes += 1;
     }
 
+    if result.meshes > 0 {
+        scene.version += 1;
+    }
+
     result
+}
+
+fn imported_mesh_object(
+    id: String,
+    name: String,
+    position: [f32; 3],
+    mesh: crate::halfedge::HeMesh,
+    material: crate::scene::MaterialKind,
+) -> crate::scene::SceneObject {
+    crate::scene::SceneObject {
+        id,
+        name,
+        shape: crate::scene::Shape::Mesh(mesh),
+        position,
+        material,
+        rotation_y: 0.0,
+        tag: "匯入".into(),
+        visible: true,
+        roughness: 0.5,
+        metallic: 0.0,
+        texture_path: None,
+        component_kind: Default::default(),
+        parent_id: None,
+    }
+}
+
+fn ir_mesh_to_he_mesh(mesh: &super::unified_ir::IrMesh) -> Option<crate::halfedge::HeMesh> {
+    if mesh.vertices.len() < 3 {
+        return None;
+    }
+
+    let mut he = crate::halfedge::HeMesh::new();
+    let mut vertex_ids = Vec::with_capacity(mesh.vertices.len());
+    for v in &mesh.vertices {
+        vertex_ids.push(he.add_vertex(*v));
+    }
+
+    if !mesh.indices.is_empty() {
+        for tri in mesh.indices.chunks(3) {
+            if tri.len() < 3 { continue; }
+            let i0 = tri[0] as usize;
+            let i1 = tri[1] as usize;
+            let i2 = tri[2] as usize;
+            if i0 >= vertex_ids.len() || i1 >= vertex_ids.len() || i2 >= vertex_ids.len() {
+                continue;
+            }
+            he.add_face(&[vertex_ids[i0], vertex_ids[i1], vertex_ids[i2]]);
+        }
+    } else {
+        he.add_face(&vertex_ids);
+    }
+
+    Some(he)
+}
+
+/// 從 4x4 column-major transform 矩陣提取平移向量
+/// TODO: 未來 SceneObject 支援完整 transform 時，應提取旋轉/縮放
+fn translation_from_transform(transform: [f32; 16]) -> [f32; 3] {
+    [transform[12], transform[13], transform[14]]
+}
+
+fn material_for_mesh(
+    mesh: &super::unified_ir::IrMesh,
+    materials: &HashMap<String, &super::unified_ir::IrMaterial>,
+) -> crate::scene::MaterialKind {
+    mesh.material_id
+        .as_ref()
+        .and_then(|id| materials.get(id).copied())
+        .map(material_from_ir)
+        .unwrap_or(crate::scene::MaterialKind::White)
+}
+
+fn material_from_ir(mat: &super::unified_ir::IrMaterial) -> crate::scene::MaterialKind {
+    let r = (mat.color[0].clamp(0.0, 1.0) * 255.0).round() as u32;
+    let g = (mat.color[1].clamp(0.0, 1.0) * 255.0).round() as u32;
+    let b = (mat.color[2].clamp(0.0, 1.0) * 255.0).round() as u32;
+    let a = mat.opacity.clamp(0.0, 1.0);
+    if a < 0.999 {
+        crate::scene::MaterialKind::Custom([
+            mat.color[0].clamp(0.0, 1.0),
+            mat.color[1].clamp(0.0, 1.0),
+            mat.color[2].clamp(0.0, 1.0),
+            a,
+        ])
+    } else {
+        crate::scene::MaterialKind::Paint((r << 16) | (g << 8) | b)
+    }
 }
 
 fn convert_to_drawing_ir(ir: &UnifiedIR) -> crate::cad_import::ir::DrawingIR {
@@ -190,4 +348,76 @@ pub struct BuildResult {
     pub plates: usize,
     pub meshes: usize,
     pub ids: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::import::unified_ir;
+
+    #[test]
+    fn builds_mesh_instances_groups_and_component_defs() {
+        let mut scene = crate::scene::Scene::default();
+        let ir = unified_ir::UnifiedIR {
+            source_format: "skp".into(),
+            source_file: "test.skp".into(),
+            units: "mm".into(),
+            meshes: vec![unified_ir::IrMesh {
+                id: "mesh_1".into(),
+                name: "Cube".into(),
+                vertices: vec![
+                    [0.0, 0.0, 0.0],
+                    [100.0, 0.0, 0.0],
+                    [0.0, 100.0, 0.0],
+                ],
+                normals: vec![],
+                indices: vec![0, 1, 2],
+                material_id: None,
+            }],
+            instances: vec![unified_ir::IrInstance {
+                id: "inst_1".into(),
+                mesh_id: "mesh_1".into(),
+                component_def_id: Some("comp_1".into()),
+                transform: [
+                    1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    250.0, 0.0, 500.0, 1.0,
+                ],
+                name: "Instance A".into(),
+                layer: "Layer1".into(),
+            }],
+            groups: vec![unified_ir::IrGroup {
+                id: "grp_1".into(),
+                name: "Main Group".into(),
+                children: vec!["inst_1".into()],
+            }],
+            component_defs: vec![unified_ir::IrComponentDef {
+                id: "comp_1".into(),
+                name: "Comp A".into(),
+                mesh_ids: vec!["mesh_1".into()],
+                instance_count: 1,
+            }],
+            materials: vec![],
+            curves: vec![],
+            grids: None,
+            members: vec![],
+            levels: vec![],
+            stats: Default::default(),
+            debug_report: vec![],
+        };
+
+        let result = build_scene_from_ir(&mut scene, &ir);
+
+        assert_eq!(result.meshes, 1);
+        assert_eq!(scene.objects.len(), 1);
+        assert!(scene.component_defs.contains_key("comp_1"));
+        assert!(scene.groups.contains_key("grp_1"));
+
+        let obj = scene.objects.values().next().expect("expected imported object");
+        assert_eq!(obj.position, [250.0, 0.0, 500.0]);
+        assert_eq!(obj.parent_id.as_deref(), Some("grp_1"));
+        assert!(matches!(obj.shape, crate::scene::Shape::Mesh(_)));
+        assert_eq!(obj.tag, "元件:comp_1");
+    }
 }

@@ -455,6 +455,32 @@ impl Scene {
         id
     }
 
+    /// Insert a mesh object without snapshot/version bump.
+    pub fn insert_mesh_raw(
+        &mut self, name: String, pos: [f32; 3],
+        mesh: crate::halfedge::HeMesh, mat: MaterialKind,
+    ) -> String {
+        let id = self.next_id();
+        self.objects.insert(id.clone(), SceneObject {
+            id: id.clone(), name,
+            shape: Shape::Mesh(mesh),
+            position: pos, material: mat,
+            rotation_y: 0.0, tag: default_tag(), visible: true,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None,
+        });
+        id
+    }
+
+    pub fn add_mesh(
+        &mut self, name: String, pos: [f32; 3],
+        mesh: crate::halfedge::HeMesh, mat: MaterialKind,
+    ) -> String {
+        self.snapshot();
+        let id = self.insert_mesh_raw(name, pos, mesh, mat);
+        self.version += 1;
+        id
+    }
+
     pub fn delete(&mut self, id: &str) -> bool {
         if !self.objects.contains_key(id) { return false; }
         self.snapshot();

@@ -1,8 +1,10 @@
 //! SketchUp SKP file importer
 //!
-//! SKP files (2014+) are ZIP archives containing binary geometry data.
-//! This importer attempts to extract basic geometry.
-//! For complex SKP files, users should export to OBJ from SketchUp first.
+//! NOTE:
+//! This module is currently a heuristic fallback, not a production-grade SKP parser.
+//! It can provide coarse geometry guesses for some files, but it does not yet
+//! reconstruct SketchUp component definitions, instances, or nested group structure.
+//! For a fuller design direction, see `docs/project/SKP_IMPORT_RESEARCH.md`.
 
 use super::unified_ir::*;
 
