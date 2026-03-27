@@ -24,6 +24,11 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "properties": {} }),
             },
             ToolDef {
+                name: "get_scene_stats".into(),
+                description: "取得場景統計（物件數量/類型/總面積/總體積/估重）".into(),
+                input_schema: json!({ "type": "object", "properties": {} }),
+            },
+            ToolDef {
                 name: "get_object_info".into(),
                 description: "取得單一物件詳細資訊".into(),
                 input_schema: json!({ "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } }),
@@ -217,6 +222,33 @@ impl KolibriAdapter {
                             "material": o.material.label() })
                 }).collect();
                 json!({ "object_count": objs.len(), "objects": objs })
+            }
+            "get_scene_stats" => {
+                let mut boxes = 0u32; let mut cyls = 0u32; let mut spheres = 0u32;
+                let mut lines = 0u32; let mut meshes = 0u32;
+                let mut total_area = 0.0_f64; let mut total_vol = 0.0_f64;
+                for obj in self.scene.objects.values() {
+                    match &obj.shape {
+                        Shape::Box{..} => boxes += 1,
+                        Shape::Cylinder{..} => cyls += 1,
+                        Shape::Sphere{..} => spheres += 1,
+                        Shape::Line{..} => lines += 1,
+                        Shape::Mesh{..} => meshes += 1,
+                    }
+                    total_area += kolibri_core::measure::surface_area(obj);
+                    total_vol += kolibri_core::measure::volume(obj);
+                }
+                let weight_kg = total_vol / 1_000_000_000.0 * 2400.0;
+                json!({
+                    "object_count": self.scene.objects.len(),
+                    "boxes": boxes, "cylinders": cyls, "spheres": spheres,
+                    "lines": lines, "meshes": meshes,
+                    "groups": self.scene.groups.len(),
+                    "component_defs": self.scene.component_defs.len(),
+                    "total_surface_area": kolibri_core::measure::format_area(total_area),
+                    "total_volume": kolibri_core::measure::format_volume(total_vol),
+                    "estimated_weight_kg": (weight_kg * 10.0).round() / 10.0,
+                })
             }
             "get_object_info" => {
                 let id = args["id"].as_str().unwrap_or("");

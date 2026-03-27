@@ -1581,6 +1581,34 @@ impl KolibriApp {
                     }
                 }
 
+                // ── Viewport axes indicator（右下角 XYZ 方向立方）──
+                {
+                    let ax_size = 40.0;
+                    let ax_center = egui::pos2(rect.max.x - ax_size - 12.0, rect.max.y - ax_size - 40.0);
+                    let ax_len = ax_size * 0.4;
+                    // 從相機 view matrix 提取軸向（螢幕空間投影）
+                    let view = self.viewer.camera.view();
+                    let axes_3d = [
+                        (glam::Vec3::X, egui::Color32::from_rgb(220, 60, 60), "X"),
+                        (glam::Vec3::Y, egui::Color32::from_rgb(60, 180, 60), "Y"),
+                        (glam::Vec3::Z, egui::Color32::from_rgb(60, 60, 220), "Z"),
+                    ];
+                    for (dir, color, label) in &axes_3d {
+                        let view_dir = view.transform_vector3(*dir);
+                        let sx = view_dir.x * ax_len;
+                        let sy = -view_dir.y * ax_len; // screen Y is inverted
+                        let tip = egui::pos2(ax_center.x + sx, ax_center.y + sy);
+                        ui.painter().line_segment([ax_center, tip], egui::Stroke::new(2.0, *color));
+                        ui.painter().text(
+                            egui::pos2(tip.x + sx * 0.15, tip.y + sy * 0.15),
+                            egui::Align2::CENTER_CENTER, label,
+                            egui::FontId::proportional(9.0), *color,
+                        );
+                    }
+                    // 中心圓
+                    ui.painter().circle_filled(ax_center, 3.0, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 150));
+                }
+
                 // ── Scale bar（左下角比例尺）──
                 {
                     // 用兩個已知距離的 3D 點投影到螢幕，計算 pixel/mm
