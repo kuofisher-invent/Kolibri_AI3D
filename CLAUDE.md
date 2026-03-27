@@ -133,7 +133,7 @@ cargo clippy
 
 詳見 [docs/MCP_SERVER.md](docs/MCP_SERVER.md)。
 
-- **17 個工具**：場景查詢、物件 CRUD、推拉/旋轉/縮放、undo/redo、shutdown
+- **24 個工具**：場景查詢、物件 CRUD、推拉/旋轉/縮放/對齊/鏡射、匯入匯出、undo/redo、shutdown
 - **4 層架構**：protocol → adapter → transport (stdio/HTTP) → test
 - **Web Dashboard**：`http://localhost:3001/`
 - **APP 內建按鈕**：頂部列 MCP 按鈕一鍵啟動
