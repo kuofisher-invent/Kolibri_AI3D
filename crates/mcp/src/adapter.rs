@@ -24,6 +24,18 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "properties": {} }),
             },
             ToolDef {
+                name: "list_layers".into(),
+                description: "列出所有圖層（tag）及其物件數量".into(),
+                input_schema: json!({ "type": "object", "properties": {} }),
+            },
+            ToolDef {
+                name: "set_layer".into(),
+                description: "設定物件的圖層（tag）".into(),
+                input_schema: json!({ "type": "object", "required": ["id", "layer"], "properties": {
+                    "id":{"type":"string"}, "layer":{"type":"string"}
+                }}),
+            },
+            ToolDef {
                 name: "get_scene_stats".into(),
                 description: "取得場景統計（物件數量/類型/總面積/總體積/估重）".into(),
                 input_schema: json!({ "type": "object", "properties": {} }),
@@ -222,6 +234,25 @@ impl KolibriAdapter {
                             "material": o.material.label() })
                 }).collect();
                 json!({ "object_count": objs.len(), "objects": objs })
+            }
+            "list_layers" => {
+                let mut layer_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+                for obj in self.scene.objects.values() {
+                    *layer_map.entry(obj.tag.clone()).or_insert(0) += 1;
+                }
+                let layers: Vec<serde_json::Value> = layer_map.iter()
+                    .map(|(tag, count)| json!({"name": tag, "object_count": count}))
+                    .collect();
+                json!({ "layers": layers, "count": layers.len() })
+            }
+            "set_layer" => {
+                let id = args["id"].as_str().unwrap_or("").to_string();
+                let layer = args["layer"].as_str().unwrap_or("").to_string();
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.tag = layer.clone();
+                    self.scene.version += 1;
+                    json!({ "success": true, "id": id, "layer": layer })
+                } else { json!({ "error": "Object not found" }) }
             }
             "get_scene_stats" => {
                 let mut boxes = 0u32; let mut cyls = 0u32; let mut spheres = 0u32;

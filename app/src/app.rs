@@ -389,6 +389,21 @@ impl KolibriApp {
             "匯出 DXF" => self.handle_menu_action(crate::menu::MenuAction::ExportDxf),
             "匯入 OBJ" => self.handle_menu_action(crate::menu::MenuAction::ImportObj),
             "匯入 DXF" => self.handle_menu_action(crate::menu::MenuAction::ImportDxf),
+            "隱藏選取" => {
+                for id in &self.editor.selected_ids.clone() {
+                    if let Some(obj) = self.scene.objects.get_mut(id) { obj.visible = false; }
+                }
+                self.scene.version += 1; self.editor.selected_ids.clear();
+            }
+            "顯示全部" => {
+                for obj in self.scene.objects.values_mut() { obj.visible = true; }
+                self.scene.version += 1;
+            }
+            "隔離顯示" => {
+                let sel: std::collections::HashSet<String> = self.editor.selected_ids.iter().cloned().collect();
+                for obj in self.scene.objects.values_mut() { obj.visible = sel.contains(&obj.id); }
+                self.scene.version += 1;
+            }
             "CSG 聯集" => self.handle_menu_action(crate::menu::MenuAction::CsgUnion),
             "CSG 差集" => self.handle_menu_action(crate::menu::MenuAction::CsgSubtract),
             "CSG 交集" => self.handle_menu_action(crate::menu::MenuAction::CsgIntersect),
@@ -600,6 +615,7 @@ impl eframe::App for KolibriApp {
                 ("X中心對齊", ""), ("Y中心對齊", ""), ("Z中心對齊", ""),
                 ("X等距分佈", ""), ("Y等距分佈", ""), ("Z等距分佈", ""),
                 ("CSG 聯集", ""), ("CSG 差集", ""), ("CSG 交集", ""),
+                ("隱藏選取", "Alt+H"), ("顯示全部", "Alt+Shift+H"), ("隔離顯示", "Alt+I"),
                 ("複製屬性", "Ctrl+Shift+C"), ("貼上屬性", "Ctrl+Shift+V"),
             ];
             let mut close = false;

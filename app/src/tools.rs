@@ -967,6 +967,34 @@ impl KolibriApp {
                     }
                 }
 
+                // Hide selected (Alt+H)
+                let alt = i.modifiers.alt;
+                if alt && i.key_pressed(egui::Key::H) {
+                    if shift {
+                        // Alt+Shift+H: 顯示全部
+                        for obj in self.scene.objects.values_mut() { obj.visible = true; }
+                        self.scene.version += 1;
+                        self.file_message = Some(("全部顯示".into(), std::time::Instant::now()));
+                    } else if !self.editor.selected_ids.is_empty() {
+                        // Alt+H: 隱藏選取
+                        for id in &self.editor.selected_ids.clone() {
+                            if let Some(obj) = self.scene.objects.get_mut(id) { obj.visible = false; }
+                        }
+                        self.scene.version += 1;
+                        self.editor.selected_ids.clear();
+                        self.file_message = Some(("已隱藏選取物件".into(), std::time::Instant::now()));
+                    }
+                }
+                // Isolate selected (Alt+I)
+                if alt && i.key_pressed(egui::Key::I) && !self.editor.selected_ids.is_empty() {
+                    let sel_set: std::collections::HashSet<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
+                    for obj in self.scene.objects.values_mut() {
+                        obj.visible = sel_set.contains(obj.id.as_str());
+                    }
+                    self.scene.version += 1;
+                    self.file_message = Some(("已隔離顯示選取物件".into(), std::time::Instant::now()));
+                }
+
                 // Unsaved changes confirmation Y/N (takes priority)
                 if self.pending_action.is_some() {
                     if i.key_pressed(egui::Key::Y) {

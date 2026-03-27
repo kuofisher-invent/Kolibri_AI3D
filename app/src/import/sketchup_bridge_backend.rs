@@ -20,6 +20,102 @@ impl SkpBackend for SketchUpBridgeBackend {
     }
 }
 
+pub fn export_bridge_json(path: &str) -> Result<PathBuf, String> {
+    ensure_bridge_plugin_installed()?;
+    let sketchup_exe = find_sketchup_exe()?;
+
+    let input_path = std::fs::canonicalize(path)
+        .map_err(|e| format!("Failed to resolve SKP path: {}", e))?;
+    let output_path =
+        std::env::temp_dir().join(format!("kolibri_skp_export_{}.json", uuid::Uuid::new_v4()));
+    if output_path.exists() {
+        let _ = std::fs::remove_file(&output_path);
+    }
+
+    let mut child = Command::new(&sketchup_exe)
+        .arg(&input_path)
+        .env("KOLIBRI_SKP_EXPORT_IN", &input_path)
+        .env("KOLIBRI_SKP_EXPORT_OUT", &output_path)
+        .spawn()
+        .map_err(|e| format!("Failed to launch SketchUp bridge: {}", e))?;
+
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let mut child_status = None;
+    while Instant::now() < deadline {
+        if output_path.exists() {
+            wait_for_stable_file(&output_path, deadline)?;
+            return Ok(output_path);
+        }
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|e| format!("Failed while waiting for SketchUp bridge: {}", e))?
+        {
+            child_status = Some(status);
+            if output_path.exists() {
+                wait_for_stable_file(&output_path, deadline)?;
+                return Ok(output_path);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
+
+    let _ = child.kill();
+    let status_suffix = child_status
+        .map(|s| format!(" (exit code: {:?})", s.code()))
+        .unwrap_or_default();
+    Err(format!(
+        "SketchUp bridge did not produce export JSON within 120s{}",
+        status_suffix
+    ))
+}
+
+pub fn import_bridge_json_file(
+    json_path: &str,
+    source_file: Option<&str>,
+) -> Result<UnifiedIR, String> {
+    let source_path = match source_file {
+        Some(path) => std::fs::canonicalize(path)
+            .map_err(|e| format!("Failed to resolve source SKP path: {}", e))?,
+        None => std::fs::canonicalize(json_path)
+            .map_err(|e| format!("Failed to resolve bridge JSON path: {}", e))?,
+    };
+
+    let json = std::fs::read_to_string(json_path)
+        .map_err(|e| format!("Failed to read SketchUp bridge JSON: {}", e))?;
+    bridge_json_to_ir(&json, source_path)
+}
+
+fn wait_for_stable_file(path: &Path, deadline: Instant) -> Result<(), String> {
+    let mut stable_polls = 0usize;
+    let mut last_len = None;
+    let mut last_modified = None;
+
+    while Instant::now() < deadline {
+        let metadata = std::fs::metadata(path)
+            .map_err(|e| format!("Failed to inspect SketchUp bridge JSON: {}", e))?;
+        let len = metadata.len();
+        let modified = metadata.modified().ok();
+
+        if len > 0 && Some(len) == last_len && modified == last_modified {
+            stable_polls += 1;
+            if stable_polls >= 6 {
+                return Ok(());
+            }
+        } else {
+            stable_polls = 0;
+            last_len = Some(len);
+            last_modified = modified;
+        }
+
+        std::thread::sleep(Duration::from_millis(500));
+    }
+
+    Err(format!(
+        "SketchUp bridge JSON did not stabilize within the allotted time: {}",
+        path.display()
+    ))
+}
+
 #[derive(Debug, Deserialize)]
 struct BridgeExport {
     error: Option<String>,
@@ -83,67 +179,22 @@ struct BridgeComponentDef {
 }
 
 fn import_via_sketchup_bridge(path: &str) -> Result<UnifiedIR, String> {
-    ensure_bridge_plugin_installed()?;
-    let sketchup_exe = find_sketchup_exe()?;
-
     let input_path = std::fs::canonicalize(path)
-        .map_err(|e| format!("找不到 SKP 檔案: {}", e))?;
-    let output_path = std::env::temp_dir().join(format!("kolibri_skp_export_{}.json", uuid::Uuid::new_v4()));
-    if output_path.exists() {
-        let _ = std::fs::remove_file(&output_path);
-    }
-
-    let mut child = Command::new(&sketchup_exe)
-        .arg(&input_path)
-        .env("KOLIBRI_SKP_EXPORT_IN", &input_path)
-        .env("KOLIBRI_SKP_EXPORT_OUT", &output_path)
-        .spawn()
-        .map_err(|e| format!("無法啟動 SketchUp bridge: {}", e))?;
-
-    let deadline = Instant::now() + Duration::from_secs(120);
-    let mut child_status = None;
-    while Instant::now() < deadline {
-        if output_path.exists() {
-            break;
-        }
-        if let Some(status) = child.try_wait().map_err(|e| format!("等待 SketchUp bridge 失敗: {}", e))? {
-            child_status = Some(status);
-            if output_path.exists() {
-                break;
-            }
-        }
-        std::thread::sleep(Duration::from_millis(250));
-    }
-
-    if !output_path.exists() {
-        let _ = child.kill();
-        let status_suffix = child_status
-            .map(|s| format!(" (exit code: {:?})", s.code()))
-            .unwrap_or_default();
-        return Err(format!(
-            "SketchUp bridge 未在時間內輸出 JSON。請確認 SketchUp 2025 可正常開啟檔案{}。",
-            status_suffix
-        ));
-    }
+        .map_err(|e| format!("Failed to resolve SKP path: {}", e))?;
+    let output_path = export_bridge_json(path)?;
 
     let json = std::fs::read_to_string(&output_path)
-        .map_err(|e| format!("讀取 SketchUp bridge JSON 失敗: {}", e))?;
+        .map_err(|e| format!("Failed to read SketchUp bridge JSON: {}", e))?;
     let _ = std::fs::remove_file(&output_path);
 
-    let export: BridgeExport = serde_json::from_str(&json)
-        .map_err(|e| format!("解析 SketchUp bridge JSON 失敗: {}", e))?;
-    if let Some(err) = export.error {
-        return Err(format!("SketchUp bridge 匯出失敗: {}", err));
-    }
-
-    Ok(bridge_export_to_ir(export, input_path))
+    bridge_json_to_ir(&json, input_path)
 }
 
 fn ensure_bridge_plugin_installed() -> Result<(), String> {
     let plugin_root = sketchup_plugin_dir()?;
     let bridge_dir = plugin_root.join("kolibri_skp_bridge");
     std::fs::create_dir_all(&bridge_dir)
-        .map_err(|e| format!("建立 SketchUp plugin 目錄失敗: {}", e))?;
+        .map_err(|e| format!("Failed to create SketchUp plugin directory: {}", e))?;
 
     write_if_changed(&plugin_root.join("kolibri_skp_bridge.rb"), BRIDGE_LOADER)?;
     write_if_changed(&bridge_dir.join("main.rb"), BRIDGE_MAIN)?;
@@ -156,14 +207,15 @@ fn write_if_changed(path: &Path, content: &str) -> Result<(), String> {
         Err(_) => true,
     };
     if needs_write {
-        std::fs::write(path, content).map_err(|e| format!("寫入 {:?} 失敗: {}", path, e))?;
+        std::fs::write(path, content)
+            .map_err(|e| format!("Failed to write {:?}: {}", path, e))?;
     }
     Ok(())
 }
 
 fn sketchup_plugin_dir() -> Result<PathBuf, String> {
     let appdata = std::env::var_os("APPDATA")
-        .ok_or_else(|| "找不到 APPDATA，無法安裝 SketchUp bridge plugin".to_string())?;
+        .ok_or_else(|| "APPDATA is not set; cannot install SketchUp bridge plugin".to_string())?;
     Ok(PathBuf::from(appdata)
         .join("SketchUp")
         .join("SketchUp 2025")
@@ -179,7 +231,7 @@ fn find_sketchup_exe() -> Result<PathBuf, String> {
     candidates
         .into_iter()
         .find(|p| p.exists())
-        .ok_or_else(|| "找不到 SketchUp.exe，無法使用 SKP bridge".to_string())
+        .ok_or_else(|| "SketchUp.exe was not found; cannot run SKP bridge".to_string())
 }
 
 fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR {
@@ -190,49 +242,69 @@ fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR 
         ..Default::default()
     };
 
-    ir.materials = export.materials.into_iter().map(|m| IrMaterial {
-        id: m.id,
-        name: m.name,
-        color: m.color,
-        texture_path: m.texture_path,
-        opacity: m.opacity,
-    }).collect();
+    ir.materials = export
+        .materials
+        .into_iter()
+        .map(|m| IrMaterial {
+            id: m.id,
+            name: m.name,
+            color: m.color,
+            texture_path: m.texture_path,
+            opacity: m.opacity,
+        })
+        .collect();
 
-    ir.meshes = export.meshes.into_iter().map(|m| IrMesh {
-        id: m.id,
-        name: m.name,
-        vertices: convert_vertices_to_mm(&ir.units, m.vertices),
-        normals: m.normals,
-        indices: m.indices,
-        material_id: m.material_id,
-    }).collect();
+    ir.meshes = export
+        .meshes
+        .into_iter()
+        .map(|m| IrMesh {
+            id: m.id,
+            name: m.name,
+            vertices: convert_vertices_to_mm(&ir.units, m.vertices),
+            normals: m.normals,
+            indices: m.indices,
+            material_id: m.material_id,
+        })
+        .collect();
 
-    ir.instances = export.instances.into_iter().map(|inst| {
-        let mut transform = inst.transform;
-        scale_translation_to_mm(&ir.units, &mut transform);
-        IrInstance {
-            id: inst.id,
-            mesh_id: inst.mesh_id,
-            component_def_id: inst.component_def_id,
-            transform,
-            name: inst.name,
-            layer: inst.layer,
-        }
-    }).collect();
+    ir.instances = export
+        .instances
+        .into_iter()
+        .map(|inst| {
+            let mut transform = inst.transform;
+            scale_translation_to_mm(&ir.units, &mut transform);
+            IrInstance {
+                id: inst.id,
+                mesh_id: inst.mesh_id,
+                component_def_id: inst.component_def_id,
+                transform,
+                name: inst.name,
+                layer: inst.layer,
+            }
+        })
+        .collect();
 
-    ir.groups = export.groups.into_iter().map(|g| IrGroup {
-        id: g.id,
-        name: g.name,
-        children: g.children,
-        parent_id: g.parent_id,
-    }).collect();
+    ir.groups = export
+        .groups
+        .into_iter()
+        .map(|g| IrGroup {
+            id: g.id,
+            name: g.name,
+            children: g.children,
+            parent_id: g.parent_id,
+        })
+        .collect();
 
-    ir.component_defs = export.component_defs.into_iter().map(|c| IrComponentDef {
-        id: c.id,
-        name: c.name,
-        mesh_ids: c.mesh_ids,
-        instance_count: c.instance_count,
-    }).collect();
+    ir.component_defs = export
+        .component_defs
+        .into_iter()
+        .map(|c| IrComponentDef {
+            id: c.id,
+            name: c.name,
+            mesh_ids: c.mesh_ids,
+            instance_count: c.instance_count,
+        })
+        .collect();
 
     ir.stats.mesh_count = ir.meshes.len();
     ir.stats.face_count = ir.meshes.iter().map(|m| m.indices.len() / 3).sum();
@@ -242,7 +314,9 @@ fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR 
     ir.stats.component_count = ir.component_defs.len();
     ir.stats.material_count = ir.materials.len();
 
-    let layer_count = ir.instances.iter()
+    let layer_count = ir
+        .instances
+        .iter()
         .map(|i| i.layer.clone())
         .filter(|l| !l.is_empty())
         .collect::<std::collections::HashSet<_>>()
@@ -261,6 +335,15 @@ fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR 
     ];
 
     ir
+}
+
+fn bridge_json_to_ir(json: &str, source_file: PathBuf) -> Result<UnifiedIR, String> {
+    let export: BridgeExport = serde_json::from_str(json)
+        .map_err(|e| format!("Failed to parse SketchUp bridge JSON: {}", e))?;
+    if let Some(err) = export.error {
+        return Err(format!("SketchUp bridge reported an error: {}", err));
+    }
+    Ok(bridge_export_to_ir(export, source_file))
 }
 
 fn normalize_units(units: Option<&str>) -> String {
@@ -285,7 +368,10 @@ fn unit_scale_to_mm(units: &str) -> f32 {
 
 fn convert_vertices_to_mm(units: &str, vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
     let scale = unit_scale_to_mm(units);
-    vertices.into_iter().map(|v| [v[0] * scale, v[1] * scale, v[2] * scale]).collect()
+    vertices
+        .into_iter()
+        .map(|v| [v[0] * scale, v[1] * scale, v[2] * scale])
+        .collect()
 }
 
 fn scale_translation_to_mm(units: &str, transform: &mut [f32; 16]) {

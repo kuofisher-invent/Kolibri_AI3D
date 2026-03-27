@@ -1607,6 +1607,14 @@ impl KolibriApp {
                     }
                     // 中心圓
                     ui.painter().circle_filled(ax_center, 3.0, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 150));
+                    // 方位指示（N/S 對應 -Z/+Z）
+                    let north_dir = view.transform_vector3(-glam::Vec3::Z); // -Z = North
+                    let compass_len = ax_size * 0.52;
+                    let nx = north_dir.x * compass_len;
+                    let ny = -north_dir.y * compass_len;
+                    let n_tip = egui::pos2(ax_center.x + nx, ax_center.y + ny);
+                    ui.painter().text(n_tip, egui::Align2::CENTER_CENTER, "N",
+                        egui::FontId::proportional(8.0), egui::Color32::from_rgba_unmultiplied(255, 80, 80, 180));
                 }
 
                 // ── Scale bar（左下角比例尺）──
