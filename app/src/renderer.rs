@@ -27,6 +27,26 @@ struct Uniforms {
 
 pub const COLOR_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 const DEPTH_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+const SHADOW_MAP_SIZE: u32 = 2048;
+const SHADOW_DEPTH_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+// Shadow depth-only shader (vertex only, no fragment output)
+const SHADOW_SHADER: &str = r#"
+struct ShadowUniforms {
+    light_vp: mat4x4<f32>,
+};
+@group(0) @binding(0) var<uniform> su: ShadowUniforms;
+
+struct VsIn {
+    @location(0) pos: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) color: vec4<f32>,
+};
+
+@vertex fn vs_shadow(i: VsIn) -> @builtin(position) vec4<f32> {
+    return su.light_vp * vec4<f32>(i.pos, 1.0);
+}
+"#;
 
 // ─── WGSL Shader ─────────────────────────────────────────────────────────────
 
@@ -721,6 +741,94 @@ impl ViewportRenderer {
         Some((w, h, rgb))
     }
 
+    /// Initialize shadow map resources (called lazily on first render)
+    fn init_shadow_map(&mut self, device: &wgpu::Device) {
+        if self.shadow_pipeline.is_some() { return; } // already initialized
+
+        // Shadow depth texture
+        let tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("shadow_depth_tex"),
+            size: wgpu::Extent3d { width: SHADOW_MAP_SIZE, height: SHADOW_MAP_SIZE, depth_or_array_layers: 1 },
+            mip_level_count: 1, sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: SHADOW_DEPTH_FMT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // Shadow uniform buffer (light VP matrix)
+        let buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("shadow_uniform_buf"),
+            size: 64, // mat4x4<f32>
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // Shadow bind group layout + bind group
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("shadow_bind_group_layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0, visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+        let bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("shadow_bind_group"),
+            layout: &layout,
+            entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.as_entire_binding() }],
+        });
+
+        // Shadow pipeline (depth-only, no fragment output)
+        let shadow_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("shadow_shader"),
+            source: wgpu::ShaderSource::Wgsl(SHADOW_SHADER.into()),
+        });
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("shadow_pipeline_layout"),
+            bind_group_layouts: &[&layout],
+            push_constant_ranges: &[],
+        });
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("shadow_pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shadow_shader,
+                entry_point: "vs_shadow",
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vertex>() as u64,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4],
+                }],
+                compilation_options: Default::default(),
+            },
+            fragment: None, // depth-only
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                cull_mode: Some(wgpu::Face::Back),
+                ..Default::default()
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: SHADOW_DEPTH_FMT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 },
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+
+        self.shadow_depth_tex = Some(tex);
+        self.shadow_depth_view = Some(view);
+        self.shadow_uniform_buf = Some(buf);
+        self.shadow_bind_group = Some(bg);
+        self.shadow_pipeline = Some(pipeline);
+    }
+
     pub fn render(
         &mut self,
         device: &wgpu::Device,
@@ -742,6 +850,11 @@ impl ViewportRenderer {
         show_grid: bool,
         grid_spacing: f32,
     ) {
+        // Initialize shadow map on first render (before any borrows)
+        if self.shadow_map_enabled {
+            self.init_shadow_map(device);
+        }
+
         // Upload uniforms
         // 從 view_proj 的逆矩陣提取相機位置
         let inv_vp = view_proj.inverse();
@@ -900,6 +1013,50 @@ impl ViewportRenderer {
             &mut self.shadow_ib, &mut self.shadow_ib_capacity,
             wgpu::BufferUsages::INDEX, "shadow_ib",
         );
+
+        // ── Shadow pass (depth-only from light's perspective) ──
+        if self.shadow_map_enabled {
+            if let (Some(ref shadow_view), Some(ref shadow_pipeline), Some(ref shadow_bg), Some(ref shadow_ubuf)) =
+                (&self.shadow_depth_view, &self.shadow_pipeline, &self.shadow_bind_group, &self.shadow_uniform_buf)
+            {
+                // Light view-projection (directional, orthographic)
+                let light_dir = glam::Vec3::new(0.3, -1.0, 0.5).normalize();
+                let light_pos = -light_dir * 20000.0;
+                let light_view = glam::Mat4::look_at_rh(light_pos, glam::Vec3::ZERO, glam::Vec3::Y);
+                let light_proj = glam::Mat4::orthographic_rh(-15000.0, 15000.0, -15000.0, 15000.0, 0.1, 50000.0);
+                let light_vp = light_proj * light_view;
+                queue.write_buffer(shadow_ubuf, 0, bytemuck::bytes_of(&light_vp.to_cols_array_2d()));
+
+                let mut shadow_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("shadow_enc"),
+                });
+                {
+                    let mut pass = shadow_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("shadow_pass"),
+                        color_attachments: &[],
+                        depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                            view: shadow_view,
+                            depth_ops: Some(wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(1.0),
+                                store: wgpu::StoreOp::Store,
+                            }),
+                            stencil_ops: None,
+                        }),
+                        ..Default::default()
+                    });
+                    pass.set_pipeline(shadow_pipeline);
+                    pass.set_bind_group(0, shadow_bg, &[]);
+                    // 用跟主 pass 相同的 scene vertex/index buffer
+                    if let (Some(ref vb), Some(ref ib)) = (&self.scene_vb, &self.scene_ib) {
+                        pass.set_vertex_buffer(0, vb.slice(..));
+                        pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
+                        let face_idx_count = (self.cached_face_vert_count as f32 * 1.5) as u32; // approximate
+                        pass.draw_indexed(0..face_idx_count.min(self.cached_idx.len() as u32), 0, 0..1);
+                    }
+                }
+                queue.submit(std::iter::once(shadow_encoder.finish()));
+            }
+        }
 
         // Encode
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
