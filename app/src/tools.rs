@@ -846,6 +846,35 @@ impl KolibriApp {
                     ));
                 }
 
+                // Duplicate (Ctrl+D)
+                if ctrl && i.key_pressed(egui::Key::D) && !self.editor.selected_ids.is_empty() {
+                    self.scene.snapshot();
+                    let mut new_ids = Vec::new();
+                    for id in &self.editor.selected_ids.clone() {
+                        if let Some(obj) = self.scene.objects.get(id).cloned() {
+                            let mut clone = obj;
+                            clone.id = self.scene.next_id_pub();
+                            clone.name = format!("{}_dup", clone.name);
+                            clone.position[0] += 300.0;
+                            clone.position[2] += 300.0;
+                            new_ids.push(clone.id.clone());
+                            self.scene.objects.insert(clone.id.clone(), clone);
+                        }
+                    }
+                    self.scene.version += 1;
+                    self.editor.selected_ids = new_ids.clone();
+                    self.file_message = Some((
+                        format!("已複製 {} 個物件", new_ids.len()),
+                        std::time::Instant::now(),
+                    ));
+                }
+                // Invert Selection (Ctrl+I)
+                if ctrl && i.key_pressed(egui::Key::I) {
+                    let all: std::collections::HashSet<String> = self.scene.objects.keys().cloned().collect();
+                    let sel: std::collections::HashSet<String> = self.editor.selected_ids.iter().cloned().collect();
+                    self.editor.selected_ids = all.difference(&sel).cloned().collect();
+                }
+
                 // Unsaved changes confirmation Y/N (takes priority)
                 if self.pending_action.is_some() {
                     if i.key_pressed(egui::Key::Y) {
