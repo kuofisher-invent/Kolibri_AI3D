@@ -125,9 +125,16 @@ impl KolibriApp {
                 }
                 Tool::Move => {
                     // Move selected objects by dragging
-                    // Ctrl held at drag START: duplicate objects first, then move clones
+                    // Gizmo 互動：如果 hover 在某軸上，拖曳開始時鎖定該軸
                     if !self.editor.selected_ids.is_empty() {
                         if !self.editor.drag_snapshot_taken {
+                            // 設定 gizmo axis lock
+                            if let Some(axis) = self.editor.gizmo_hovered_axis {
+                                self.editor.gizmo_drag_axis = Some(axis);
+                                self.editor.locked_axis = Some(axis);
+                            } else {
+                                self.editor.gizmo_drag_axis = None;
+                            }
                             // Diff undo: 只備份即將被修改的物件
                             let ids: Vec<&str> = self.editor.selected_ids.iter().map(|s| s.as_str()).collect();
                             self.scene.snapshot_ids(&ids, "移動");
@@ -219,7 +226,7 @@ impl KolibriApp {
                     // Drag over objects to continuously delete them
                     if let Some(id) = self.editor.hovered_id.clone() {
                         if !self.editor.drag_snapshot_taken {
-                            self.scene.snapshot();
+                            self.scene.snapshot_ids(&[&id], "橡皮擦");
                             self.editor.drag_snapshot_taken = true;
                         }
                         self.scene.objects.remove(&id);
@@ -248,6 +255,11 @@ impl KolibriApp {
             }
             self.editor.drag_snapshot_taken = false;
             self.editor.move_is_copy = false;
+            // 清除 gizmo drag lock
+            if self.editor.gizmo_drag_axis.is_some() {
+                self.editor.gizmo_drag_axis = None;
+                self.editor.locked_axis = None;
+            }
         }
 
         // Rubber band selection: start on drag start in Select mode when nothing hovered
@@ -430,7 +442,7 @@ impl KolibriApp {
         if let DrawState::Offsetting { ref obj_id, face, distance: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
                 if !self.editor.drag_snapshot_taken {
-                    self.scene.snapshot();
+                    self.scene.snapshot_ids(&[&obj_id], "偏移");
                     self.editor.drag_snapshot_taken = true;
                 }
                 let scale = self.viewer.camera.distance * 0.001;

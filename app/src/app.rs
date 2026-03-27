@@ -237,6 +237,8 @@ impl KolibriApp {
                 editing_dim_text: String::new(),
                 clipboard: Vec::new(),
                 selection_mode: SelectionMode::Object,
+                gizmo_hovered_axis: None,
+                gizmo_drag_axis: None,
             },
 
             right_tab: RightTab::Properties,

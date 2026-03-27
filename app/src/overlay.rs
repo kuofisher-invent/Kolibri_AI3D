@@ -896,7 +896,7 @@ impl KolibriApp {
                     }
                 }
 
-                // ── Move gizmo: 3D XYZ arrows ──
+                // ── Move gizmo: 3D XYZ arrows with interactive hover/drag ──
                 if (self.editor.tool == Tool::Move || self.editor.tool == Tool::Select)
                     && !self.editor.selected_ids.is_empty()
                     && matches!(self.editor.draw_state, DrawState::Idle)
@@ -914,51 +914,77 @@ impl KolibriApp {
                             _ => obj.position,
                         };
                         if let Some(sc) = Self::world_to_screen_vp(center, &vp, &rect) {
-                            let axis_len = 50.0; // pixels
-                            let head_sz = 8.0;
-                            let axes = [
-                                ([1.0_f32, 0.0, 0.0], egui::Color32::from_rgb(220, 60, 60), "X"),
-                                ([0.0, 1.0, 0.0], egui::Color32::from_rgb(60, 180, 60), "Y"),
-                                ([0.0, 0.0, 1.0], egui::Color32::from_rgb(60, 60, 220), "Z"),
+                            let axis_len = 55.0;
+                            let head_sz = 10.0;
+                            let hit_radius = 12.0; // 滑鼠靠近箭頭多近算 hover
+                            let mouse = egui::pos2(self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                            let axes: [([ f32; 3], egui::Color32, &str, u8); 3] = [
+                                ([1.0, 0.0, 0.0], egui::Color32::from_rgb(220, 60, 60), "X", 0),
+                                ([0.0, 1.0, 0.0], egui::Color32::from_rgb(60, 180, 60), "Y", 1),
+                                ([0.0, 0.0, 1.0], egui::Color32::from_rgb(60, 60, 220), "Z", 2),
                             ];
-                            for (dir, color, label) in &axes {
+                            let mut new_hover: Option<u8> = None;
+                            // 中心方塊（自由移動）
+                            let center_rect = egui::Rect::from_center_size(sc, egui::vec2(10.0, 10.0));
+                            let center_hovered = center_rect.contains(mouse);
+                            ui.painter().rect_filled(center_rect, 2.0,
+                                if center_hovered { egui::Color32::from_rgb(255, 255, 255) }
+                                else { egui::Color32::from_rgba_unmultiplied(200, 200, 200, 150) });
+
+                            for (dir, base_color, label, axis_idx) in &axes {
                                 let end_world = [
                                     center[0] + dir[0] * 800.0,
                                     center[1] + dir[1] * 800.0,
                                     center[2] + dir[2] * 800.0,
                                 ];
                                 if let Some(ep) = Self::world_to_screen_vp(end_world, &vp, &rect) {
-                                    // 正規化到固定像素長度
                                     let dx = ep.x - sc.x;
                                     let dy = ep.y - sc.y;
                                     let len = (dx * dx + dy * dy).sqrt().max(1.0);
                                     let nx = dx / len;
                                     let ny = dy / len;
                                     let tip = egui::pos2(sc.x + nx * axis_len, sc.y + ny * axis_len);
+
+                                    // Hit test: 滑鼠到箭桿線段的距離
+                                    let mx = mouse.x - sc.x;
+                                    let my = mouse.y - sc.y;
+                                    let proj = (mx * nx + my * ny).clamp(0.0, axis_len);
+                                    let closest = egui::pos2(sc.x + nx * proj, sc.y + ny * proj);
+                                    let dist = ((mouse.x - closest.x).powi(2) + (mouse.y - closest.y).powi(2)).sqrt();
+                                    let is_hovered = dist < hit_radius;
+                                    let is_active = self.editor.gizmo_drag_axis == Some(*axis_idx);
+
+                                    if is_hovered { new_hover = Some(*axis_idx); }
+
+                                    // 顏色：hover/active 時加亮，非 hover 時半透明
+                                    let color = if is_active || is_hovered {
+                                        egui::Color32::from_rgb(
+                                            (base_color.r() as u16 + 60).min(255) as u8,
+                                            (base_color.g() as u16 + 60).min(255) as u8,
+                                            (base_color.b() as u16 + 60).min(255) as u8,
+                                        )
+                                    } else { *base_color };
+                                    let thickness = if is_active || is_hovered { 4.0 } else { 2.5 };
+
                                     // 箭桿
-                                    ui.painter().line_segment([sc, tip], egui::Stroke::new(2.5, *color));
-                                    // 箭頭
+                                    ui.painter().line_segment([sc, tip], egui::Stroke::new(thickness, color));
+                                    // 箭頭（圓錐）
                                     let perp_x = -ny;
                                     let perp_y = nx;
-                                    let h1 = egui::pos2(tip.x - nx * head_sz + perp_x * head_sz * 0.4,
-                                                        tip.y - ny * head_sz + perp_y * head_sz * 0.4);
-                                    let h2 = egui::pos2(tip.x - nx * head_sz - perp_x * head_sz * 0.4,
-                                                        tip.y - ny * head_sz - perp_y * head_sz * 0.4);
-                                    ui.painter().add(egui::Shape::convex_polygon(
-                                        vec![tip, h1, h2],
-                                        *color,
-                                        egui::Stroke::NONE,
-                                    ));
+                                    let cone_w = if is_hovered { head_sz * 0.5 } else { head_sz * 0.4 };
+                                    let h1 = egui::pos2(tip.x - nx * head_sz + perp_x * cone_w, tip.y - ny * head_sz + perp_y * cone_w);
+                                    let h2 = egui::pos2(tip.x - nx * head_sz - perp_x * cone_w, tip.y - ny * head_sz - perp_y * cone_w);
+                                    ui.painter().add(egui::Shape::convex_polygon(vec![tip, h1, h2], color, egui::Stroke::NONE));
                                     // 軸標籤
+                                    let label_size = if is_hovered { 13.0 } else { 10.0 };
                                     ui.painter().text(
-                                        egui::pos2(tip.x + nx * 6.0, tip.y + ny * 6.0),
-                                        egui::Align2::CENTER_CENTER,
-                                        label,
-                                        egui::FontId::proportional(10.0),
-                                        *color,
+                                        egui::pos2(tip.x + nx * 8.0, tip.y + ny * 8.0),
+                                        egui::Align2::CENTER_CENTER, label,
+                                        egui::FontId::proportional(label_size), color,
                                     );
                                 }
                             }
+                            self.editor.gizmo_hovered_axis = new_hover;
                         }
                     }
                 }
