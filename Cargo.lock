@@ -1856,6 +1856,7 @@ dependencies = [
  "axum",
  "futures-core",
  "kolibri-core",
+ "kolibri-io",
  "serde",
  "serde_json",
  "tokio",

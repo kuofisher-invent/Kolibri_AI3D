@@ -875,6 +875,57 @@ impl KolibriApp {
                     self.editor.selected_ids = all.difference(&sel).cloned().collect();
                 }
 
+                // Mirror X (Ctrl+M) — 鏡射選取物件沿 X 軸
+                if ctrl && i.key_pressed(egui::Key::M) && !self.editor.selected_ids.is_empty() {
+                    self.scene.snapshot();
+                    // 計算選取物件的中心 X
+                    let selected_objs: Vec<_> = self.editor.selected_ids.iter()
+                        .filter_map(|id| self.scene.objects.get(id).cloned())
+                        .collect();
+                    let cx = if !selected_objs.is_empty() {
+                        let sum: f32 = selected_objs.iter().map(|o| {
+                            let w = match &o.shape {
+                                Shape::Box { width, .. } => *width,
+                                Shape::Cylinder { radius, .. } => *radius * 2.0,
+                                Shape::Sphere { radius, .. } => *radius * 2.0,
+                                _ => 0.0,
+                            };
+                            o.position[0] + w / 2.0
+                        }).sum();
+                        sum / selected_objs.len() as f32
+                    } else { 0.0 };
+
+                    let mut new_ids = Vec::new();
+                    for obj in &selected_objs {
+                        let mut clone = obj.clone();
+                        clone.id = self.scene.next_id_pub();
+                        clone.name = format!("{}_mirror", clone.name);
+                        // 鏡射 X：新位置 = center - (original - center)
+                        let obj_cx = clone.position[0] + match &clone.shape {
+                            Shape::Box { width, .. } => *width / 2.0,
+                            Shape::Cylinder { radius, .. } => *radius,
+                            Shape::Sphere { radius, .. } => *radius,
+                            _ => 0.0,
+                        };
+                        let mirrored_cx = 2.0 * cx - obj_cx;
+                        let half_w = match &clone.shape {
+                            Shape::Box { width, .. } => *width / 2.0,
+                            Shape::Cylinder { radius, .. } => *radius,
+                            Shape::Sphere { radius, .. } => *radius,
+                            _ => 0.0,
+                        };
+                        clone.position[0] = mirrored_cx - half_w;
+                        new_ids.push(clone.id.clone());
+                        self.scene.objects.insert(clone.id.clone(), clone);
+                    }
+                    self.scene.version += 1;
+                    self.editor.selected_ids.extend(new_ids);
+                    self.file_message = Some((
+                        format!("已鏡射 {} 個物件", selected_objs.len()),
+                        std::time::Instant::now(),
+                    ));
+                }
+
                 // Unsaved changes confirmation Y/N (takes priority)
                 if self.pending_action.is_some() {
                     if i.key_pressed(egui::Key::Y) {
@@ -2562,6 +2613,7 @@ impl KolibriApp {
 
         for id in &candidates {
             let obj = match self.scene.objects.get(id) { Some(o) => o, None => continue };
+            if obj.locked { continue; } // 鎖定物件不可選取
             if let Some(gid) = editing_gid {
                 if obj.parent_id.as_deref() != Some(gid.as_str()) && &obj.id != gid { continue; }
             }

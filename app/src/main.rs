@@ -40,6 +40,7 @@ mod tools;
 mod viewer;   // ViewerState, RenderMode
 
 use eframe::egui;
+use serde::Serialize;
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -49,6 +50,14 @@ fn main() -> eframe::Result<()> {
         eprintln!("Kolibri_Ai3D MCP Server starting (stdio mode)");
         crate::mcp_server::run_mcp_standalone();
         return Ok(());
+    }
+
+    if let Some(path) = cli_arg_value(&args, "--verify-skp") {
+        return run_verify_import("skp", path);
+    }
+
+    if let Some(path) = cli_arg_value(&args, "--verify-import") {
+        return run_verify_import("auto", path);
     }
 
     // 結構化日誌（tracing 取代 env_logger）
@@ -170,4 +179,108 @@ fn load_icon_from_file() -> Option<egui::IconData> {
         }
     }
     None
+}
+
+fn cli_arg_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
+    args.windows(2)
+        .find(|window| window[0] == flag)
+        .map(|window| window[1].as_str())
+}
+
+fn run_verify_import(kind: &str, path: &str) -> eframe::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
+
+    let ir = crate::import::import_manager::import_file(path)
+        .map_err(io_error_to_eframe)?;
+
+    if kind == "skp" && ir.source_format != "skp" {
+        return Err(io_error_to_eframe(format!(
+            "Expected SKP import, got {}",
+            ir.source_format
+        )));
+    }
+
+    let mut scene = crate::scene::Scene::default();
+    let build = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
+
+    let report = VerifyReport {
+        verify_kind: kind.to_string(),
+        source_format: ir.source_format.clone(),
+        source_file: ir.source_file.clone(),
+        units: ir.units.clone(),
+        meshes: ir.stats.mesh_count,
+        instances: ir.stats.instance_count,
+        groups: ir.stats.group_count,
+        component_defs: ir.stats.component_count,
+        materials: ir.stats.material_count,
+        vertices: ir.stats.vertex_count,
+        faces: ir.stats.face_count,
+        scene_objects: scene.objects.len(),
+        scene_groups: scene.groups.len(),
+        scene_component_defs: scene.component_defs.len(),
+        built_meshes: build.meshes,
+        built_columns: build.columns,
+        built_beams: build.beams,
+        debug: ir.debug_report.clone(),
+    };
+
+    println!("verify_kind={}", report.verify_kind);
+    println!("source_format={}", report.source_format);
+    println!("source_file={}", report.source_file);
+    println!("units={}", report.units);
+    println!("meshes={}", report.meshes);
+    println!("instances={}", report.instances);
+    println!("groups={}", report.groups);
+    println!("component_defs={}", report.component_defs);
+    println!("materials={}", report.materials);
+    println!("vertices={}", report.vertices);
+    println!("faces={}", report.faces);
+    println!("scene_objects={}", report.scene_objects);
+    println!("scene_groups={}", report.scene_groups);
+    println!("scene_component_defs={}", report.scene_component_defs);
+    println!("built_meshes={}", report.built_meshes);
+    println!("built_columns={}", report.built_columns);
+    println!("built_beams={}", report.built_beams);
+    for line in &report.debug {
+        println!("debug={}", line);
+    }
+
+    if let Some(output_path) = cli_arg_value(&std::env::args().collect::<Vec<_>>(), "--verify-out") {
+        let json = serde_json::to_string_pretty(&report).map_err(|e| io_error_to_eframe(e.to_string()))?;
+        std::fs::write(output_path, json).map_err(|e| io_error_to_eframe(e.to_string()))?;
+    }
+
+    Ok(())
+}
+
+fn io_error_to_eframe(message: impl Into<String>) -> eframe::Error {
+    eframe::Error::AppCreation(Box::new(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        message.into(),
+    )))
+}
+
+#[derive(Serialize)]
+struct VerifyReport {
+    verify_kind: String,
+    source_format: String,
+    source_file: String,
+    units: String,
+    meshes: usize,
+    instances: usize,
+    groups: usize,
+    component_defs: usize,
+    materials: usize,
+    vertices: usize,
+    faces: usize,
+    scene_objects: usize,
+    scene_groups: usize,
+    scene_component_defs: usize,
+    built_meshes: usize,
+    built_columns: usize,
+    built_beams: usize,
+    debug: Vec<String>,
 }

@@ -239,6 +239,7 @@ fn imported_mesh_object(
         texture_path: None,
         component_kind: Default::default(),
         parent_id: None,
+        locked: false,
     }
 }
 

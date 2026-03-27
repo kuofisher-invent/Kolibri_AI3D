@@ -488,6 +488,7 @@ impl eframe::App for KolibriApp {
                 ("清空場景", ""), ("MCP Server", ""),
                 ("牆工具", "W"), ("板工具", ""),
                 ("就地複製", "Ctrl+D"), ("反轉選取", "Ctrl+I"),
+                ("鏡射 X", "Ctrl+M"),
             ];
             let mut close = false;
             egui::Area::new(egui::Id::new("command_palette"))

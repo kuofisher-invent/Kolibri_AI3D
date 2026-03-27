@@ -227,6 +227,7 @@ pub fn import_stl(scene: &mut Scene, path: &str) -> Result<usize, String> {
         texture_path: None,
         component_kind: Default::default(),
         parent_id: None,
+        locked: false,
     });
     scene.version += 1;
     Ok(1)

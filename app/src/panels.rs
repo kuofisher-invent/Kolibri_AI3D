@@ -1233,6 +1233,15 @@ impl KolibriApp {
         });
         ui.add_space(8.0);
 
+        // Lock toggle
+        ui.horizontal(|ui| {
+            let lock_label = if obj.locked { "🔒 已鎖定" } else { "🔓 未鎖定" };
+            if ui.toggle_value(&mut obj.locked, lock_label).changed() {
+                self.scene.version += 1;
+            }
+        });
+        ui.add_space(4.0);
+
         // Component Kind (collision)
         section_frame_full(ui, |ui| {
             section_header_text(ui, "COMPONENT");
