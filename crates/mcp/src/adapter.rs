@@ -117,6 +117,18 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "batch_create".into(),
+                description: "批量建立多個物件。objects 陣列，每個元素同 create_box/cylinder/sphere 參數 + type 欄位".into(),
+                input_schema: json!({ "type": "object", "required": ["objects"], "properties": {
+                    "objects":{"type":"array","items":{"type":"object","properties":{
+                        "type":{"type":"string","enum":["box","cylinder","sphere"]},
+                        "name":{"type":"string"}, "position":{"type":"array","items":{"type":"number"}},
+                        "width":{"type":"number"}, "height":{"type":"number"}, "depth":{"type":"number"},
+                        "radius":{"type":"number"}, "material":{"type":"string"}
+                    }}}
+                }}),
+            },
+            ToolDef {
                 name: "set_object_property".into(),
                 description: "設定物件屬性（name, tag, visible, locked, roughness, metallic）".into(),
                 input_schema: json!({ "type": "object", "required": ["id"], "properties": {
@@ -324,6 +336,36 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "batch_create" => {
+                let objects = args["objects"].as_array().cloned().unwrap_or_default();
+                let mut ids = Vec::new();
+                for obj_def in &objects {
+                    let typ = obj_def["type"].as_str().unwrap_or("box");
+                    let name = obj_def["name"].as_str().unwrap_or(typ).to_string();
+                    let pos = parse_pos(&obj_def["position"]);
+                    let mat = parse_material(obj_def["material"].as_str().unwrap_or("concrete"));
+                    let id = match typ {
+                        "box" => {
+                            let w = obj_def["width"].as_f64().unwrap_or(1000.0) as f32;
+                            let h = obj_def["height"].as_f64().unwrap_or(1000.0) as f32;
+                            let d = obj_def["depth"].as_f64().unwrap_or(1000.0) as f32;
+                            self.scene.add_box(name, pos, w, h, d, mat)
+                        }
+                        "cylinder" => {
+                            let r = obj_def["radius"].as_f64().unwrap_or(500.0) as f32;
+                            let h = obj_def["height"].as_f64().unwrap_or(1000.0) as f32;
+                            self.scene.add_cylinder(name, pos, r, h, 32, mat)
+                        }
+                        "sphere" => {
+                            let r = obj_def["radius"].as_f64().unwrap_or(500.0) as f32;
+                            self.scene.add_sphere(name, pos, r, 32, mat)
+                        }
+                        _ => continue,
+                    };
+                    ids.push(id);
+                }
+                json!({ "success": true, "created": ids.len(), "ids": ids })
+            }
             "set_object_property" => {
                 let id = args["id"].as_str().unwrap_or("").to_string();
                 if let Some(obj) = self.scene.objects.get_mut(&id) {

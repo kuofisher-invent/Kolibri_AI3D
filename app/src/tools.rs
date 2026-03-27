@@ -717,11 +717,14 @@ impl KolibriApp {
             self.on_click();
         }
 
-        // Right-click context menu
+        // Right-click context menu (擴充版：對齊/分佈/鏡射)
         response.context_menu(|ui| {
             let has_sel = !self.editor.selected_ids.is_empty();
-            let action = crate::menu::draw_context_menu(ui, has_sel);
+            let (action, cmd) = crate::menu::draw_context_menu_ext(ui, has_sel);
             self.handle_menu_action(action);
+            if let Some(cmd_name) = cmd {
+                self.execute_command_by_name(&cmd_name);
+            }
         });
 
         // Keyboard

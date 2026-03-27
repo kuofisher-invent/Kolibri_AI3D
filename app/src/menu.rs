@@ -169,12 +169,35 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
 }
 
 /// Draw context menu for right-click. Returns action to execute.
+/// 右鍵選單回傳：MenuAction 或自訂指令名稱
 pub fn draw_context_menu(ui: &mut egui::Ui, has_selection: bool) -> MenuAction {
+    draw_context_menu_ext(ui, has_selection).0
+}
+
+/// 擴充右鍵選單，回傳 (MenuAction, Option<自訂指令>)
+pub fn draw_context_menu_ext(ui: &mut egui::Ui, has_selection: bool) -> (MenuAction, Option<String>) {
     let mut action = MenuAction::None;
+    let mut cmd: Option<String> = None;
 
     if has_selection {
         if ui.button("刪除").clicked() { action = MenuAction::Delete; ui.close_menu(); }
-        if ui.button("複製").clicked() { action = MenuAction::Duplicate; ui.close_menu(); }
+        if ui.button("複製 (Ctrl+D)").clicked() { cmd = Some("就地複製".into()); ui.close_menu(); }
+        if ui.button("鏡射 X (Ctrl+M)").clicked() { cmd = Some("鏡射 X".into()); ui.close_menu(); }
+        ui.separator();
+        ui.menu_button("對齊", |ui| {
+            if ui.button("左對齊").clicked() { cmd = Some("對齊左".into()); ui.close_menu(); }
+            if ui.button("右對齊").clicked() { cmd = Some("對齊右".into()); ui.close_menu(); }
+            if ui.button("上對齊").clicked() { cmd = Some("對齊上".into()); ui.close_menu(); }
+            if ui.button("下對齊").clicked() { cmd = Some("對齊下".into()); ui.close_menu(); }
+            ui.separator();
+            if ui.button("X 中心").clicked() { cmd = Some("X中心對齊".into()); ui.close_menu(); }
+            if ui.button("Y 中心").clicked() { cmd = Some("Y中心對齊".into()); ui.close_menu(); }
+        });
+        ui.menu_button("分佈", |ui| {
+            if ui.button("X 等距").clicked() { cmd = Some("X等距分佈".into()); ui.close_menu(); }
+            if ui.button("Y 等距").clicked() { cmd = Some("Y等距分佈".into()); ui.close_menu(); }
+            if ui.button("Z 等距").clicked() { cmd = Some("Z等距分佈".into()); ui.close_menu(); }
+        });
         ui.separator();
         if ui.button("建立群組").clicked() { action = MenuAction::GroupSelected; ui.close_menu(); }
         if ui.button("建立元件").clicked() { action = MenuAction::ComponentSelected; ui.close_menu(); }
@@ -184,5 +207,5 @@ pub fn draw_context_menu(ui: &mut egui::Ui, has_selection: bool) -> MenuAction {
         ui.label("(無選取物件)");
     }
 
-    action
+    (action, cmd)
 }
