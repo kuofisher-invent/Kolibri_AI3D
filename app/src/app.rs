@@ -39,6 +39,7 @@ pub struct KolibriApp {
     // File management
     pub(crate) current_file: Option<String>,
     pub(crate) file_message: Option<(String, std::time::Instant)>,
+    pub(crate) toasts: Vec<(String, std::time::Instant)>,
     pub(crate) recent_files: Vec<String>,
 
     // Auto-save
@@ -71,6 +72,34 @@ pub struct KolibriApp {
 
     // Texture manager
     pub(crate) texture_manager: crate::texture_manager::TextureManager,
+
+    // Spatial index for fast pick()
+    pub(crate) spatial_index: Option<rstar::RTree<SpatialEntry>>,
+    pub(crate) spatial_index_version: u64,
+}
+
+/// rstar entry: AABB + object ID
+#[derive(Debug, Clone)]
+pub(crate) struct SpatialEntry {
+    pub id: String,
+    pub min: [f32; 3],
+    pub max: [f32; 3],
+}
+
+impl rstar::RTreeObject for SpatialEntry {
+    type Envelope = rstar::AABB<[f32; 3]>;
+    fn envelope(&self) -> Self::Envelope {
+        rstar::AABB::from_corners(self.min, self.max)
+    }
+}
+
+impl rstar::PointDistance for SpatialEntry {
+    fn distance_2(&self, point: &[f32; 3]) -> f32 {
+        let dx = (point[0] - self.min[0].max(point[0].min(self.max[0]))).powi(2);
+        let dy = (point[1] - self.min[1].max(point[1].min(self.max[1]))).powi(2);
+        let dz = (point[2] - self.min[2].max(point[2].min(self.max[2]))).powi(2);
+        dx + dy + dz
+    }
 }
 
 impl KolibriApp {
@@ -189,6 +218,7 @@ impl KolibriApp {
                 layout: Default::default(),
                 show_grid: true,
                 grid_spacing: 1000.0,
+                dark_mode: false,
                 work_plane: 0,
                 work_plane_offset: 0.0,
             },
@@ -248,6 +278,7 @@ impl KolibriApp {
             obj_counter: 0,
             current_file: None,
             file_message: None,
+            toasts: Vec::new(),
             recent_files: Vec::new(),
             last_auto_save: std::time::Instant::now(),
             auto_save_version: 0,
@@ -268,6 +299,8 @@ impl KolibriApp {
             import_review: None,
             pending_unified_ir: None,
             texture_manager: crate::texture_manager::TextureManager::new(),
+            spatial_index: None,
+            spatial_index_version: u64::MAX,
         }
     }
 
@@ -281,6 +314,11 @@ impl KolibriApp {
     /// Log with timestamp prefix for debug console
     pub(crate) fn clog(&mut self, msg: impl Into<String>) {
         self.console_push("INFO", msg.into());
+    }
+
+    pub(crate) fn toast(&mut self, msg: impl Into<String>) {
+        self.toasts.push((msg.into(), std::time::Instant::now()));
+        if self.toasts.len() > 5 { self.toasts.remove(0); }
     }
 
     pub(crate) fn next_name(&mut self, prefix: &str) -> String {
@@ -347,6 +385,23 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // 深色模式切換（每幀檢查，因為使用者可能隨時切換）
+        if self.viewer.dark_mode != ctx.style().visuals.dark_mode {
+            if self.viewer.dark_mode {
+                ctx.set_visuals(egui::Visuals::dark());
+            } else {
+                // 還原淺色 glassmorphism 主題
+                let mut v = egui::Visuals::light();
+                v.panel_fill = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220);
+                v.window_fill = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 240);
+                v.extreme_bg_color = egui::Color32::WHITE;
+                v.faint_bg_color = egui::Color32::from_rgb(248, 249, 252);
+                v.selection.bg_fill = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 36);
+                v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
+                ctx.set_visuals(v);
+            }
+        }
+
         // Dynamic window title
         let title = if let Some(ref path) = self.current_file {
             let filename = path.rsplit(['\\', '/']).next().unwrap_or(path);

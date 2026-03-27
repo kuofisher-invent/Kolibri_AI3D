@@ -1414,5 +1414,33 @@ impl KolibriApp {
                     let inner_rect = icon_rect.shrink(3.0);
                     crate::icons::draw_tool_icon(ui.painter(), inner_rect, self.editor.tool, egui::Color32::WHITE);
                 }
+
+                // ── Toast 通知（右下角堆疊）──
+                {
+                    let now = std::time::Instant::now();
+                    self.toasts.retain(|(_, t)| now.duration_since(*t).as_secs_f32() < 4.0);
+                    let toast_w = 250.0;
+                    let toast_h = 28.0;
+                    let margin = 12.0;
+                    for (i, (msg, when)) in self.toasts.iter().rev().enumerate() {
+                        let age = now.duration_since(*when).as_secs_f32();
+                        let alpha = if age > 3.0 { ((4.0 - age) * 255.0) as u8 } else { 230 };
+                        let y = rect.max.y - margin - (i as f32) * (toast_h + 6.0) - toast_h;
+                        let toast_rect = egui::Rect::from_min_size(
+                            egui::pos2(rect.max.x - margin - toast_w, y),
+                            egui::vec2(toast_w, toast_h),
+                        );
+                        ui.painter().rect_filled(toast_rect, 8.0,
+                            egui::Color32::from_rgba_unmultiplied(40, 42, 55, alpha));
+                        ui.painter().rect_stroke(toast_rect, 8.0,
+                            egui::Stroke::new(0.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, alpha)));
+                        ui.painter().text(
+                            toast_rect.left_center() + egui::vec2(10.0, 0.0),
+                            egui::Align2::LEFT_CENTER, msg,
+                            egui::FontId::proportional(12.0),
+                            egui::Color32::from_rgba_unmultiplied(230, 235, 245, alpha),
+                        );
+                    }
+                }
     }
 }

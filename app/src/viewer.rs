@@ -46,6 +46,7 @@ pub(crate) struct ViewerState {
     pub(crate) layout: crate::layout::Layout,
     pub(crate) show_grid: bool,
     pub(crate) grid_spacing: f32,  // mm, default 1000.0 (1m)
+    pub(crate) dark_mode: bool,
     /// 工作平面：0=Ground(Y=0), 1=XY(front), 2=YZ(side)
     pub(crate) work_plane: u8,
     /// 工作平面高度偏移 (mm)

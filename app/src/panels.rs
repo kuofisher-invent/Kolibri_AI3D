@@ -1019,6 +1019,7 @@ impl KolibriApp {
                 });
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
                 ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
+                ui.checkbox(&mut self.viewer.dark_mode, "深色模式");
                 ui.horizontal(|ui| {
                     ui.label("格線間距");
                     let options = [100.0_f32, 250.0, 500.0, 1000.0, 2000.0, 5000.0];

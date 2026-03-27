@@ -2408,21 +2408,62 @@ impl KolibriApp {
         self.editor.measure_input.clear();
     }
 
-    pub(crate) fn pick(&self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<String> {
+    /// 重建空間索引（場景變更時呼叫）
+    pub(crate) fn rebuild_spatial_index(&mut self) {
+        if self.scene.version == self.spatial_index_version { return; }
+        use crate::app::SpatialEntry;
+        let entries: Vec<SpatialEntry> = self.scene.objects.values().map(|obj| {
+            let p = obj.position;
+            let (mn, mx) = match &obj.shape {
+                Shape::Box { width, height, depth } => (p, [p[0]+width, p[1]+height, p[2]+depth]),
+                Shape::Cylinder { radius, height, .. } => (p, [p[0]+radius*2.0, p[1]+height, p[2]+radius*2.0]),
+                Shape::Sphere { radius, .. } => (p, [p[0]+radius*2.0, p[1]+radius*2.0, p[2]+radius*2.0]),
+                Shape::Line { points, thickness, .. } => {
+                    let mut mx = p;
+                    for pt in points { mx[0] = mx[0].max(pt[0]+thickness); mx[1] = mx[1].max(pt[1]+thickness); mx[2] = mx[2].max(pt[2]+thickness); }
+                    (p, mx)
+                }
+                Shape::Mesh(ref mesh) => { let (a,b) = mesh.aabb(); ([p[0]+a[0],p[1]+a[1],p[2]+a[2]], [p[0]+b[0],p[1]+b[1],p[2]+b[2]]) }
+            };
+            SpatialEntry { id: obj.id.clone(), min: mn, max: mx }
+        }).collect();
+        self.spatial_index = Some(rstar::RTree::bulk_load(entries));
+        self.spatial_index_version = self.scene.version;
+    }
+
+    pub(crate) fn pick(&mut self, mx: f32, my: f32, vw: f32, vh: f32) -> Option<String> {
+        self.rebuild_spatial_index();
         let (origin, dir) = self.viewer.camera.screen_ray(mx, my, vw, vh);
         let mut best: Option<(f32, String)> = None;
         let editing_gid = &self.editor.editing_group_id;
-        for obj in self.scene.objects.values() {
-            // 群組隔離編輯：只允許選取群組內的物件
-            if let Some(gid) = editing_gid {
-                if obj.parent_id.as_deref() != Some(gid.as_str()) && &obj.id != gid {
-                    continue;
+
+        // 使用空間索引：沿射線採樣多個點，查詢附近的候選物件
+        let candidates: Vec<String> = if let Some(ref tree) = self.spatial_index {
+            use rstar::RTreeObject;
+            let mut ids = std::collections::HashSet::new();
+            // 沿射線採樣 10 個點（距離 100-50000mm）
+            for i in 0..10 {
+                let t = 100.0 + (i as f32) * 5000.0;
+                let pt = origin + dir * t;
+                let query_pt = [pt.x, pt.y, pt.z];
+                // 查詢最近的 5 個 AABB
+                for entry in tree.nearest_neighbor_iter(&query_pt).take(5) {
+                    ids.insert(entry.id.clone());
                 }
+            }
+            ids.into_iter().collect()
+        } else {
+            self.scene.objects.keys().cloned().collect()
+        };
+
+        for id in &candidates {
+            let obj = match self.scene.objects.get(id) { Some(o) => o, None => continue };
+            if let Some(gid) = editing_gid {
+                if obj.parent_id.as_deref() != Some(gid.as_str()) && &obj.id != gid { continue; }
             }
             let pos = glam::Vec3::from(obj.position);
             let (pick_min, pick_max) = match &obj.shape {
                 Shape::Box { width, height, depth } => {
-                    // Expand thin dimensions for easier picking (min 30mm pick size)
                     let pick_sz = 30.0_f32;
                     let center = pos + glam::Vec3::new(*width, *height, *depth) * 0.5;
                     let half = glam::Vec3::new(width.max(pick_sz), height.max(pick_sz), depth.max(pick_sz)) * 0.5;
