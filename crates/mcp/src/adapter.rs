@@ -117,6 +117,18 @@ impl KolibriAdapter {
                 input_schema: json!({ "type": "object", "required": ["path"], "properties": { "path":{"type":"string"} } }),
             },
             ToolDef {
+                name: "measure_object".into(),
+                description: "測量物件面積和體積".into(),
+                input_schema: json!({ "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } }),
+            },
+            ToolDef {
+                name: "measure_distance".into(),
+                description: "測量兩個物件中心之間的距離(mm)".into(),
+                input_schema: json!({ "type": "object", "required": ["id_a", "id_b"], "properties": {
+                    "id_a":{"type":"string"}, "id_b":{"type":"string"}
+                }}),
+            },
+            ToolDef {
                 name: "align_objects".into(),
                 description: "對齊多個物件。mode: left/right/top/bottom/front/back/center_x/center_y/center_z".into(),
                 input_schema: json!({ "type": "object", "required": ["ids", "mode"], "properties": {
@@ -302,6 +314,45 @@ impl KolibriAdapter {
             }
             "undo" => { let ok = self.scene.undo(); json!({ "success": ok }) }
             "redo" => { let ok = self.scene.redo(); json!({ "success": ok }) }
+            "measure_object" => {
+                let id = args["id"].as_str().unwrap_or("");
+                if let Some(obj) = self.scene.objects.get(id) {
+                    let area = kolibri_core::measure::surface_area(obj);
+                    let vol = kolibri_core::measure::volume(obj);
+                    json!({
+                        "id": id,
+                        "surface_area_mm2": area,
+                        "surface_area": kolibri_core::measure::format_area(area),
+                        "volume_mm3": vol,
+                        "volume": kolibri_core::measure::format_volume(vol),
+                    })
+                } else { json!({ "error": "Object not found" }) }
+            }
+            "measure_distance" => {
+                let id_a = args["id_a"].as_str().unwrap_or("");
+                let id_b = args["id_b"].as_str().unwrap_or("");
+                let center_of = |id: &str| -> Option<[f32; 3]> {
+                    self.scene.objects.get(id).map(|o| {
+                        let p = o.position;
+                        let ext = match &o.shape {
+                            Shape::Box { width, height, depth } => [*width, *height, *depth],
+                            Shape::Cylinder { radius, height, .. } => [*radius*2.0, *height, *radius*2.0],
+                            Shape::Sphere { radius, .. } => [*radius*2.0; 3],
+                            _ => [0.0; 3],
+                        };
+                        [p[0]+ext[0]/2.0, p[1]+ext[1]/2.0, p[2]+ext[2]/2.0]
+                    })
+                };
+                match (center_of(id_a), center_of(id_b)) {
+                    (Some(a), Some(b)) => {
+                        let dx = b[0]-a[0]; let dy = b[1]-a[1]; let dz = b[2]-a[2];
+                        let dist = (dx*dx + dy*dy + dz*dz).sqrt();
+                        json!({ "distance_mm": dist, "distance": format!("{:.0} mm", dist),
+                                "delta": [dx, dy, dz] })
+                    }
+                    _ => json!({ "error": "One or both objects not found" }),
+                }
+            }
             "align_objects" => {
                 let ids: Vec<String> = args["ids"].as_array()
                     .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())

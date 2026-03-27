@@ -988,7 +988,16 @@ impl KolibriApp {
                     ui.small(format!("總表面積: {}", crate::measure::format_area(total_area)));
                     if total_vol > 0.0 {
                         ui.small(format!("總體積: {}", crate::measure::format_volume(total_vol)));
+                        // 重量估算（混凝土密度 2400 kg/m³）
+                        let weight_kg = total_vol / 1_000_000_000.0 * 2400.0;
+                        if weight_kg >= 1000.0 {
+                            ui.small(format!("估重: {:.1} t", weight_kg / 1000.0));
+                        } else {
+                            ui.small(format!("估重: {:.0} kg", weight_kg));
+                        }
                     }
+                    let mesh_count = self.scene.objects.values().filter(|o| matches!(o.shape, Shape::Mesh(..))).count();
+                    if mesh_count > 0 { ui.small(format!("  ◇ Mesh: {}", mesh_count)); }
                 } else {
                     ui.label(egui::RichText::new("場景為空").color(egui::Color32::from_rgb(110, 118, 135)));
                 }

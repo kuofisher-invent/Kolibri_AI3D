@@ -1487,7 +1487,17 @@ impl KolibriApp {
                     let plane = match self.viewer.work_plane {
                         1 => "XY", 2 => "YZ", _ => "XZ",
                     };
-                    let info = format!("{} 物件 | {} | 平面:{}", obj_count, mode_name, plane);
+                    // 選取物件的面積/體積
+                    let measure_info = if self.editor.selected_ids.len() == 1 {
+                        if let Some(obj) = self.editor.selected_ids.first()
+                            .and_then(|id| self.scene.objects.get(id))
+                        {
+                            let area = kolibri_core::measure::surface_area(obj);
+                            let vol = kolibri_core::measure::volume(obj);
+                            format!(" | {} | {}", kolibri_core::measure::format_area(area), kolibri_core::measure::format_volume(vol))
+                        } else { String::new() }
+                    } else { String::new() };
+                    let info = format!("{} 物件 | {} | 平面:{}{}", obj_count, mode_name, plane, measure_info);
                     ui.painter().text(
                         egui::pos2(rect.min.x + 8.0, rect.max.y - 8.0),
                         egui::Align2::LEFT_BOTTOM,
