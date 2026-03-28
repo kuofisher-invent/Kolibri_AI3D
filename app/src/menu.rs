@@ -59,6 +59,7 @@ pub enum MenuAction {
     ImportDxfSmart,
     SmartImport,
     ToggleConsole,
+    ReverseFace,
 }
 
 /// Draw the top menu bar. Returns the action to execute.
@@ -206,6 +207,7 @@ pub fn draw_context_menu_ext(ui: &mut egui::Ui, has_selection: bool) -> (MenuAct
         ui.separator();
         if ui.button("建立群組").clicked() { action = MenuAction::GroupSelected; ui.close_menu(); }
         if ui.button("建立元件").clicked() { action = MenuAction::ComponentSelected; ui.close_menu(); }
+        if ui.button("反轉面").clicked() { action = MenuAction::ReverseFace; ui.close_menu(); }
         ui.separator();
         if ui.button("屬性").clicked() { action = MenuAction::Properties; ui.close_menu(); }
     } else {

@@ -41,8 +41,52 @@ pub struct SUTransformation { pub values: [f64; 16] }
 #[repr(C)] #[derive(Copy, Clone, Debug)]
 pub struct SUColor { pub red: u8, pub green: u8, pub blue: u8, pub alpha: u8 }
 
-/// SU_ERROR codes
+/// SU_ERROR codes（完整列表，參考 SketchUp C API 文件）
 pub const SU_ERROR_NONE: i32 = 0;
+pub const SU_ERROR_NULL_POINTER_INPUT: i32 = 1;
+pub const SU_ERROR_INVALID_INPUT: i32 = 2;
+pub const SU_ERROR_NULL_POINTER_OUTPUT: i32 = 3;
+pub const SU_ERROR_INVALID_OUTPUT: i32 = 4;
+pub const SU_ERROR_OVERWRITE_VALID: i32 = 5;
+pub const SU_ERROR_GENERIC: i32 = 6;
+pub const SU_ERROR_SERIALIZATION: i32 = 7;
+pub const SU_ERROR_OUT_OF_RANGE: i32 = 8;
+pub const SU_ERROR_NO_DATA: i32 = 9;
+pub const SU_ERROR_INSUFFICIENT_SIZE: i32 = 10;
+pub const SU_ERROR_UNKNOWN_EXCEPTION: i32 = 11;
+pub const SU_ERROR_MODEL_INVALID: i32 = 12;
+pub const SU_ERROR_MODEL_VERSION: i32 = 13;
+pub const SU_ERROR_LAYER_LOCKED: i32 = 14;
+pub const SU_ERROR_DUPLICATE: i32 = 15;
+pub const SU_ERROR_PARTIAL_SUCCESS: i32 = 16;
+pub const SU_ERROR_UNSUPPORTED: i32 = 17;
+pub const SU_ERROR_INVALID_ARGUMENT: i32 = 18;
+
+/// 將 SU 錯誤碼轉為可讀訊息
+pub fn su_error_name(code: i32) -> &'static str {
+    match code {
+        0 => "SU_ERROR_NONE",
+        1 => "NULL_POINTER_INPUT",
+        2 => "INVALID_INPUT",
+        3 => "NULL_POINTER_OUTPUT",
+        4 => "INVALID_OUTPUT",
+        5 => "OVERWRITE_VALID",
+        6 => "GENERIC",
+        7 => "SERIALIZATION",
+        8 => "OUT_OF_RANGE",
+        9 => "NO_DATA",
+        10 => "INSUFFICIENT_SIZE",
+        11 => "UNKNOWN_EXCEPTION",
+        12 => "MODEL_INVALID",
+        13 => "MODEL_VERSION (SKP 版本比 SDK 新，請用 SketchUp 另存為舊版格式)",
+        14 => "LAYER_LOCKED",
+        15 => "DUPLICATE",
+        16 => "PARTIAL_SUCCESS",
+        17 => "UNSUPPORTED",
+        18 => "INVALID_ARGUMENT",
+        _ => "UNKNOWN",
+    }
+}
 
 // ─── SDK 動態載入包裝 ──────────────────────────────────────────────────
 
@@ -52,7 +96,9 @@ pub struct SkpSdk {
     // Model
     pub(crate) fn_initialize: unsafe extern "C" fn(),
     pub(crate) fn_terminate: unsafe extern "C" fn(),
+    pub(crate) fn_get_api_version: Option<unsafe extern "C" fn(*mut usize, *mut usize)>,
     pub(crate) fn_model_create_from_file: unsafe extern "C" fn(*mut SUModelRef, *const c_char) -> i32,
+    pub(crate) fn_model_create_from_file_with_status: Option<unsafe extern "C" fn(*mut SUModelRef, *const c_char, *mut i32) -> i32>,
     pub(crate) fn_model_release: unsafe extern "C" fn(*mut SUModelRef) -> i32,
     pub(crate) fn_model_get_entities: unsafe extern "C" fn(SUModelRef, *mut SUEntitiesRef) -> i32,
     // Entities
@@ -66,7 +112,7 @@ pub struct SkpSdk {
     pub(crate) fn_face_get_num_vertices: unsafe extern "C" fn(SUFaceRef, *mut usize) -> i32,
     pub(crate) fn_face_get_vertices: unsafe extern "C" fn(SUFaceRef, usize, *mut SUVertexRef, *mut usize) -> i32,
     pub(crate) fn_face_get_normal: unsafe extern "C" fn(SUFaceRef, *mut SUVector3D) -> i32,
-    pub(crate) fn_face_get_material: unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32,
+    pub(crate) fn_face_get_front_material: unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32,
     // Vertex
     pub(crate) fn_vertex_get_position: unsafe extern "C" fn(SUVertexRef, *mut SUPoint3D) -> i32,
     // Material
@@ -83,6 +129,21 @@ pub struct SkpSdk {
     pub(crate) fn_group_get_entities: unsafe extern "C" fn(SUGroupRef, *mut SUEntitiesRef) -> i32,
     pub(crate) fn_group_get_transform: unsafe extern "C" fn(SUGroupRef, *mut SUTransformation) -> i32,
     pub(crate) fn_group_get_name: unsafe extern "C" fn(SUGroupRef, *mut SUStringRef) -> i32,
+    // Edge（原始邊線，無三角化產物）
+    pub(crate) fn_entities_get_num_edges: unsafe extern "C" fn(SUEntitiesRef, *mut usize) -> i32,
+    pub(crate) fn_entities_get_edges: unsafe extern "C" fn(SUEntitiesRef, usize, *mut SUEdgeRef, *mut usize) -> i32,
+    pub(crate) fn_edge_get_start_vertex: unsafe extern "C" fn(SUEdgeRef, *mut SUVertexRef) -> i32,
+    pub(crate) fn_edge_get_end_vertex: unsafe extern "C" fn(SUEdgeRef, *mut SUVertexRef) -> i32,
+    pub(crate) fn_edge_get_soft: unsafe extern "C" fn(SUEdgeRef, *mut bool) -> i32,
+    pub(crate) fn_edge_get_smooth: unsafe extern "C" fn(SUEdgeRef, *mut bool) -> i32,
+    // MeshHelper（正確三角化，支援凹多邊形）
+    pub(crate) fn_mesh_helper_create: unsafe extern "C" fn(*mut SUMeshHelperRef, SUFaceRef) -> i32,
+    pub(crate) fn_mesh_helper_release: unsafe extern "C" fn(*mut SUMeshHelperRef) -> i32,
+    pub(crate) fn_mesh_helper_get_num_triangles: unsafe extern "C" fn(SUMeshHelperRef, *mut usize) -> i32,
+    pub(crate) fn_mesh_helper_get_num_vertices: unsafe extern "C" fn(SUMeshHelperRef, *mut usize) -> i32,
+    pub(crate) fn_mesh_helper_get_vertex_indices: unsafe extern "C" fn(SUMeshHelperRef, usize, *mut usize, *mut usize) -> i32,
+    pub(crate) fn_mesh_helper_get_vertices: unsafe extern "C" fn(SUMeshHelperRef, usize, *mut SUPoint3D, *mut usize) -> i32,
+    pub(crate) fn_mesh_helper_get_normals: unsafe extern "C" fn(SUMeshHelperRef, usize, *mut SUVector3D, *mut usize) -> i32,
     // String
     pub(crate) fn_string_create: unsafe extern "C" fn(*mut SUStringRef) -> i32,
     pub(crate) fn_string_release: unsafe extern "C" fn(*mut SUStringRef) -> i32,
@@ -90,11 +151,13 @@ pub struct SkpSdk {
     pub(crate) fn_string_get_utf8_length: unsafe extern "C" fn(SUStringRef, *mut usize) -> i32,
 }
 
-/// SDK DLL 搜尋路徑
+/// SDK DLL 搜尋路徑（優先獨立 SDK，次選安裝目錄）
 const SDK_PATHS: &[&str] = &[
-    "SketchUpAPI.dll",
+    // 最優先：專案內獨立 SDK（無外部依賴，最穩定）
+    "docs/SU_SDK/binaries/sketchup/x64/SketchUpAPI.dll",
     "sketchup_sdk/SketchUpAPI.dll",
     "./lib/SketchUpAPI.dll",
+    // 次選：SketchUp 安裝路徑（可能有 Qt 依賴問題）
     "C:/Program Files/SketchUp/SketchUp 2025/SketchUp/SketchUpAPI.dll",
     "C:/Program Files/SketchUp/SketchUp 2024/SketchUpAPI.dll",
     "C:/Program Files/SketchUp/SketchUp 2023/SketchUpAPI.dll",
@@ -103,14 +166,28 @@ const SDK_PATHS: &[&str] = &[
 /// 嘗試載入 SDK
 pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
     // 先搜尋固定路徑，再搜尋執行檔旁邊
-    let mut search = SDK_PATHS.iter().map(|s| std::path::PathBuf::from(s)).collect::<Vec<_>>();
-    // 加入執行檔所在目錄
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            search.push(dir.join("SketchUpAPI.dll"));
+    let mut search: Vec<std::path::PathBuf> = Vec::new();
+    // 執行檔所在目錄（子進程 worker 也在同目錄）
+    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    // 將所有搜尋路徑解析為絕對路徑
+    for s in SDK_PATHS {
+        let p = std::path::PathBuf::from(s);
+        if p.is_absolute() {
+            search.push(p);
+        } else {
+            // 相對路徑：先從 exe 目錄、再從 CWD 解析
+            if let Some(ref dir) = exe_dir {
+                search.push(dir.join(s));
+            }
+            if let Ok(cwd) = std::env::current_dir() {
+                search.push(cwd.join(s));
+            }
         }
     }
-    // 加入當前工作目錄
+    // 也嘗試 exe 目錄和 CWD 下的裸 SketchUpAPI.dll
+    if let Some(ref dir) = exe_dir {
+        search.push(dir.join("SketchUpAPI.dll"));
+    }
     if let Ok(cwd) = std::env::current_dir() {
         search.push(cwd.join("SketchUpAPI.dll"));
     }
@@ -119,6 +196,27 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
     let lib = search.iter()
         .find_map(|p| {
             eprintln!("[skp-sdk] Trying: {} (exists={})", p.display(), p.exists());
+            // 設定 DLL 搜尋目錄（絕對路徑），讓 SketchUpAPI.dll 能找到同目錄的依賴 DLL
+            if let Some(dir) = p.parent() {
+                let abs_dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+                if abs_dir.exists() {
+                    let dir_str = abs_dir.to_string_lossy();
+                    eprintln!("[skp-sdk] SetDllDirectory: {}", dir_str);
+                    #[cfg(target_os = "windows")]
+                    unsafe {
+                        use std::os::windows::ffi::OsStrExt;
+                        let wide: Vec<u16> = std::ffi::OsStr::new(&*dir_str)
+                            .encode_wide()
+                            .chain(std::iter::once(0))
+                            .collect();
+                        #[link(name = "kernel32")]
+                        extern "system" {
+                            fn SetDllDirectoryW(lpPathName: *const u16) -> i32;
+                        }
+                        SetDllDirectoryW(wide.as_ptr());
+                    }
+                }
+            }
             match unsafe { Library::new(p) } {
                 Ok(lib) => Some(lib),
                 Err(e) => { last_err = format!("{}: {}", p.display(), e); eprintln!("[skp-sdk] FAIL: {}", last_err); None }
@@ -139,7 +237,15 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
 
         load!(fn_initialize, b"SUInitialize");
         load!(fn_terminate, b"SUTerminate");
+        // SUGetAPIVersion（optional，用於診斷）
+        let fn_get_api_version: Option<unsafe extern "C" fn(*mut usize, *mut usize)> =
+            lib.get::<unsafe extern "C" fn(*mut usize, *mut usize)>(b"SUGetAPIVersion")
+                .ok().map(|s| *s);
         load!(fn_model_create_from_file, b"SUModelCreateFromFile");
+        // SUModelCreateFromFileWithStatus（API 9.0+，optional）
+        let fn_model_create_from_file_with_status: Option<unsafe extern "C" fn(*mut SUModelRef, *const c_char, *mut i32) -> i32> =
+            lib.get::<unsafe extern "C" fn(*mut SUModelRef, *const c_char, *mut i32) -> i32>(b"SUModelCreateFromFileWithStatus")
+                .ok().map(|s| *s);
         load!(fn_model_release, b"SUModelRelease");
         load!(fn_model_get_entities, b"SUModelGetEntities");
         load!(fn_entities_get_num_faces, b"SUEntitiesGetNumFaces");
@@ -151,12 +257,11 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_face_get_num_vertices, b"SUFaceGetNumVertices");
         load!(fn_face_get_vertices, b"SUFaceGetVertices");
         load!(fn_face_get_normal, b"SUFaceGetNormal");
-        // SUFaceGetMaterial 在 SU2025 可能改名或不存在，改為 optional
-        let fn_face_get_material = match lib.get::<unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32>(b"SUFaceGetMaterial") {
+        // 正確 API 名稱是 SUFaceGetFrontMaterial（不是 SUFaceGetMaterial）
+        let fn_face_get_front_material = match lib.get::<unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32>(b"SUFaceGetFrontMaterial") {
             Ok(sym) => *sym,
             Err(_) => {
-                eprintln!("[skp-sdk] WARNING: SUFaceGetMaterial not found, material extraction disabled");
-                // 用 dummy function
+                eprintln!("[skp-sdk] WARNING: SUFaceGetFrontMaterial not found, material extraction disabled");
                 unsafe extern "C" fn dummy(_: SUFaceRef, _: *mut SUMaterialRef) -> i32 { -1 }
                 dummy as unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32
             }
@@ -172,6 +277,19 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_group_get_entities, b"SUGroupGetEntities");
         load!(fn_group_get_transform, b"SUGroupGetTransform");
         load!(fn_group_get_name, b"SUGroupGetName");
+        load!(fn_entities_get_num_edges, b"SUEntitiesGetNumEdges");
+        load!(fn_entities_get_edges, b"SUEntitiesGetEdges");
+        load!(fn_edge_get_start_vertex, b"SUEdgeGetStartVertex");
+        load!(fn_edge_get_end_vertex, b"SUEdgeGetEndVertex");
+        load!(fn_edge_get_soft, b"SUEdgeGetSoft");
+        load!(fn_edge_get_smooth, b"SUEdgeGetSmooth");
+        load!(fn_mesh_helper_create, b"SUMeshHelperCreate");
+        load!(fn_mesh_helper_release, b"SUMeshHelperRelease");
+        load!(fn_mesh_helper_get_num_triangles, b"SUMeshHelperGetNumTriangles");
+        load!(fn_mesh_helper_get_num_vertices, b"SUMeshHelperGetNumVertices");
+        load!(fn_mesh_helper_get_vertex_indices, b"SUMeshHelperGetVertexIndices");
+        load!(fn_mesh_helper_get_vertices, b"SUMeshHelperGetVertices");
+        load!(fn_mesh_helper_get_normals, b"SUMeshHelperGetNormals");
         load!(fn_string_create, b"SUStringCreate");
         load!(fn_string_release, b"SUStringRelease");
         load!(fn_string_get_utf8, b"SUStringGetUTF8");
@@ -179,36 +297,83 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
 
         let sdk = SkpSdk {
             _lib: lib,
-            fn_initialize, fn_terminate,
-            fn_model_create_from_file, fn_model_release, fn_model_get_entities,
+            fn_initialize, fn_terminate, fn_get_api_version,
+            fn_model_create_from_file, fn_model_create_from_file_with_status,
+            fn_model_release, fn_model_get_entities,
             fn_entities_get_num_faces, fn_entities_get_faces,
             fn_entities_get_num_groups, fn_entities_get_groups,
             fn_entities_get_num_instances, fn_entities_get_instances,
             fn_face_get_num_vertices, fn_face_get_vertices,
-            fn_face_get_normal, fn_face_get_material,
+            fn_face_get_normal, fn_face_get_front_material,
             fn_vertex_get_position,
             fn_material_get_name, fn_material_get_color,
             fn_comp_def_get_name, fn_comp_def_get_entities,
             fn_comp_inst_get_definition, fn_comp_inst_get_transform, fn_comp_inst_get_name,
             fn_group_get_entities, fn_group_get_transform, fn_group_get_name,
+            fn_entities_get_num_edges, fn_entities_get_edges,
+            fn_edge_get_start_vertex, fn_edge_get_end_vertex,
+            fn_edge_get_soft, fn_edge_get_smooth,
+            fn_mesh_helper_create, fn_mesh_helper_release,
+            fn_mesh_helper_get_num_triangles, fn_mesh_helper_get_num_vertices,
+            fn_mesh_helper_get_vertex_indices, fn_mesh_helper_get_vertices, fn_mesh_helper_get_normals,
             fn_string_create, fn_string_release, fn_string_get_utf8, fn_string_get_utf8_length,
         };
 
         // 初始化 SDK
         (sdk.fn_initialize)();
 
+        // 顯示 API 版本
+        let (major, minor) = sdk.api_version();
+        if major > 0 {
+            eprintln!("[skp-sdk] API version: {}.{}", major, minor);
+        }
+
         Ok(sdk)
     }
 }
 
 impl SkpSdk {
-    /// 開啟 .skp 檔案
+    /// 取得 SDK API 版本
+    pub fn api_version(&self) -> (usize, usize) {
+        if let Some(f) = self.fn_get_api_version {
+            let (mut major, mut minor) = (0usize, 0usize);
+            unsafe { f(&mut major, &mut minor); }
+            (major, minor)
+        } else {
+            (0, 0) // 無法取得
+        }
+    }
+
+    /// 開啟 .skp 檔案（優先使用帶 status 的新版 API）
     pub fn open_model(&self, path: &str) -> Result<SkpModel, SkpError> {
         let c_path = CString::new(path).map_err(|e| SkpError::OpenFailed(e.to_string()))?;
         let mut model = SUModelRef { ptr: std::ptr::null_mut() };
-        let result = unsafe { (self.fn_model_create_from_file)(&mut model, c_path.as_ptr()) };
-        if result != SU_ERROR_NONE {
-            return Err(SkpError::OpenFailed(format!("SUModelCreateFromFile returned {}", result)));
+
+        // 優先使用 SUModelCreateFromFileWithStatus（API 9.0+）
+        if let Some(f) = self.fn_model_create_from_file_with_status {
+            let mut status: i32 = 0;
+            let result = unsafe { f(&mut model, c_path.as_ptr(), &mut status) };
+            if result != SU_ERROR_NONE {
+                let msg = if result == SU_ERROR_MODEL_VERSION {
+                    format!("SKP 檔案版本比 SDK 新（error={}）。請用 SketchUp 另存為舊版格式。", su_error_name(result))
+                } else if result == SU_ERROR_SERIALIZATION {
+                    format!("SKP 檔案損毀或無法讀取（error={}）", su_error_name(result))
+                } else {
+                    format!("SUModelCreateFromFileWithStatus failed: {} (code={})", su_error_name(result), result)
+                };
+                return Err(SkpError::OpenFailed(msg));
+            }
+            // status = 1 表示 SKP 版本比 SDK 新（可能遺漏資料）
+            if status == 1 {
+                eprintln!("[skp-sdk] WARNING: SKP file was created in a newer SketchUp version — some data may be missing");
+            }
+        } else {
+            // Fallback: 舊版 API
+            let result = unsafe { (self.fn_model_create_from_file)(&mut model, c_path.as_ptr()) };
+            if result != SU_ERROR_NONE {
+                let msg = format!("SUModelCreateFromFile failed: {} (code={})", su_error_name(result), result);
+                return Err(SkpError::OpenFailed(msg));
+            }
         }
         Ok(SkpModel { model, sdk: self })
     }

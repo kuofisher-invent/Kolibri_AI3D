@@ -40,6 +40,19 @@ pub struct IrMesh {
     pub normals: Vec<[f32; 3]>,
     pub indices: Vec<u32>,           // triangle indices
     pub material_id: Option<String>,
+    #[serde(default)]
+    pub source_vertex_labels: Vec<String>,
+    #[serde(default)]
+    pub source_triangle_debug: Vec<IrTriangleDebug>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IrTriangleDebug {
+    pub triangle_index: usize,
+    pub indices: [u32; 3],
+    pub source_face_label: String,
+    pub source_vertex_labels: [String; 3],
+    pub generator: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

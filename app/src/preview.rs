@@ -142,36 +142,41 @@ impl KolibriApp {
             }
 
             DrawState::Offsetting { ref obj_id, face, distance } => {
-                // Show ghost of the inset rectangle on the face being offset
-                let offset_ghost = [0.85, 0.65, 0.35, 0.45]; // warm orange ghost
+                // Show ghost of the inset/outset rectangle on the face being offset
+                // d > 0 = inset (orange), d < 0 = outset (blue)
                 let d = *distance;
+                let offset_ghost = if d >= 0.0 {
+                    [0.85, 0.65, 0.35, 0.45] // warm orange for inset
+                } else {
+                    [0.35, 0.65, 0.85, 0.45] // cool blue for outset
+                };
                 if let Some(obj) = self.scene.objects.get(obj_id) {
                     if let Shape::Box { width, height, depth } = &obj.shape {
                         let p = obj.position;
                         let (ghost_pos, gw, gh, gd) = match face {
                             PullFace::Top => (
                                 [p[0] + d, p[1] + height, p[2] + d],
-                                (*width - 2.0 * d).max(10.0), 2.0, (*depth - 2.0 * d).max(10.0),
+                                (*width - 2.0 * d).max(1.0), 2.0, (*depth - 2.0 * d).max(1.0),
                             ),
                             PullFace::Bottom => (
                                 [p[0] + d, p[1] - 2.0, p[2] + d],
-                                (*width - 2.0 * d).max(10.0), 2.0, (*depth - 2.0 * d).max(10.0),
+                                (*width - 2.0 * d).max(1.0), 2.0, (*depth - 2.0 * d).max(1.0),
                             ),
                             PullFace::Front => (
                                 [p[0] + d, p[1] + d, p[2] - 2.0],
-                                (*width - 2.0 * d).max(10.0), (*height - 2.0 * d).max(10.0), 2.0,
+                                (*width - 2.0 * d).max(1.0), (*height - 2.0 * d).max(1.0), 2.0,
                             ),
                             PullFace::Back => (
                                 [p[0] + d, p[1] + d, p[2] + depth],
-                                (*width - 2.0 * d).max(10.0), (*height - 2.0 * d).max(10.0), 2.0,
+                                (*width - 2.0 * d).max(1.0), (*height - 2.0 * d).max(1.0), 2.0,
                             ),
                             PullFace::Right => (
                                 [p[0] + width, p[1] + d, p[2] + d],
-                                2.0, (*height - 2.0 * d).max(10.0), (*depth - 2.0 * d).max(10.0),
+                                2.0, (*height - 2.0 * d).max(1.0), (*depth - 2.0 * d).max(1.0),
                             ),
                             PullFace::Left => (
                                 [p[0] - 2.0, p[1] + d, p[2] + d],
-                                2.0, (*height - 2.0 * d).max(10.0), (*depth - 2.0 * d).max(10.0),
+                                2.0, (*height - 2.0 * d).max(1.0), (*depth - 2.0 * d).max(1.0),
                             ),
                         };
                         crate::renderer::push_box_pub(&mut v, &mut idx, ghost_pos, gw, gh, gd, offset_ghost);

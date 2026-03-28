@@ -18,3 +18,19 @@ path = "src/bin/test_sdk.rs"
 [[bin]]
 name = "kolibri-skp-scene-test"
 path = "src/bin/test_import_scene.rs"
+
+[[bin]]
+name = "kolibri-skp-diag"
+path = "src/bin/skp_diag.rs"
+
+[[bin]]
+name = "kolibri-skp-face-diag"
+path = "src/bin/skp_face_diag.rs"
+
+[[bin]]
+name = "kolibri-skp-raw-faces"
+path = "src/bin/skp_raw_faces.rs"
+
+[[bin]]
+name = "kolibri-skp-worker"
+path = "src/bin/skp_worker.rs"

@@ -127,6 +127,8 @@ fn try_parse_skp_binary(data: &[u8], _name: &str) -> Option<IrMesh> {
         normals: Vec::new(),
         indices,
         material_id: None,
+        source_vertex_labels: vec![],
+        source_triangle_debug: vec![],
     })
 }
 
@@ -214,6 +216,8 @@ pub fn import_obj_to_ir(path: &str) -> Result<UnifiedIR, String> {
             normals: Vec::new(),
             indices: local_indices,
             material_id: None,
+            source_vertex_labels: vec![],
+            source_triangle_debug: vec![],
         });
 
         let inst_id = format!("obj_inst_{}", mesh_index);

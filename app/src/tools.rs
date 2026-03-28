@@ -242,6 +242,7 @@ impl KolibriApp {
                                 obj.position[2] += dz;
                             }
                         }
+                        self.scene.version += 1; // 拖曳時即時更新渲染
                     } else {
                         self.viewer.camera.orbit(d.x, d.y);
                     }
@@ -327,7 +328,8 @@ impl KolibriApp {
                             }
                             Shape::Mesh(ref mesh) => {
                                 let (min, max) = mesh.aabb();
-                                (min, max)
+                                ([min[0]+p[0], min[1]+p[1], min[2]+p[2]],
+                                 [max[0]+p[0], max[1]+p[1], max[2]+p[2]])
                             }
                         };
                         let corners = [
@@ -371,6 +373,7 @@ impl KolibriApp {
         }
 
         // Scale drag with axis-constrained handles
+        // Shift = force uniform, Ctrl = cycle axis mode
         if let DrawState::Scaling { ref obj_id, handle, original_dims: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
                 if !self.editor.drag_snapshot_taken {
@@ -379,8 +382,10 @@ impl KolibriApp {
                 }
                 let dy = -response.drag_delta().y;
                 let factor = 1.0 + dy * 0.005;
+                // Shift held = force uniform regardless of face-detected handle
+                let effective_handle = if shift { ScaleHandle::Uniform } else { handle };
                 if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
-                    match (&mut obj.shape, handle) {
+                    match (&mut obj.shape, effective_handle) {
                         // Box: uniform scaling
                         (Shape::Box { width, height, depth }, ScaleHandle::Uniform) => {
                             *width = (*width * factor).max(10.0);
@@ -462,7 +467,8 @@ impl KolibriApp {
             }
         }
 
-        // Offset drag — face edge inset with live preview
+        // Offset drag — face edge inset/outset with live preview (SketchUp-style)
+        // Drag right = inset (positive distance), drag left = outset (negative distance)
         if let DrawState::Offsetting { ref obj_id, face, distance: _ } = self.editor.draw_state.clone() {
             if response.dragged_by(egui::PointerButton::Primary) {
                 if !self.editor.drag_snapshot_taken {
@@ -475,7 +481,8 @@ impl KolibriApp {
                     DrawState::Offsetting { distance, .. } => *distance,
                     _ => 0.0,
                 };
-                let new_d = (cur_d + delta).abs().max(10.0);
+                // Allow both positive (inset) and negative (outset) offset
+                let new_d = cur_d + delta;
                 self.editor.draw_state = DrawState::Offsetting { obj_id: obj_id.clone(), face, distance: new_d };
             }
             if response.drag_stopped() {
@@ -483,43 +490,47 @@ impl KolibriApp {
                     DrawState::Offsetting { distance, .. } => *distance,
                     _ => 0.0,
                 };
-                if d > 10.0 {
+                if d.abs() > 1.0 {
                     if let Some(obj) = self.scene.objects.get(obj_id.as_str()).cloned() {
                         if let Shape::Box { width, height, depth } = &obj.shape {
                             let p = obj.position;
                             let mat = obj.material;
+                            // d > 0 = inset (shrink), d < 0 = outset (expand)
+                            // For inset: position moves inward by d, dimensions shrink by 2*d
+                            // For outset: position moves outward by |d|, dimensions grow by 2*|d|
                             let (new_pos, new_w, new_h, new_d) = match face {
                                 PullFace::Top => (
                                     [p[0] + d, p[1] + height, p[2] + d],
-                                    (*width - 2.0 * d).max(10.0), 0.1, (*depth - 2.0 * d).max(10.0),
+                                    (*width - 2.0 * d).max(1.0), 0.1, (*depth - 2.0 * d).max(1.0),
                                 ),
                                 PullFace::Bottom => (
                                     [p[0] + d, p[1] - 0.1, p[2] + d],
-                                    (*width - 2.0 * d).max(10.0), 0.1, (*depth - 2.0 * d).max(10.0),
+                                    (*width - 2.0 * d).max(1.0), 0.1, (*depth - 2.0 * d).max(1.0),
                                 ),
                                 PullFace::Front => (
                                     [p[0] + d, p[1] + d, p[2]],
-                                    (*width - 2.0 * d).max(10.0), (*height - 2.0 * d).max(10.0), 0.1,
+                                    (*width - 2.0 * d).max(1.0), (*height - 2.0 * d).max(1.0), 0.1,
                                 ),
                                 PullFace::Back => (
                                     [p[0] + d, p[1] + d, p[2] + depth],
-                                    (*width - 2.0 * d).max(10.0), (*height - 2.0 * d).max(10.0), 0.1,
+                                    (*width - 2.0 * d).max(1.0), (*height - 2.0 * d).max(1.0), 0.1,
                                 ),
                                 PullFace::Right => (
                                     [p[0] + width, p[1] + d, p[2] + d],
-                                    0.1, (*height - 2.0 * d).max(10.0), (*depth - 2.0 * d).max(10.0),
+                                    0.1, (*height - 2.0 * d).max(1.0), (*depth - 2.0 * d).max(1.0),
                                 ),
                                 PullFace::Left => (
                                     [p[0], p[1] + d, p[2] + d],
-                                    0.1, (*height - 2.0 * d).max(10.0), (*depth - 2.0 * d).max(10.0),
+                                    0.1, (*height - 2.0 * d).max(1.0), (*depth - 2.0 * d).max(1.0),
                                 ),
                             };
+                            let label = if d > 0.0 { "內縮" } else { "外擴" };
                             let name = format!("{}_offset", obj.name);
                             let new_id = self.scene.add_box(name, new_pos, new_w, new_h, new_d, mat);
                             self.editor.selected_ids = vec![new_id.clone()];
                             self.editor.selected_face = Some((new_id, face));
                             self.editor.tool = Tool::PushPull;
-                            self.file_message = Some((format!("偏移 {:.0}mm — 可推拉", d), std::time::Instant::now()));
+                            self.file_message = Some((format!("偏移{} {:.0}mm — 可推拉", label, d.abs()), std::time::Instant::now()));
                         }
                     }
                 }
@@ -1067,12 +1078,12 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::W) && !ctrl { set(Tool::Wall, self); }
 
                     // Standard view shortcuts (number row + numpad)
-                    if i.key_pressed(egui::Key::Num1) { self.viewer.camera.set_front(); }
-                    if i.key_pressed(egui::Key::Num2) { self.viewer.camera.set_top(); }
-                    if i.key_pressed(egui::Key::Num3) { self.viewer.camera.set_iso(); }
-                    if i.key_pressed(egui::Key::Num4) { self.viewer.camera.set_left(); }
-                    if i.key_pressed(egui::Key::Num6) { self.viewer.camera.set_right(); }
-                    if i.key_pressed(egui::Key::Num8) { self.viewer.camera.set_back(); }
+                    if i.key_pressed(egui::Key::Num1) { self.viewer.animate_camera_to(|c| c.set_front()); }
+                    if i.key_pressed(egui::Key::Num2) { self.viewer.animate_camera_to(|c| c.set_top()); }
+                    if i.key_pressed(egui::Key::Num3) { self.viewer.animate_camera_to(|c| c.set_iso()); }
+                    if i.key_pressed(egui::Key::Num4) { self.viewer.animate_camera_to(|c| c.set_left()); }
+                    if i.key_pressed(egui::Key::Num6) { self.viewer.animate_camera_to(|c| c.set_right()); }
+                    if i.key_pressed(egui::Key::Num8) { self.viewer.animate_camera_to(|c| c.set_back()); }
                     // Zoom to selected (period / numpad decimal)
                     if i.key_pressed(egui::Key::Period) && !self.editor.selected_ids.is_empty() {
                         if let Some(obj) = self.editor.selected_ids.first()
@@ -1893,7 +1904,7 @@ impl KolibriApp {
                 }
             }
 
-            // Offset: face edge inset — click a box face to enter drag-to-inset mode
+            // Offset: SketchUp-style face inset/outset — click a box face, drag to offset edges
             Tool::Offset => {
                 let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
                 let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
@@ -1915,7 +1926,7 @@ impl KolibriApp {
                         }
                     }
                 } else {
-                    self.file_message = Some(("請點擊方塊的面來偏移".to_string(), std::time::Instant::now()));
+                    self.file_message = Some(("請點擊方塊的面，拖曳產生內縮/外擴邊框".to_string(), std::time::Instant::now()));
                 }
             }
 
@@ -2727,8 +2738,8 @@ impl KolibriApp {
                     (pos, mx)
                 }
                 Shape::Mesh(ref mesh) => {
-                    let (_, aabb_max) = mesh.aabb();
-                    (pos, glam::Vec3::from(aabb_max))
+                    let (aabb_min, aabb_max) = mesh.aabb();
+                    (pos + glam::Vec3::from(aabb_min), pos + glam::Vec3::from(aabb_max))
                 }
             };
             if let Some(t) = camera::ray_aabb(origin, dir, pick_min, pick_max) {
@@ -3011,13 +3022,13 @@ impl KolibriApp {
             MenuAction::SelectAll => {
                 self.editor.selected_ids = self.scene.objects.keys().cloned().collect();
             }
-            MenuAction::ViewFront => self.viewer.camera.set_front(),
-            MenuAction::ViewBack => self.viewer.camera.set_back(),
-            MenuAction::ViewLeft => self.viewer.camera.set_left(),
-            MenuAction::ViewRight => self.viewer.camera.set_right(),
-            MenuAction::ViewTop => self.viewer.camera.set_top(),
-            MenuAction::ViewBottom => self.viewer.camera.set_bottom(),
-            MenuAction::ViewIso => self.viewer.camera.set_iso(),
+            MenuAction::ViewFront => self.viewer.animate_camera_to(|c| c.set_front()),
+            MenuAction::ViewBack => self.viewer.animate_camera_to(|c| c.set_back()),
+            MenuAction::ViewLeft => self.viewer.animate_camera_to(|c| c.set_left()),
+            MenuAction::ViewRight => self.viewer.animate_camera_to(|c| c.set_right()),
+            MenuAction::ViewTop => self.viewer.animate_camera_to(|c| c.set_top()),
+            MenuAction::ViewBottom => self.viewer.animate_camera_to(|c| c.set_bottom()),
+            MenuAction::ViewIso => self.viewer.animate_camera_to(|c| c.set_iso()),
             MenuAction::ZoomExtents => self.zoom_extents(),
             MenuAction::Duplicate => {
                 let mut new_ids = Vec::new();
@@ -3362,6 +3373,25 @@ impl KolibriApp {
                             }
                         }
                     }
+                }
+            }
+            MenuAction::ReverseFace => {
+                let mut count = 0usize;
+                for id in &self.editor.selected_ids.clone() {
+                    if let Some(obj) = self.scene.objects.get_mut(id) {
+                        if let Shape::Mesh(ref mut mesh) = obj.shape {
+                            for face in mesh.faces.values_mut() {
+                                face.normal = [-face.normal[0], -face.normal[1], -face.normal[2]];
+                            }
+                            count += 1;
+                        }
+                    }
+                }
+                if count > 0 {
+                    self.scene.version += 1;
+                    self.file_message = Some((format!("已反轉 {} 個網格的面法線", count), std::time::Instant::now()));
+                } else {
+                    self.file_message = Some(("所選物件無可反轉的網格面".to_string(), std::time::Instant::now()));
                 }
             }
             // Camera/view actions handled in app.rs update() before dispatch

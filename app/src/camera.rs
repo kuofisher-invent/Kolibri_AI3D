@@ -104,6 +104,20 @@ impl OrbitCamera {
         self.pitch = -0.5;
     }
 
+    /// Linearly interpolate between two cameras. `t` should be in [0, 1].
+    pub fn lerp(a: &OrbitCamera, b: &OrbitCamera, t: f32) -> OrbitCamera {
+        let t = t.clamp(0.0, 1.0);
+        OrbitCamera {
+            target: a.target + (b.target - a.target) * t,
+            distance: a.distance + (b.distance - a.distance) * t,
+            yaw: a.yaw + (b.yaw - a.yaw) * t,
+            pitch: a.pitch + (b.pitch - a.pitch) * t,
+            fov: a.fov + (b.fov - a.fov) * t,
+            near: a.near,
+            far: a.far,
+        }
+    }
+
     // ── Walk mode ────────────────────────────────────────────────────────
 
     /// Move forward/backward on the XZ plane (first-person walk).

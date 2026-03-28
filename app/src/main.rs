@@ -311,6 +311,12 @@ fn run_import_scene_out(args: &[String], output_path: &str) -> eframe::Result<()
         scene.component_defs.len(),
         build.meshes
     );
+    let debug_path = std::path::Path::new(output_path)
+        .with_file_name("import_source_debug_cli.json");
+    if let Ok(json) = serde_json::to_string_pretty(&build.object_debug) {
+        let _ = std::fs::write(&debug_path, json);
+        println!("scene_export_phase=debug_dump_done path={}", debug_path.display());
+    }
     println!("scene_export_phase=save_scene_start path={}", output_path);
     scene
         .save_to_file(output_path)

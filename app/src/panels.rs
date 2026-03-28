@@ -638,7 +638,7 @@ impl KolibriApp {
 
                 // ── Modify ──
                 self.tool_row(ui, bsz, &[
-                    (Tool::Offset,   "偏移複製\n點擊物件，再點擊地面放置複製品 (F)"),
+                    (Tool::Offset,   "偏移\n點擊方塊面，拖曳產生內縮邊框 (F)"),
                     (Tool::FollowMe, "跟隨複製\n點擊物件，自動複製並切換移動工具"),
                 ]);
 
@@ -1033,12 +1033,12 @@ impl KolibriApp {
             section_frame_full(ui, |ui| {
                 section_header_text(ui, "CAMERA");
                 ui.horizontal_wrapped(|ui| {
-                    if ui.small_button("前").clicked() { self.viewer.camera.set_front(); }
-                    if ui.small_button("後").clicked() { self.viewer.camera.set_back(); }
-                    if ui.small_button("左").clicked() { self.viewer.camera.set_left(); }
-                    if ui.small_button("右").clicked() { self.viewer.camera.set_right(); }
-                    if ui.small_button("上").clicked() { self.viewer.camera.set_top(); }
-                    if ui.small_button("等角").clicked() { self.viewer.camera.set_iso(); }
+                    if ui.small_button("前").clicked() { self.viewer.animate_camera_to(|c| c.set_front()); }
+                    if ui.small_button("後").clicked() { self.viewer.animate_camera_to(|c| c.set_back()); }
+                    if ui.small_button("左").clicked() { self.viewer.animate_camera_to(|c| c.set_left()); }
+                    if ui.small_button("右").clicked() { self.viewer.animate_camera_to(|c| c.set_right()); }
+                    if ui.small_button("上").clicked() { self.viewer.animate_camera_to(|c| c.set_top()); }
+                    if ui.small_button("等角").clicked() { self.viewer.animate_camera_to(|c| c.set_iso()); }
                 });
                 ui.horizontal(|ui| {
                     if ui.small_button("全部顯示").clicked() { self.zoom_extents(); }
@@ -1070,11 +1070,34 @@ impl KolibriApp {
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label("線粗");
-                    ui.add(egui::Slider::new(&mut self.viewer.edge_thickness, 0.5..=8.0).step_by(0.5));
+                    ui.add(egui::Slider::new(&mut self.viewer.edge_thickness, 0.1..=8.0).step_by(0.1));
                 });
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
                 ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
                 ui.checkbox(&mut self.viewer.dark_mode, "深色模式");
+                ui.checkbox(&mut self.viewer.show_vertex_ids, "頂點編號");
+                // ── Section Plane（剖面平面）──
+                ui.separator();
+                ui.checkbox(&mut self.viewer.section_plane_enabled, "剖面平面");
+                if self.viewer.section_plane_enabled {
+                    ui.horizontal(|ui| {
+                        ui.label("軸");
+                        if ui.selectable_label(self.viewer.section_plane_axis == 0, "X").clicked() { self.viewer.section_plane_axis = 0; }
+                        if ui.selectable_label(self.viewer.section_plane_axis == 1, "Y").clicked() { self.viewer.section_plane_axis = 1; }
+                        if ui.selectable_label(self.viewer.section_plane_axis == 2, "Z").clicked() { self.viewer.section_plane_axis = 2; }
+                        if ui.small_button(if self.viewer.section_plane_flip { ">" } else { "<" }).on_hover_text("翻轉剖面方向").clicked() {
+                            self.viewer.section_plane_flip = !self.viewer.section_plane_flip;
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("偏移");
+                        ui.add(egui::DragValue::new(&mut self.viewer.section_plane_offset)
+                            .speed(50.0)
+                            .suffix(" mm")
+                            .range(-50000.0..=50000.0));
+                    });
+                    ui.add(egui::Slider::new(&mut self.viewer.section_plane_offset, -20000.0..=20000.0).text("mm"));
+                }
                 ui.horizontal(|ui| {
                     ui.label("語言");
                     if ui.selectable_label(self.viewer.language == 0, "繁中").clicked() { self.viewer.language = 0; }
@@ -2136,7 +2159,7 @@ impl KolibriApp {
                 Tool::CreateCylinder => "圓柱 — 點擊地面設定圓心".into(),
                 Tool::CreateSphere   => "球體 — 點擊地面設定圓心".into(),
                 Tool::PushPull    => "推拉 — 點擊物件的面，拖曳沿法線方向拉伸 (P)".into(),
-                Tool::Offset      => "偏移複製 — 點擊物件，再點擊地面放置複製品 (F)".into(),
+                Tool::Offset      => "偏移 — 點擊方塊面，拖曳產生內縮/外擴邊框，放開後自動切換推拉 (F)".into(),
                 Tool::FollowMe    => "跟隨複製 — 點擊物件，自動複製並切換移動工具".into(),
                 Tool::TapeMeasure => "捲尺 — 點擊兩點量測距離".into(),
                 Tool::Dimension   => "標註 — 點擊兩點建立持久標註 (D)".into(),
@@ -2192,7 +2215,8 @@ impl KolibriApp {
                 format!("縮放 — {} | 輸入比例(x1.5)或尺寸(mm)+Enter", axis)
             }
             DrawState::Offsetting { distance, .. } => {
-                format!("偏移 {:.0}mm — 拖曳調整距離, 放開確認", distance)
+                let label = if *distance >= 0.0 { "內縮" } else { "外擴" };
+                format!("偏移{} {:.0}mm — 右拖內縮/左拖外擴, 放開確認", label, distance.abs())
             }
             DrawState::Measuring { start } => {
                 if let Some(p2) = self.editor.mouse_ground {

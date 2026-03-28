@@ -30,6 +30,18 @@ pub fn skp_scene_to_ir(skp: &kolibri_skp::SkpScene, source_file: &str) -> Unifie
             normals: mesh.normals.clone(),
             indices: mesh.indices.clone(),
             material_id: mesh.material_id.clone(),
+            source_vertex_labels: mesh.source_vertex_labels.clone(),
+            source_triangle_debug: mesh
+                .source_triangle_debug
+                .iter()
+                .map(|tri| IrTriangleDebug {
+                    triangle_index: tri.triangle_index,
+                    indices: tri.indices,
+                    source_face_label: tri.source_face_label.clone(),
+                    source_vertex_labels: tri.source_vertex_labels.clone(),
+                    generator: tri.generator.clone(),
+                })
+                .collect(),
         });
     }
 

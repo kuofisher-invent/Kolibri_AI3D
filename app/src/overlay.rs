@@ -160,63 +160,7 @@ impl KolibriApp {
         rect: egui::Rect,
         response: &egui::Response,
     ) {
-                // ── 渲染模式 Pill（右上角快速切換）──
-                {
-                    let modes = [
-                        (RenderMode::Shaded, "著色"),
-                        (RenderMode::Wireframe, "線框"),
-                        (RenderMode::XRay, "X光"),
-                        (RenderMode::HiddenLine, "隱藏線"),
-                        (RenderMode::Sketch, "草稿"),
-                    ];
-                    let pill_h = 22.0;
-                    let pill_w = 42.0;
-                    let total_w = modes.len() as f32 * pill_w + 2.0;
-                    let pill_x = rect.max.x - total_w - 8.0;
-                    let pill_y = rect.min.y + 8.0;
-
-                    // 背景膠囊
-                    let bg_rect = egui::Rect::from_min_size(
-                        egui::pos2(pill_x, pill_y),
-                        egui::vec2(total_w, pill_h),
-                    );
-                    ui.painter().rect_filled(bg_rect, pill_h / 2.0,
-                        egui::Color32::from_rgba_unmultiplied(30, 32, 45, 200));
-
-                    for (i, (mode, label)) in modes.iter().enumerate() {
-                        let active = self.viewer.render_mode == *mode;
-                        let btn_rect = egui::Rect::from_min_size(
-                            egui::pos2(pill_x + 1.0 + i as f32 * pill_w, pill_y + 1.0),
-                            egui::vec2(pill_w - 1.0, pill_h - 2.0),
-                        );
-                        let mouse = egui::pos2(self.editor.mouse_screen[0] + rect.min.x,
-                                               self.editor.mouse_screen[1] + rect.min.y);
-                        let hovered = btn_rect.contains(mouse);
-
-                        if active {
-                            ui.painter().rect_filled(btn_rect, pill_h / 2.0 - 1.0,
-                                egui::Color32::from_rgb(76, 139, 245));
-                        } else if hovered {
-                            ui.painter().rect_filled(btn_rect, pill_h / 2.0 - 1.0,
-                                egui::Color32::from_rgba_unmultiplied(76, 139, 245, 60));
-                        }
-
-                        let text_color = if active {
-                            egui::Color32::WHITE
-                        } else {
-                            egui::Color32::from_rgb(180, 185, 200)
-                        };
-                        ui.painter().text(
-                            btn_rect.center(), egui::Align2::CENTER_CENTER,
-                            label, egui::FontId::proportional(10.0), text_color,
-                        );
-
-                        // 點擊切換
-                        if hovered && response.clicked() {
-                            self.viewer.render_mode = *mode;
-                        }
-                    }
-                }
+                // 渲染模式 Pill 已移至右側面板 DISPLAY 區塊
 
                 // ── Camera bookmarks（左上角小按鈕）──
                 if !self.viewer.saved_cameras.is_empty() {
@@ -331,14 +275,22 @@ impl KolibriApp {
                                 Shape::Sphere { radius, .. } => [*radius * 2.0, *radius * 2.0, *radius * 2.0],
                                 _ => [0.0; 3],
                             };
-                            let text = match handle {
+                            // Shift held = force uniform mode
+                            let effective_handle = if self.editor.shift_held { ScaleHandle::Uniform } else { *handle };
+                            let mode_prefix = match effective_handle {
+                                ScaleHandle::Uniform => "[Uniform] ",
+                                ScaleHandle::AxisX => "[X] ",
+                                ScaleHandle::AxisY => "[Y] ",
+                                ScaleHandle::AxisZ => "[Z] ",
+                            };
+                            let text = match effective_handle {
                                 ScaleHandle::Uniform => {
                                     let ratio = if original_dims[0] > 0.1 { current[0] / original_dims[0] } else { 1.0 };
-                                    format!("\u{00d7}{:.2}", ratio)
+                                    format!("{}\u{00d7}{:.2}", mode_prefix, ratio)
                                 }
-                                ScaleHandle::AxisX => format!("W: {:.0} mm (\u{00d7}{:.2})", current[0], current[0] / original_dims[0].max(1.0)),
-                                ScaleHandle::AxisY => format!("H: {:.0} mm (\u{00d7}{:.2})", current[1], current[1] / original_dims[1].max(1.0)),
-                                ScaleHandle::AxisZ => format!("D: {:.0} mm (\u{00d7}{:.2})", current[2], current[2] / original_dims[2].max(1.0)),
+                                ScaleHandle::AxisX => format!("{}W: {:.0} mm (\u{00d7}{:.2})", mode_prefix, current[0], current[0] / original_dims[0].max(1.0)),
+                                ScaleHandle::AxisY => format!("{}H: {:.0} mm (\u{00d7}{:.2})", mode_prefix, current[1], current[1] / original_dims[1].max(1.0)),
+                                ScaleHandle::AxisZ => format!("{}D: {:.0} mm (\u{00d7}{:.2})", mode_prefix, current[2], current[2] / original_dims[2].max(1.0)),
                             };
                             Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
                         } else { None }
@@ -1198,9 +1150,17 @@ impl KolibriApp {
                                 [sx / 2.0, sy, sz / 2.0],   // Top
                             ];
                             let grip_size = 4.0;
-                            let corner_color = egui::Color32::from_rgb(80, 200, 120);
-                            let face_color = egui::Color32::from_rgb(80, 200, 120);
-                            // 角落 grip
+                            let corner_color = egui::Color32::from_rgb(80, 200, 120); // green = uniform
+                            // Face center grip colors: axis-coded (R=X, G=Y, B=Z)
+                            let face_colors = [
+                                egui::Color32::from_rgb(220, 80, 80),   // Front (Z)
+                                egui::Color32::from_rgb(220, 80, 80),   // Back (Z)
+                                egui::Color32::from_rgb(80, 80, 220),   // Left (X)
+                                egui::Color32::from_rgb(80, 80, 220),   // Right (X)
+                                egui::Color32::from_rgb(80, 200, 80),   // Bottom (Y)
+                                egui::Color32::from_rgb(80, 200, 80),   // Top (Y)
+                            ];
+                            // 角落 grip (uniform scale)
                             for c in &corners {
                                 let wp = [pos.x + c[0], pos.y + c[1], pos.z + c[2]];
                                 if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
@@ -1209,12 +1169,12 @@ impl KolibriApp {
                                     ui.painter().rect_stroke(r, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
                                 }
                             }
-                            // 面中心 grip（稍小）
-                            for fc in &face_centers {
+                            // 面中心 grip（per-axis scale, color-coded）
+                            for (fi, fc) in face_centers.iter().enumerate() {
                                 let wp = [pos.x + fc[0], pos.y + fc[1], pos.z + fc[2]];
                                 if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
                                     let r = egui::Rect::from_center_size(sp, egui::vec2(grip_size * 1.5, grip_size * 1.5));
-                                    ui.painter().rect_filled(r, 0.0, face_color);
+                                    ui.painter().rect_filled(r, 0.0, face_colors[fi]);
                                     ui.painter().rect_stroke(r, 0.0, egui::Stroke::new(1.0, egui::Color32::WHITE));
                                 }
                             }
@@ -1236,6 +1196,33 @@ impl KolibriApp {
                                 }
                             }
                         }
+                    }
+                }
+
+                // ── Scale mode badge ──
+                if self.editor.tool == Tool::Scale {
+                    if let DrawState::Scaling { handle, .. } = &self.editor.draw_state {
+                        let effective = if self.editor.shift_held { &ScaleHandle::Uniform } else { handle };
+                        let (label, color) = match effective {
+                            ScaleHandle::Uniform => ("Uniform (Shift)", egui::Color32::from_rgb(80, 200, 120)),
+                            ScaleHandle::AxisX => ("X-axis only", egui::Color32::from_rgb(220, 80, 80)),
+                            ScaleHandle::AxisY => ("Y-axis only", egui::Color32::from_rgb(80, 200, 80)),
+                            ScaleHandle::AxisZ => ("Z-axis only", egui::Color32::from_rgb(80, 80, 220)),
+                        };
+                        let badge_pos = egui::pos2(rect.min.x + 10.0, rect.max.y - 40.0);
+                        let badge_rect = egui::Rect::from_min_size(badge_pos, egui::vec2(130.0, 22.0));
+                        ui.painter().rect_filled(badge_rect, 6.0, egui::Color32::from_rgba_unmultiplied(30, 30, 30, 200));
+                        ui.painter().rect_stroke(badge_rect, 6.0, egui::Stroke::new(1.0, color));
+                        ui.painter().text(badge_rect.center(), egui::Align2::CENTER_CENTER,
+                            label, egui::FontId::proportional(11.0), color);
+                    } else if !self.editor.selected_ids.is_empty() {
+                        // Hint when Scale tool active but not yet dragging
+                        let hint_pos = egui::pos2(rect.min.x + 10.0, rect.max.y - 40.0);
+                        let hint_rect = egui::Rect::from_min_size(hint_pos, egui::vec2(200.0, 22.0));
+                        ui.painter().rect_filled(hint_rect, 6.0, egui::Color32::from_rgba_unmultiplied(30, 30, 30, 180));
+                        let hint_color = egui::Color32::from_rgb(180, 180, 180);
+                        ui.painter().text(hint_rect.center(), egui::Align2::CENTER_CENTER,
+                            "Face=Axis  Corner=Uniform  Shift=Uniform", egui::FontId::proportional(10.0), hint_color);
                     }
                 }
 
@@ -1441,9 +1428,9 @@ impl KolibriApp {
                         if response.clicked() {
                             match i {
                                 0 => self.viewer.use_ortho = false,
-                                1 => { self.viewer.use_ortho = true; self.viewer.camera.set_front(); }
-                                2 => { self.viewer.use_ortho = true; self.viewer.camera.set_top(); }
-                                3 => { self.viewer.use_ortho = true; self.viewer.camera.set_left(); }
+                                1 => { self.viewer.use_ortho = true; self.viewer.animate_camera_to(|c| c.set_front()); }
+                                2 => { self.viewer.use_ortho = true; self.viewer.animate_camera_to(|c| c.set_top()); }
+                                3 => { self.viewer.use_ortho = true; self.viewer.animate_camera_to(|c| c.set_left()); }
                                 _ => {}
                             }
                         }
@@ -1540,12 +1527,64 @@ impl KolibriApp {
                             match i {
                                 1 => self.viewer.camera.walk_forward(step),
                                 3 => self.viewer.camera.walk_strafe(-step),
-                                4 => self.viewer.camera.set_iso(),
+                                4 => self.viewer.animate_camera_to(|c| c.set_iso()),
                                 5 => self.viewer.camera.walk_strafe(step),
                                 7 => self.viewer.camera.walk_forward(-step),
                                 _ => {}
                             }
                         }
+                    }
+                }
+
+                // ── Zoom In / Zoom Out buttons (below navigation pad) ──
+                {
+                    let zoom_btn_w = 58.0;
+                    let zoom_btn_h = 32.0;
+                    let zoom_gap = 6.0;
+                    let zoom_total_w = zoom_btn_w * 2.0 + zoom_gap;
+                    let zoom_x = rect.left() + 16.0 + (130.0 - zoom_total_w) / 2.0;
+                    let zoom_y = rect.bottom() - 52.0; // below nav pad
+
+                    // "+" Zoom In
+                    let plus_rect = egui::Rect::from_min_size(
+                        egui::pos2(zoom_x, zoom_y),
+                        egui::vec2(zoom_btn_w, zoom_btn_h),
+                    );
+                    let plus_resp = ui.allocate_rect(plus_rect, egui::Sense::click());
+                    let plus_bg = if plus_resp.hovered() {
+                        egui::Color32::from_rgb(240, 242, 248)
+                    } else {
+                        egui::Color32::WHITE
+                    };
+                    ui.painter().rect_filled(plus_rect, 12.0, plus_bg);
+                    ui.painter().rect_stroke(plus_rect, 12.0,
+                        egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)));
+                    ui.painter().text(plus_rect.center(), egui::Align2::CENTER_CENTER,
+                        "+", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
+                    if plus_resp.clicked() {
+                        // Zoom in: decrease distance by 20%
+                        self.viewer.camera.distance = (self.viewer.camera.distance * 0.8).clamp(200.0, 100_000.0);
+                    }
+
+                    // "-" Zoom Out
+                    let minus_rect = egui::Rect::from_min_size(
+                        egui::pos2(zoom_x + zoom_btn_w + zoom_gap, zoom_y),
+                        egui::vec2(zoom_btn_w, zoom_btn_h),
+                    );
+                    let minus_resp = ui.allocate_rect(minus_rect, egui::Sense::click());
+                    let minus_bg = if minus_resp.hovered() {
+                        egui::Color32::from_rgb(240, 242, 248)
+                    } else {
+                        egui::Color32::WHITE
+                    };
+                    ui.painter().rect_filled(minus_rect, 12.0, minus_bg);
+                    ui.painter().rect_stroke(minus_rect, 12.0,
+                        egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)));
+                    ui.painter().text(minus_rect.center(), egui::Align2::CENTER_CENTER,
+                        "\u{2212}", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
+                    if minus_resp.clicked() {
+                        // Zoom out: increase distance by 20%
+                        self.viewer.camera.distance = (self.viewer.camera.distance * 1.2).clamp(200.0, 100_000.0);
                     }
                 }
 
@@ -1821,6 +1860,158 @@ impl KolibriApp {
                         egui::FontId::proportional(12.0),
                         egui::Color32::from_rgb(110, 118, 135),
                     );
+                }
+
+                // ── 匯入來源面高亮（SDK provenance debug）──
+                {
+                    let target_faces = [
+                        ("F14", egui::Color32::from_rgba_unmultiplied(255, 0, 0, 120)),
+                        ("F35", egui::Color32::from_rgba_unmultiplied(0, 170, 255, 120)),
+                    ];
+                    let outline_colors = [
+                        ("F14", egui::Color32::from_rgb(255, 240, 120)),
+                        ("F35", egui::Color32::from_rgb(255, 255, 255)),
+                    ];
+                    let label_font = egui::FontId::monospace(16.0);
+                    let label_bg = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180);
+
+                    for obj in self.scene.objects.values() {
+                        if !obj.visible { continue; }
+                        let Some(debug) = self.import_object_debug.get(&obj.id) else { continue; };
+                        let crate::scene::Shape::Mesh(ref mesh) = obj.shape else { continue; };
+
+                        let mut ordered_vertices: Vec<_> = mesh.vertices.iter().collect();
+                        ordered_vertices.sort_by_key(|(vid, _)| **vid);
+
+                        let vertex_positions: Vec<[f32; 3]> = ordered_vertices
+                            .iter()
+                            .map(|(_, vert)| {
+                                [
+                                    vert.pos[0] + obj.position[0],
+                                    vert.pos[1] + obj.position[1],
+                                    vert.pos[2] + obj.position[2],
+                                ]
+                            })
+                            .collect();
+
+                        for (face_label, fill_color) in target_faces {
+                            let mut label_anchor: Option<egui::Pos2> = None;
+                            let outline_color = outline_colors
+                                .iter()
+                                .find(|(label, _)| *label == face_label)
+                                .map(|(_, color)| *color)
+                                .unwrap_or(egui::Color32::WHITE);
+                            let outline_stroke = egui::Stroke::new(3.0, outline_color);
+                            for tri in debug.triangle_debug.iter().filter(|tri| tri.source_face_label == face_label) {
+                                let Some(&a) = tri.indices.get(0) else { continue; };
+                                let Some(&b) = tri.indices.get(1) else { continue; };
+                                let Some(&c) = tri.indices.get(2) else { continue; };
+                                let (ai, bi, ci) = (a as usize, b as usize, c as usize);
+                                let (Some(&pa), Some(&pb), Some(&pc)) = (
+                                    vertex_positions.get(ai),
+                                    vertex_positions.get(bi),
+                                    vertex_positions.get(ci),
+                                ) else { continue; };
+                                let (Some(sa), Some(sb), Some(sc)) = (
+                                    Self::world_to_screen_vp(pa, &vp, &rect),
+                                    Self::world_to_screen_vp(pb, &vp, &rect),
+                                    Self::world_to_screen_vp(pc, &vp, &rect),
+                                ) else { continue; };
+
+                                ui.painter().add(egui::Shape::convex_polygon(
+                                    vec![sa, sb, sc],
+                                    fill_color,
+                                    outline_stroke,
+                                ));
+                                ui.painter().line_segment([sa, sb], outline_stroke);
+                                ui.painter().line_segment([sb, sc], outline_stroke);
+                                ui.painter().line_segment([sc, sa], outline_stroke);
+                                ui.painter().circle_filled(sa, 5.0, outline_color);
+                                ui.painter().circle_filled(sb, 5.0, outline_color);
+                                ui.painter().circle_filled(sc, 5.0, outline_color);
+
+                                if label_anchor.is_none() {
+                                    label_anchor = Some(egui::pos2(
+                                        (sa.x + sb.x + sc.x) / 3.0,
+                                        (sa.y + sb.y + sc.y) / 3.0,
+                                    ));
+                                }
+                            }
+
+                            if let Some(anchor) = label_anchor {
+                                ui.painter().circle_stroke(anchor, 14.0, egui::Stroke::new(3.0, outline_color));
+                                ui.painter().line_segment(
+                                    [anchor + egui::vec2(-18.0, 0.0), anchor + egui::vec2(18.0, 0.0)],
+                                    egui::Stroke::new(2.0, outline_color),
+                                );
+                                ui.painter().line_segment(
+                                    [anchor + egui::vec2(0.0, -18.0), anchor + egui::vec2(0.0, 18.0)],
+                                    egui::Stroke::new(2.0, outline_color),
+                                );
+                                let galley = ui.painter().layout_no_wrap(
+                                    face_label.to_string(),
+                                    label_font.clone(),
+                                    egui::Color32::WHITE,
+                                );
+                                let text_rect = egui::Rect::from_center_size(
+                                    anchor + egui::vec2(0.0, -28.0),
+                                    galley.size() + egui::vec2(12.0, 6.0),
+                                );
+                                ui.painter().rect_filled(text_rect, 4.0, label_bg);
+                                ui.painter().rect_stroke(
+                                    text_rect,
+                                    4.0,
+                                    egui::Stroke::new(2.0, outline_color),
+                                );
+                                ui.painter().galley(
+                                    text_rect.center() - galley.size() * 0.5,
+                                    galley,
+                                    egui::Color32::WHITE,
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // ── 頂點編號除錯（show_vertex_ids）──
+                if self.viewer.show_vertex_ids {
+                    let label_font = egui::FontId::monospace(10.0);
+                    let label_color = egui::Color32::from_rgb(255, 80, 80);
+                    let bg_color = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 160);
+                    for obj in self.scene.objects.values() {
+                        if !obj.visible { continue; }
+                        if let crate::scene::Shape::Mesh(ref mesh) = obj.shape {
+                            let pos = obj.position;
+                            let mut ordered_vertices: Vec<_> = mesh.vertices.iter().collect();
+                            ordered_vertices.sort_by_key(|(vid, _)| **vid);
+                            let source_labels = self
+                                .import_object_debug
+                                .get(&obj.id)
+                                .map(|debug| &debug.vertex_labels);
+                            for (vertex_index, (&vid, vert)) in ordered_vertices.into_iter().enumerate() {
+                                let wp = [
+                                    vert.pos[0] + pos[0],
+                                    vert.pos[1] + pos[1],
+                                    vert.pos[2] + pos[2],
+                                ];
+                                if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
+                                    let text = source_labels
+                                        .and_then(|labels| labels.get(vertex_index))
+                                        .cloned()
+                                        .unwrap_or_else(|| format!("{}", vid));
+                                    let galley = ui.painter().layout_no_wrap(text, label_font.clone(), label_color);
+                                    let text_rect = egui::Rect::from_min_size(
+                                        egui::pos2(sp.x + 3.0, sp.y - 6.0),
+                                        galley.size(),
+                                    ).expand(1.5);
+                                    ui.painter().rect_filled(text_rect, 2.0, bg_color);
+                                    ui.painter().galley(egui::pos2(sp.x + 3.0, sp.y - 6.0), galley, label_color);
+                                    // 頂點小圓點
+                                    ui.painter().circle_filled(sp, 2.5, egui::Color32::from_rgb(255, 200, 60));
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // ── Toast 通知（右下角堆疊）──

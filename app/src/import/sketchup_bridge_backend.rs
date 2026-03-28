@@ -264,6 +264,8 @@ fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR 
             normals: m.normals,
             indices: m.indices,
             material_id: m.material_id,
+            source_vertex_labels: vec![],
+            source_triangle_debug: vec![],
         })
         .collect();
 

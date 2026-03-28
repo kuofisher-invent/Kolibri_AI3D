@@ -1830,6 +1830,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 name = "kolibri-cad"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "bytemuck",
  "eframe",
  "flate2",
@@ -1847,6 +1848,7 @@ dependencies = [
  "sysinfo",
  "thiserror 2.0.18",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -1857,6 +1859,7 @@ dependencies = [
 name = "kolibri-core"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "glam",
  "serde",
  "serde_json",

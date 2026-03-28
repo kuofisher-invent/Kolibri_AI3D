@@ -24,6 +24,8 @@ struct Uniforms {
     ground_color: [f32; 4],
     camera_pos: [f32; 4],
     light_vp: [[f32; 4]; 4],
+    /// Section plane: [axis(0=X,1=Y,2=Z), offset_mm, flip(0/1), enabled(0/1)]
+    section_plane: [f32; 4],
 }
 
 pub const COLOR_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -58,6 +60,7 @@ struct Uniforms {
     ground_color: vec4<f32>,
     camera_pos: vec4<f32>,
     light_vp: mat4x4<f32>,
+    section_plane: vec4<f32>,  // [axis, offset, flip, enabled]
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(1) @binding(0) var shadow_tex: texture_depth_2d;
@@ -235,6 +238,25 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
 // ─── Fragment shader ────────────────────────────────────────────────────────
 
 @fragment fn fs_main(i: VsOut, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
+    // Section plane clipping
+    if u.section_plane.w > 0.5 {
+        let axis = u.section_plane.x;
+        let offset = u.section_plane.y;
+        let flip = u.section_plane.z;
+        var coord: f32;
+        if axis < 0.5 {
+            coord = i.world_pos.x;
+        } else if axis < 1.5 {
+            coord = i.world_pos.y;
+        } else {
+            coord = i.world_pos.z;
+        }
+        let beyond = select(coord - offset, offset - coord, flip > 0.5);
+        if beyond > 0.0 {
+            discard;
+        }
+    }
+
     let light_dir = normalize(vec3<f32>(0.3, 1.0, 0.5));
     let n = normalize(i.normal);
     let v = normalize(u.camera_pos.xyz - i.world_pos);
@@ -337,6 +359,7 @@ struct Uniforms {
     ground_color: vec4<f32>,
     camera_pos: vec4<f32>,
     light_vp: mat4x4<f32>,
+    section_plane: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -408,6 +431,7 @@ pub struct ViewportRenderer {
     cached_idx: Vec<u32>,
     cached_edge_thickness: f32,
     cached_render_mode: u32,
+    cached_selected_ids: Vec<String>,
     cached_editing_component_def_id: Option<String>,
     /// Per-object mesh cache for incremental rebuild
     per_object_cache: std::collections::HashMap<String, (u64, Vec<Vertex>, Vec<u32>)>,
@@ -538,7 +562,7 @@ impl ViewportRenderer {
                     topology: topo,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None,
+                    cull_mode: Some(wgpu::Face::Back),
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
@@ -619,6 +643,7 @@ impl ViewportRenderer {
             cached_idx: Vec::new(),
             cached_edge_thickness: -1.0,
             cached_render_mode: u32::MAX,
+            cached_selected_ids: Vec::new(),
             cached_editing_component_def_id: None,
             per_object_cache: std::collections::HashMap::new(),
             // Pre-allocated GPU buffers (None = not yet created)
@@ -925,6 +950,7 @@ impl ViewportRenderer {
         texture_manager: &TextureManager,
         show_grid: bool,
         grid_spacing: f32,
+        section_plane: [f32; 4],
     ) {
         // Initialize shadow map on first render (before any borrows)
         if self.shadow_map_enabled {
@@ -948,6 +974,7 @@ impl ViewportRenderer {
             ground_color: [ground_color[0], ground_color[1], ground_color[2], 0.0],
             camera_pos: [cam_pos.x, cam_pos.y, cam_pos.z, 0.0],
             light_vp: light_vp.to_cols_array_2d(),
+            section_plane,
         };
         queue.write_buffer(&self.uniform_buf, 0, bytemuck::bytes_of(&uniforms));
 
@@ -963,7 +990,8 @@ impl ViewportRenderer {
         let style_changed = (self.cached_edge_thickness - edge_thickness).abs() > 0.01
             || self.cached_render_mode != render_mode;
         let editing_component_changed = self.cached_editing_component_def_id.as_deref() != editing_component_def_id;
-        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed || editing_component_changed;
+        let selection_changed = selected_ids != self.cached_selected_ids.as_slice();
+        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed || editing_component_changed || selection_changed;
 
         if scene_dirty {
             let (verts, idx) = build_scene_mesh(
@@ -979,6 +1007,7 @@ impl ViewportRenderer {
             self.cached_edge_thickness = edge_thickness;
             self.cached_render_mode = render_mode;
             self.cached_editing_component_def_id = editing_component_def_id.map(|s| s.to_string());
+            self.cached_selected_ids = selected_ids.to_vec();
         }
 
         // Combine cached scene mesh + preview geometry
@@ -1042,6 +1071,22 @@ impl ViewportRenderer {
         if !show_colors && render_mode != 5 {
             for v in &mut tri_verts {
                 v.color = [0.85, 0.85, 0.85, v.color[3]];
+            }
+        }
+
+        // GPU buffer 大小保護（wgpu 上限 256MB，reuse_or_grow_buffer 會加 1.5x 餘量）
+        // 必須在 shadow 計算之前截斷
+        {
+            const MAX_BUF: usize = 160 * 1024 * 1024;
+            let max_v = MAX_BUF / std::mem::size_of::<Vertex>();
+            let max_i = MAX_BUF / 4;
+            if tri_verts.len() > max_v {
+                tracing::error!("[Renderer] Scene too large: {} verts (max {}), truncating", tri_verts.len(), max_v);
+                tri_verts.truncate(max_v);
+            }
+            if tri_idx.len() > max_i {
+                tracing::error!("[Renderer] Scene too large: {} idx (max {}), truncating", tri_idx.len(), max_i);
+                tri_idx.truncate(max_i);
             }
         }
 
@@ -1308,7 +1353,8 @@ fn reuse_or_grow_buffer(
         }
     }
     // Need a larger buffer — allocate with 50% headroom to reduce future re-allocs
-    let alloc_size = (needed as f64 * 1.5) as usize;
+    // Cap at 256MB (wgpu default maxBufferSize)
+    let alloc_size = ((needed as f64 * 1.5) as usize).min(256 * 1024 * 1024);
     let new_buf = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some(label),
         size: alloc_size as u64,
@@ -1497,7 +1543,7 @@ fn build_scene_mesh(
                         let base = verts.len() as u32;
                         for fv in &face_verts {
                             verts.push(Vertex {
-                                position: *fv, normal: face.normal, color,
+                                position: [fv[0] + p[0], fv[1] + p[1], fv[2] + p[2]], normal: face.normal, color,
                             });
                         }
                         for i in 1..face_verts.len()-1 {
@@ -1510,7 +1556,9 @@ fn build_scene_mesh(
                 for (p1, p2) in mesh.all_edge_segments() {
                     let mesh_edge_color = if render_mode == 5 { [0.0, 0.0, 0.0, 1.0] } else { [0.15, 0.15, 0.15, 1.0] };
                     let mesh_edge_thick = if render_mode == 5 { edge_thickness_param * 1.5 } else { edge_thickness_param.max(3.0) };
-                    push_line_segments(&mut verts, &mut idx, &[p1, p2], mesh_edge_thick, mesh_edge_color);
+                    let ep1 = [p1[0] + p[0], p1[1] + p[1], p1[2] + p[2]];
+                    let ep2 = [p2[0] + p[0], p2[1] + p[1], p2[2] + p[2]];
+                    push_line_segments(&mut verts, &mut idx, &[ep1, ep2], mesh_edge_thick, mesh_edge_color);
                 }
             }
         }
@@ -1624,11 +1672,40 @@ fn build_scene_mesh(
             }
         }
 
-        // ── Selection outline (bright blue edges) ──────────────────────────
+        // ── Selection outline (bright blue AABB for all shapes) ─────────────
         let is_selected = selected_ids.iter().any(|s| s == &obj.id);
         if is_selected {
             let sel_color = [0.2, 0.5, 1.0, 1.0]; // bright blue
             let edge_thickness = 6.0;
+
+            // 通用 AABB 包圍框（所有 Shape 都適用）
+            if let Shape::Mesh(ref mesh) = obj.shape {
+                let mut mn = [f32::MAX; 3];
+                let mut mx = [f32::MIN; 3];
+                for v in mesh.vertices.values() {
+                    for i in 0..3 { mn[i] = mn[i].min(v.pos[i] + p[i]); mx[i] = mx[i].max(v.pos[i] + p[i]); }
+                }
+                if mn[0] < f32::MAX {
+                    let box_edges: Vec<([f32; 3], [f32; 3])> = vec![
+                        ([mn[0],mn[1],mn[2]], [mx[0],mn[1],mn[2]]),
+                        ([mx[0],mn[1],mn[2]], [mx[0],mn[1],mx[2]]),
+                        ([mx[0],mn[1],mx[2]], [mn[0],mn[1],mx[2]]),
+                        ([mn[0],mn[1],mx[2]], [mn[0],mn[1],mn[2]]),
+                        ([mn[0],mx[1],mn[2]], [mx[0],mx[1],mn[2]]),
+                        ([mx[0],mx[1],mn[2]], [mx[0],mx[1],mx[2]]),
+                        ([mx[0],mx[1],mx[2]], [mn[0],mx[1],mx[2]]),
+                        ([mn[0],mx[1],mx[2]], [mn[0],mx[1],mn[2]]),
+                        ([mn[0],mn[1],mn[2]], [mn[0],mx[1],mn[2]]),
+                        ([mx[0],mn[1],mn[2]], [mx[0],mx[1],mn[2]]),
+                        ([mx[0],mn[1],mx[2]], [mx[0],mx[1],mx[2]]),
+                        ([mn[0],mn[1],mx[2]], [mn[0],mx[1],mx[2]]),
+                    ];
+                    for (a, b) in &box_edges {
+                        push_line_segments(&mut verts, &mut idx, &[*a, *b], edge_thickness, sel_color);
+                    }
+                }
+            }
+
             match &obj.shape {
                 Shape::Box { width, height, depth } => {
                     let (w, h, d) = (*width, *height, *depth);
@@ -1704,6 +1781,13 @@ fn build_scene_mesh(
                         meridian2.push([cx, cy + r * a.sin(), cz + r * a.cos()]);
                     }
                     push_line_segments(&mut verts, &mut idx, &meridian2, edge_thickness, sel_color);
+                }
+                Shape::Mesh(ref mesh) => {
+                    for (p1, p2) in mesh.all_edge_segments() {
+                        let ep1 = [p1[0] + p[0], p1[1] + p[1], p1[2] + p[2]];
+                        let ep2 = [p2[0] + p[0], p2[1] + p[1], p2[2] + p[2]];
+                        push_line_segments(&mut verts, &mut idx, &[ep1, ep2], edge_thickness, sel_color);
+                    }
                 }
                 _ => {}
             }

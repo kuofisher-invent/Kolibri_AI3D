@@ -58,6 +58,8 @@ pub enum McpCommand {
     Redo,
     Shutdown,
     ImportFile { path: String },
+    Screenshot { path: String },
+    ExportScene { path: String },
 }
 
 /// MCP result sent back from GUI thread to MCP thread

@@ -256,6 +256,12 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
         "import_file" => Some(McpCommand::ImportFile {
             path: args["path"].as_str().unwrap_or("").into(),
         }),
+        "screenshot" => Some(McpCommand::Screenshot {
+            path: args["path"].as_str().unwrap_or("D:/AI_Design/Kolibri_Ai3D/app/screenshot.png").into(),
+        }),
+        "export_scene" => Some(McpCommand::ExportScene {
+            path: args["path"].as_str().unwrap_or("D:/AI_Design/Kolibri_Ai3D/app/scene_export.json").into(),
+        }),
         _ => None,
     }
 }

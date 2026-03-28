@@ -71,6 +71,7 @@ pub struct KolibriApp {
     pub(crate) pending_ir: Option<crate::cad_import::ir::DrawingIR>,
     pub(crate) import_review: Option<crate::import_review::ImportReview>,
     pub(crate) pending_unified_ir: Option<crate::import::unified_ir::UnifiedIR>,
+    pub(crate) import_object_debug: std::collections::HashMap<String, crate::import::import_manager::ImportedObjectDebug>,
     pub(crate) background_task_rx: Option<Receiver<BackgroundTaskResult>>,
     pub(crate) background_task_label: Option<String>,
     pub(crate) background_task_started_at: Option<std::time::Instant>,
@@ -254,6 +255,15 @@ impl KolibriApp {
                 floor_height: 3000.0,
                 work_plane: 0,
                 work_plane_offset: 0.0,
+                show_vertex_ids: false,
+                section_plane_enabled: false,
+                section_plane_axis: 1, // Y-axis default
+                section_plane_offset: 3000.0, // 3m default
+                section_plane_flip: false,
+                camera_anim_from: None,
+                camera_anim_to: None,
+                camera_anim_start: None,
+                camera_anim_duration: 0.3,
             },
 
             editor: EditorState {
@@ -349,6 +359,7 @@ impl KolibriApp {
             pending_ir: None,
             import_review: None,
             pending_unified_ir: None,
+            import_object_debug: std::collections::HashMap::new(),
             background_task_rx: None,
             background_task_label: None,
             background_task_started_at: None,
@@ -420,6 +431,22 @@ impl KolibriApp {
             .open(log_dir.join("import_audit.log"))
         {
             let _ = file.write_all(line.as_bytes());
+        }
+    }
+
+    fn write_import_source_debug(
+        object_debug: &std::collections::HashMap<String, crate::import::import_manager::ImportedObjectDebug>,
+    ) {
+        if object_debug.is_empty() {
+            return;
+        }
+        let log_dir = std::path::Path::new("logs");
+        if std::fs::create_dir_all(log_dir).is_err() {
+            return;
+        }
+        let path = log_dir.join("import_source_debug.json");
+        if let Ok(json) = serde_json::to_string_pretty(object_debug) {
+            let _ = std::fs::write(path, json);
         }
     }
 
@@ -841,6 +868,8 @@ impl KolibriApp {
             }
             BackgroundTaskResult::Build(Ok(done)) => {
                 self.scene = done.scene;
+                self.import_object_debug = done.result.object_debug.clone();
+                Self::write_import_source_debug(&self.import_object_debug);
                 if done.replace_scene {
                     self.viewer.hidden_tags.clear();
                     self.editor.editing_group_id = None;
@@ -1149,6 +1178,10 @@ impl eframe::App for KolibriApp {
         if self.background_task_active() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
+        // ── Camera smooth transition animation ──
+        if self.viewer.tick_camera_anim() {
+            ctx.request_repaint(); // 動畫進行中，持續重繪
+        }
         if !self.startup_scene_attempted && self.startup_scene_path.is_some() {
             self.try_load_startup_scene();
         }
@@ -1385,18 +1418,26 @@ impl eframe::App for KolibriApp {
 
                     ui.add_space(4.0);
 
-                    // Redo button with count
-                    let redo_tip = format!("\u{91cd}\u{505a} (Ctrl+Y) \u{2014} {} \u{6b65}", self.scene.redo_count());
+                    // Redo button with count badge
+                    let redo_count = self.scene.redo_count();
+                    let redo_tip = format!("\u{91cd}\u{505a} (Ctrl+Y) \u{2014} {} \u{6b65}", redo_count);
                     if ui.add_enabled(self.scene.can_redo(), egui::Button::new(
                         egui::RichText::new("\u{21bb}").size(14.0))).on_hover_text(redo_tip).clicked() {
                         self.scene.redo();
                     }
+                    if redo_count > 0 {
+                        ui.label(egui::RichText::new(format!("{}", redo_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                    }
 
-                    // Undo button with count
-                    let undo_tip = format!("\u{5fa9}\u{539f} (Ctrl+Z) \u{2014} {} \u{6b65}", self.scene.undo_count());
+                    // Undo button with count badge
+                    let undo_count = self.scene.undo_count();
+                    let undo_tip = format!("\u{5fa9}\u{539f} (Ctrl+Z) \u{2014} {} \u{6b65}", undo_count);
                     if ui.add_enabled(self.scene.can_undo(), egui::Button::new(
                         egui::RichText::new("\u{21ba}").size(14.0))).on_hover_text(undo_tip).clicked() {
                         self.scene.undo();
+                    }
+                    if undo_count > 0 {
+                        ui.label(egui::RichText::new(format!("{}", undo_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
                     }
 
                     ui.add_space(4.0);
@@ -1649,7 +1690,24 @@ impl eframe::App for KolibriApp {
                 };
                 let hf = self.editor.hovered_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 let sf = self.editor.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
-                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), self.editor.editing_component_def_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, self.viewer.grid_spacing);
+                // Adaptive grid: subdivide when zoomed in, coarsen when zoomed out
+                let cam_dist = self.viewer.camera.distance;
+                let base_spacing = self.viewer.grid_spacing;
+                let effective_grid_spacing = if cam_dist < base_spacing * 3.0 {
+                    base_spacing / 10.0 // fine grid when close
+                } else if cam_dist < base_spacing * 10.0 {
+                    base_spacing / 2.0  // medium grid
+                } else if cam_dist > base_spacing * 50.0 {
+                    base_spacing * 5.0  // coarse grid when far
+                } else {
+                    base_spacing
+                };
+                let section_plane = if self.viewer.section_plane_enabled {
+                    [self.viewer.section_plane_axis as f32, self.viewer.section_plane_offset, if self.viewer.section_plane_flip { 1.0 } else { 0.0 }, 1.0]
+                } else {
+                    [0.0, 0.0, 0.0, 0.0]
+                };
+                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), self.editor.editing_component_def_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, effective_grid_spacing, section_plane);
 
                 if let Some(tex_id) = self.viewport.texture_id {
                     ui.painter().image(tex_id, rect, egui::Rect::from_min_max(egui::pos2(0.0,0.0), egui::pos2(1.0,1.0)), egui::Color32::WHITE);
@@ -2368,6 +2426,7 @@ impl KolibriApp {
                 self.scene.snapshot();
                 let count = self.scene.objects.len();
                 self.scene.objects.clear();
+                self.import_object_debug.clear();
                 self.scene.version += 1;
                 self.editor.selected_ids.clear();
                 self.ai_log.log(&actor, "清空場景", &format!("{} objects removed", count), vec![]);
@@ -2468,17 +2527,26 @@ impl KolibriApp {
                     "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "skp" => {
-                        // SKP SDK 原生匯入（快速路徑：直接建 face HashMap，跳過慢的 add_face）
+                        // SKP SDK 匯入（子進程隔離，避免 DLL 崩潰影響主 APP）
                         if kolibri_skp::sdk_available() {
-                            match kolibri_skp::import_skp(&path) {
+                            match kolibri_skp::import_skp_subprocess(&path) {
                                 Ok(skp_scene) => {
-                                    let mesh_count = skp_scene.meshes.len();
-                                    let group_count = skp_scene.groups.len();
-                                    let comp_count = skp_scene.component_defs.len();
-                                    let mut imported = 0;
+                                    let ir = crate::import::skp_sdk_import::skp_scene_to_ir(&skp_scene, &path);
+                                    let stats = ir.stats.clone();
                                     // 建立 mesh_id → mesh 查詢表
-                                    let mesh_map: std::collections::HashMap<&str, &kolibri_skp::SkpMesh> =
-                                        skp_scene.meshes.iter().map(|m| (m.id.as_str(), m)).collect();
+                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                    self.import_object_debug = build.object_debug.clone();
+                                    Self::write_import_source_debug(&self.import_object_debug);
+                                    Ok(json!({
+                                        "imported": stats.instance_count,
+                                        "meshes": stats.mesh_count,
+                                        "groups": stats.group_count,
+                                        "components": stats.component_count,
+                                        "materials": stats.material_count,
+                                        "built_meshes": build.meshes,
+                                        "source_debug_path": "logs/import_source_debug.json",
+                                    }))
+                                    /*
                                     // 按 instance 匯入（帶 transform）
                                     for inst in &skp_scene.instances {
                                         let mesh = match mesh_map.get(inst.mesh_id.as_str()) {
@@ -2507,18 +2575,49 @@ impl KolibriApp {
                                             let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
                                             let fid = he.next_fid();
                                             let vid0 = i0 as u32 + 1; let vid1 = i1 as u32 + 1; let vid2 = i2 as u32 + 1;
-                                            he.faces.insert(fid, crate::halfedge::HeFace { edge: 0, normal: [nx/len, ny/len, nz/len], vert_ids: Some(vec![vid0, vid1, vid2]) });
+                                            he.faces.insert(fid, crate::halfedge::HeFace { edge: 0, normal: [nx/len, ny/len, nz/len], vert_ids: Some(vec![vid0, vid1, vid2]), source_face_label: None });
                                         }
-                                        self.scene.insert_mesh_raw(inst.name.clone(), [0.0;3], he, MaterialKind::White);
+                                        // SDK 原始邊線（也套用 instance transform）
+                                        he.sdk_edge_segments = mesh.edges.iter().map(|(p1, p2)| {
+                                            (transform_pt(*p1), transform_pt(*p2))
+                                        }).collect();
+                                        // 底部對齊地面
+                                        let min_y = xf_verts.iter().map(|v| v[1]).fold(f32::MAX, f32::min);
+                                        self.scene.insert_mesh_raw(inst.name.clone(), [0.0, -min_y, 0.0], he, MaterialKind::White);
                                         imported += 1;
                                     }
                                     self.scene.version += 1;
                                     Ok(json!({"imported": imported, "meshes": mesh_count, "groups": group_count, "components": comp_count}))
+                                    */
                                 }
-                                Err(e) => Err(format!("SKP SDK: {}", e)),
+                                Err(e) => {
+                                    tracing::warn!("SKP SDK subprocess failed: {}, trying unified import", e);
+                                    // Fallback: 走統一匯入管線（bridge/heuristic）
+                                    match crate::import::import_manager::import_file(&path) {
+                                        Ok(ir) => {
+                                            let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                            Ok(json!({
+                                                "imported": build.meshes,
+                                                "fallback": true,
+                                                "sdk_error": format!("{}", e),
+                                            }))
+                                        }
+                                        Err(e2) => Err(format!("SKP SDK: {} | Fallback: {}", e, e2)),
+                                    }
+                                }
                             }
                         } else {
-                            Err("SKP SDK DLL not available".into())
+                            // 沒有 SDK DLL，直接走統一匯入
+                            match crate::import::import_manager::import_file(&path) {
+                                Ok(ir) => {
+                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                    Ok(json!({
+                                        "imported": build.meshes,
+                                        "fallback": true,
+                                    }))
+                                }
+                                Err(e) => Err(format!("SKP import: {}", e)),
+                            }
                         }
                     }
                     _ => Err(format!("Unsupported: {}", ext)),
@@ -2526,6 +2625,56 @@ impl KolibriApp {
                 match result {
                     Ok(data) => McpResult { success: true, data },
                     Err(e) => McpResult { success: false, data: json!({"error": e}) },
+                }
+            }
+            McpCommand::Screenshot { path } => {
+                self.viewport.save_screenshot(&self.device, &self.queue, &path);
+                let exists = std::path::Path::new(&path).exists();
+                McpResult {
+                    success: exists,
+                    data: json!({"path": path, "saved": exists}),
+                }
+            }
+            McpCommand::ExportScene { path } => {
+                // 匯出完整場景為 JSON
+                let mut objects = Vec::new();
+                for obj in self.scene.objects.values() {
+                    let shape_info = match &obj.shape {
+                        Shape::Mesh(m) => json!({
+                            "type": "Mesh",
+                            "vertices": m.vertices.len(),
+                            "faces": m.faces.len(),
+                        }),
+                        Shape::Box { width, height, depth } => json!({
+                            "type": "Box", "width": width, "height": height, "depth": depth
+                        }),
+                        Shape::Cylinder { radius, height, .. } => json!({
+                            "type": "Cylinder", "radius": radius, "height": height
+                        }),
+                        Shape::Sphere { radius, .. } => json!({
+                            "type": "Sphere", "radius": radius
+                        }),
+                        Shape::Line { .. } => json!({"type": "Line"}),
+                    };
+                    objects.push(json!({
+                        "id": obj.id,
+                        "name": obj.name,
+                        "position": obj.position,
+                        "material": format!("{:?}", obj.material),
+                        "shape": shape_info,
+                        "visible": obj.visible,
+                        "rotation_y": obj.rotation_y,
+                    }));
+                }
+                let export = json!({
+                    "object_count": self.scene.objects.len(),
+                    "objects": objects,
+                    "groups": self.scene.groups.len(),
+                    "version": self.scene.version,
+                });
+                match std::fs::write(&path, serde_json::to_string_pretty(&export).unwrap_or_default()) {
+                    Ok(_) => McpResult { success: true, data: json!({"path": path, "objects": self.scene.objects.len()}) },
+                    Err(e) => McpResult { success: false, data: json!({"error": format!("{}", e)}) },
                 }
             }
         }

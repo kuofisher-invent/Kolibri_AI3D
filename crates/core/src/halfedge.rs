@@ -16,6 +16,8 @@ pub struct HeMesh {
     next_vid: VId,
     next_eid: EId,
     next_fid: FId,
+    /// SDK 原始邊線（匯入時填入，優先用於渲染）
+    pub sdk_edge_segments: Vec<([f32; 3], [f32; 3])>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +42,8 @@ pub struct HeFace {
     /// 直接頂點索引（快速匯入用，跳過 edge topology）
     #[serde(default)]
     pub vert_ids: Option<Vec<VId>>,
+    #[serde(default)]
+    pub source_face_label: Option<String>,
 }
 
 impl Default for HeMesh {
@@ -54,6 +58,8 @@ struct HeMeshSerde {
     next_vid: VId,
     next_eid: EId,
     next_fid: FId,
+    #[serde(default)]
+    sdk_edge_segments: Vec<([f32; 3], [f32; 3])>,
 }
 
 impl Serialize for HeMesh {
@@ -75,6 +81,7 @@ impl Serialize for HeMesh {
             next_vid: self.next_vid,
             next_eid: self.next_eid,
             next_fid: self.next_fid,
+            sdk_edge_segments: self.sdk_edge_segments.clone(),
         }
         .serialize(serializer)
     }
@@ -93,6 +100,7 @@ impl<'de> Deserialize<'de> for HeMesh {
             next_vid: helper.next_vid,
             next_eid: helper.next_eid,
             next_fid: helper.next_fid,
+            sdk_edge_segments: helper.sdk_edge_segments,
         })
     }
 }
@@ -106,6 +114,7 @@ impl HeMesh {
             next_vid: 1,
             next_eid: 1,
             next_fid: 1,
+            sdk_edge_segments: Vec::new(),
         }
     }
 
@@ -170,6 +179,10 @@ impl HeMesh {
     /// Add a face from a list of vertex IDs (used for mesh import).
     /// Creates edges between consecutive vertices and assigns them to a face.
     pub fn add_face(&mut self, vertex_ids: &[u32]) {
+        self.add_face_with_source(vertex_ids, None);
+    }
+
+    pub fn add_face_with_source(&mut self, vertex_ids: &[u32], source_face_label: Option<String>) {
         if vertex_ids.len() < 3 { return; }
 
         // 計算面法線
@@ -219,7 +232,8 @@ impl HeMesh {
         self.faces.insert(fid, HeFace {
             edge: edge_ids[0],
             normal,
-            vert_ids: None,
+            vert_ids: Some(vertex_ids.to_vec()),
+            source_face_label,
         });
     }
 
@@ -376,6 +390,7 @@ impl HeMesh {
             edge: loop_edges[0],
             normal,
             vert_ids: None,
+            source_face_label: None,
         });
     }
 
@@ -435,20 +450,61 @@ impl HeMesh {
 
     /// Get all edge segments for rendering
     pub fn all_edge_segments(&self) -> Vec<([f32; 3], [f32; 3])> {
+        // 優先使用 SDK 原始邊線（無三角化產物）
+        if !self.sdk_edge_segments.is_empty() {
+            return self.sdk_edge_segments.clone();
+        }
+        // 如果有半邊拓撲，用原來的方式
+        if !self.edges.is_empty() {
+            let mut segments = Vec::new();
+            let mut seen = std::collections::HashSet::new();
+            for (&eid, edge) in &self.edges {
+                if seen.contains(&eid) { continue; }
+                if let Some(twin) = edge.twin { seen.insert(twin); }
+                seen.insert(eid);
+                let p1 = self.vertices.get(&edge.origin).map(|v| v.pos).unwrap_or([0.0; 3]);
+                let p2 = edge.twin
+                    .and_then(|t| self.edges.get(&t))
+                    .and_then(|t| self.vertices.get(&t.origin))
+                    .map(|v| v.pos)
+                    .unwrap_or([0.0; 3]);
+                segments.push((p1, p2));
+            }
+            return segments;
+        }
+        // 快速路徑：從 face.vert_ids 生成邊
+        // 記錄每條邊的相鄰面法線，共面邊（三角化對角線）不顯示
+        let mut edge_faces: std::collections::HashMap<(u32, u32), Vec<[f32; 3]>> = std::collections::HashMap::new();
+        for face in self.faces.values() {
+            if let Some(ref ids) = face.vert_ids {
+                let n = ids.len();
+                for i in 0..n {
+                    let a = ids[i];
+                    let b = ids[(i + 1) % n];
+                    let key = if a < b { (a, b) } else { (b, a) };
+                    edge_faces.entry(key).or_default().push(face.normal);
+                }
+            }
+        }
         let mut segments = Vec::new();
-        let mut seen = std::collections::HashSet::new();
-        for (&eid, edge) in &self.edges {
-            if seen.contains(&eid) { continue; }
-            if let Some(twin) = edge.twin { seen.insert(twin); }
-            seen.insert(eid);
-
-            let p1 = self.vertices.get(&edge.origin).map(|v| v.pos).unwrap_or([0.0; 3]);
-            let p2 = edge.twin
-                .and_then(|t| self.edges.get(&t))
-                .and_then(|t| self.vertices.get(&t.origin))
-                .map(|v| v.pos)
-                .unwrap_or([0.0; 3]);
-            segments.push((p1, p2));
+        for ((a, b), normals) in &edge_faces {
+            // 邊界邊（只有 1 個面）→ 一定顯示
+            // 內部邊（2 個面）→ 法線夾角 > 閾值才顯示（非共面）
+            let show = if normals.len() == 1 {
+                true
+            } else if normals.len() >= 2 {
+                let n0 = &normals[0];
+                let n1 = &normals[1];
+                let dot = n0[0]*n1[0] + n0[1]*n1[1] + n0[2]*n1[2];
+                dot.abs() < 0.999 // 法線夾角 > ~2.5° → 顯示
+            } else {
+                true
+            };
+            if show {
+                let p1 = self.vertices.get(a).map(|v| v.pos).unwrap_or([0.0; 3]);
+                let p2 = self.vertices.get(b).map(|v| v.pos).unwrap_or([0.0; 3]);
+                segments.push((p1, p2));
+            }
         }
         segments
     }

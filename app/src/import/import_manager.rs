@@ -1,7 +1,8 @@
-﻿//! Import Manager ??detects file format and routes to appropriate importer
+﻿//! Import Manager — detects file format and routes to appropriate importer
 
 use super::import_cache::ImportCache;
 use super::unified_ir::UnifiedIR;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
@@ -13,6 +14,14 @@ pub enum ImportFormat {
     Stl,
     Pdf,
     Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ImportedObjectDebug {
+    pub mesh_id: String,
+    pub mesh_name: String,
+    pub vertex_labels: Vec<String>,
+    pub triangle_debug: Vec<super::unified_ir::IrTriangleDebug>,
 }
 
 pub fn detect_format(path: &str) -> ImportFormat {
@@ -40,9 +49,9 @@ pub fn import_file(path: &str) -> Result<UnifiedIR, String> {
         ImportFormat::Dxf => super::dwg_importer::import_dxf_to_unified_ir(path),
         ImportFormat::Dwg => super::dwg_parser::parse_dwg(path),
         ImportFormat::Skp => {
-            // 優先使用 SDK 原生讀取（不需 SketchUp）
+            // 優先使用 SDK 讀取（子進程隔離，防 DLL 崩潰）
             if kolibri_skp::sdk_available() {
-                match kolibri_skp::import_skp(path) {
+                match kolibri_skp::import_skp_subprocess(path) {
                     Ok(skp_scene) => Ok(super::skp_sdk_import::skp_scene_to_ir(&skp_scene, path)),
                     Err(e) => {
                         tracing::warn!("SKP SDK failed: {}, falling back to bridge/heuristic", e);
@@ -56,10 +65,10 @@ pub fn import_file(path: &str) -> Result<UnifiedIR, String> {
         ImportFormat::Obj => super::skp_importer::import_obj_to_ir(path),
         ImportFormat::Pdf => super::pdf_parser::parse_pdf(path),
         ImportFormat::Stl => {
-            Err("STL ??穿?ｇ?????澗?? ????穿 ??STL ??".into())
+            Err("STL 匯入尚未支援，請使用 STL 專用匯入".into())
         }
         ImportFormat::Unknown => {
-            Err(format!("????皜??澗???瞉?: {}", path))
+            Err(format!("不支援的檔案格式: {}", path))
         }
     }
 }
@@ -155,7 +164,7 @@ pub fn build_scene_from_cache(
                 he_mesh.clone(),
                 material_for_mesh(&mesh.ir, cache),
             );
-            obj.tag = format!("??渲麾:{}", comp.ir.id);
+            obj.tag = format!("元件:{}", comp.ir.id);
             objects.push(obj);
         }
         scene.component_defs.insert(
@@ -179,6 +188,12 @@ pub fn build_scene_from_cache(
         let he_mesh = transformed_he_mesh(base_mesh, inst.ir.transform);
         referenced_meshes.insert(mesh.ir.id.clone());
 
+        // 計算 mesh 底部 Y，將物件放置在地面 (Y=0) 上
+        let min_y = he_mesh.vertices.values()
+            .map(|v| v.pos[1])
+            .fold(f32::MAX, f32::min);
+        let ground_offset_y = if min_y.is_finite() { -min_y } else { 0.0 };
+
         let mut obj = imported_mesh_object(
             scene.next_id_pub(),
             if inst.ir.name.is_empty() {
@@ -186,20 +201,21 @@ pub fn build_scene_from_cache(
             } else {
                 inst.ir.name.clone()
             },
-            [0.0, 0.0, 0.0],
+            [0.0, ground_offset_y, 0.0],
             he_mesh,
             material_for_mesh(&mesh.ir, cache),
         );
         obj.tag = if let Some(def_id) = &inst.ir.component_def_id {
-            format!("??渲麾:{}", def_id)
+            format!("元件:{}", def_id)
         } else if inst.ir.layer.is_empty() {
-            "??穿".into()
+            "匯入".into()
         } else {
             inst.ir.layer.clone()
         };
         obj.component_def_id = inst.ir.component_def_id.clone();
 
         scene.objects.insert(obj.id.clone(), obj.clone());
+        result.object_debug.insert(obj.id.clone(), imported_object_debug(&mesh.ir));
         result.ids.push(obj.id.clone());
         result.meshes += 1;
         instance_to_object.insert(inst.ir.id.clone(), obj.id.clone());
@@ -248,10 +264,59 @@ pub fn build_scene_from_cache(
             material_for_mesh(&mesh.ir, cache),
         );
         scene.objects.insert(obj.id.clone(), obj.clone());
+        result.object_debug.insert(obj.id.clone(), imported_object_debug(&mesh.ir));
         result.ids.push(obj.id.clone());
         result.meshes += 1;
     }
     result.phase_timings_ms.push(("build_standalone_meshes".into(), phase_started.elapsed().as_millis()));
+
+    // ── Center imported objects at origin ──
+    let phase_started = Instant::now();
+    if !result.ids.is_empty() {
+        let mut global_min = [f32::MAX; 3];
+        let mut global_max = [f32::MIN; 3];
+        let mut has_verts = false;
+
+        for obj_id in &result.ids {
+            if let Some(obj) = scene.objects.get(obj_id) {
+                if let crate::scene::Shape::Mesh(ref he) = obj.shape {
+                    for v in he.vertices.values() {
+                        // Vertices are baked in world space; add obj.position to get rendered pos
+                        let wx = v.pos[0] + obj.position[0];
+                        let wy = v.pos[1] + obj.position[1];
+                        let wz = v.pos[2] + obj.position[2];
+                        if wx < global_min[0] { global_min[0] = wx; }
+                        if wy < global_min[1] { global_min[1] = wy; }
+                        if wz < global_min[2] { global_min[2] = wz; }
+                        if wx > global_max[0] { global_max[0] = wx; }
+                        if wy > global_max[1] { global_max[1] = wy; }
+                        if wz > global_max[2] { global_max[2] = wz; }
+                        has_verts = true;
+                    }
+                }
+            }
+        }
+
+        if has_verts && global_min[0].is_finite() && global_max[0].is_finite() {
+            let center_x = (global_min[0] + global_max[0]) / 2.0;
+            let bottom_y = global_min[1];
+            let center_z = (global_min[2] + global_max[2]) / 2.0;
+
+            for obj_id in &result.ids {
+                if let Some(obj) = scene.objects.get_mut(obj_id) {
+                    obj.position[0] -= center_x;
+                    obj.position[1] -= bottom_y; // bottom on ground (Y=0)
+                    obj.position[2] -= center_z;
+                }
+            }
+
+            tracing::info!(
+                "[Import] Centered {} objects: offset=({:.1}, {:.1}, {:.1})",
+                result.ids.len(), -center_x, -bottom_y, -center_z,
+            );
+        }
+    }
+    result.phase_timings_ms.push(("center_at_origin".into(), phase_started.elapsed().as_millis()));
 
     let phase_started = Instant::now();
     if result.meshes > 0 {
@@ -277,7 +342,7 @@ fn imported_mesh_object(
         position,
         material,
         rotation_y: 0.0,
-        tag: "??穿".into(),
+        tag: "匯入".into(),
         visible: true,
         roughness: 0.5,
         metallic: 0.0,
@@ -286,6 +351,15 @@ fn imported_mesh_object(
         parent_id: None,
         component_def_id: None,
         locked: false,
+    }
+}
+
+fn imported_object_debug(mesh: &super::unified_ir::IrMesh) -> ImportedObjectDebug {
+    ImportedObjectDebug {
+        mesh_id: mesh.id.clone(),
+        mesh_name: mesh.name.clone(),
+        vertex_labels: mesh.source_vertex_labels.clone(),
+        triangle_debug: mesh.source_triangle_debug.clone(),
     }
 }
 
@@ -304,15 +378,11 @@ fn ir_mesh_to_he_mesh(
 
     if !mesh.indices.is_empty() {
         for tri in mesh.indices.chunks(3) {
-            if tri.len() < 3 {
-                continue;
-            }
+            if tri.len() < 3 { continue; }
             let i0 = tri[0] as usize;
             let i1 = tri[1] as usize;
             let i2 = tri[2] as usize;
-            if i0 >= vertex_ids.len() || i1 >= vertex_ids.len() || i2 >= vertex_ids.len() {
-                continue;
-            }
+            if i0 >= vertex_ids.len() || i1 >= vertex_ids.len() || i2 >= vertex_ids.len() { continue; }
             he.add_face(&[vertex_ids[i0], vertex_ids[i1], vertex_ids[i2]]);
         }
     } else {
@@ -347,8 +417,8 @@ fn transformed_he_mesh(
     mesh
 }
 
-/// ??4x4 column-major transform ????????摰???
-/// TODO: ??? SceneObject ????堆??transform ?蹇?????謘????格??
+/// 將 4x4 column-major transform 拆解為 position + scale
+/// TODO: 讓 SceneObject 支援完整 transform 矩陣
 fn apply_transform(vertex: [f32; 3], m: [f32; 16]) -> [f32; 3] {
     let x = vertex[0];
     let y = vertex[1];
@@ -448,6 +518,7 @@ pub struct BuildResult {
     pub meshes: usize,
     pub ids: Vec<String>,
     pub phase_timings_ms: Vec<(String, u128)>,
+    pub object_debug: HashMap<String, ImportedObjectDebug>,
 }
 
 #[cfg(test)]
@@ -468,6 +539,8 @@ mod tests {
                 normals: vec![],
                 indices: vec![0, 1, 2],
                 material_id: Some("mat_1".into()),
+                source_vertex_labels: vec![],
+                source_triangle_debug: vec![],
             }],
             instances: vec![unified_ir::IrInstance {
                 id: "inst_1".into(),
@@ -537,6 +610,8 @@ mod tests {
                 normals: vec![],
                 indices: vec![0, 1, 2],
                 material_id: None,
+                source_vertex_labels: vec![],
+                source_triangle_debug: vec![],
             }],
             instances: vec![unified_ir::IrInstance {
                 id: "inst_1".into(),
@@ -583,7 +658,7 @@ mod tests {
         assert_eq!(obj.position, [0.0, 0.0, 0.0]);
         assert_eq!(obj.parent_id.as_deref(), Some("grp_1"));
         assert!(matches!(obj.shape, crate::scene::Shape::Mesh(_)));
-        assert_eq!(obj.tag, "??渲麾:comp_1");
+        assert_eq!(obj.tag, "元件:comp_1");
         if let crate::scene::Shape::Mesh(ref mesh) = obj.shape {
             let v = mesh.vertices.values().next().expect("mesh should have vertices");
             assert!(

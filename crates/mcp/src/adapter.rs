@@ -680,6 +680,7 @@ impl KolibriAdapter {
                                                 edge: 0,
                                                 normal: [nx/len, ny/len, nz/len],
                                                 vert_ids: Some(vec![vid0, vid1, vid2]),
+                                                source_face_label: None,
                                             });
                                         }
                                         let id = self.scene.insert_mesh_raw(mesh.name.clone(), [0.0;3], he, MaterialKind::White);
