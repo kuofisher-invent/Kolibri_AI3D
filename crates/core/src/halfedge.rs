@@ -37,6 +37,9 @@ pub struct HeEdge {
 pub struct HeFace {
     pub edge: EId,          // one half-edge on boundary
     pub normal: [f32; 3],   // face normal
+    /// 直接頂點索引（快速匯入用，跳過 edge topology）
+    #[serde(default)]
+    pub vert_ids: Option<Vec<VId>>,
 }
 
 impl Default for HeMesh {
@@ -216,6 +219,7 @@ impl HeMesh {
         self.faces.insert(fid, HeFace {
             edge: edge_ids[0],
             normal,
+            vert_ids: None,
         });
     }
 
@@ -371,6 +375,7 @@ impl HeMesh {
         self.faces.insert(fid, HeFace {
             edge: loop_edges[0],
             normal,
+            vert_ids: None,
         });
     }
 
@@ -402,6 +407,13 @@ impl HeMesh {
             Some(f) => f,
             None => return vec![],
         };
+        // 快速路徑：直接頂點索引（無 edge topology 的匯入 mesh）
+        if let Some(ref ids) = face.vert_ids {
+            return ids.iter()
+                .filter_map(|vid| self.vertices.get(vid).map(|v| v.pos))
+                .collect();
+        }
+        // 標準路徑：走 edge loop
         let mut verts = Vec::new();
         let start = face.edge;
         let mut current = start;

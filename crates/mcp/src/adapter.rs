@@ -675,9 +675,11 @@ impl KolibriAdapter {
                                             let nz = a[0]*b[1]-a[1]*b[0];
                                             let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
                                             let fid = he.next_fid();
+                                            let vid0 = i0 as u32 + 1; let vid1 = i1 as u32 + 1; let vid2 = i2 as u32 + 1;
                                             he.faces.insert(fid, kolibri_core::halfedge::HeFace {
                                                 edge: 0,
                                                 normal: [nx/len, ny/len, nz/len],
+                                                vert_ids: Some(vec![vid0, vid1, vid2]),
                                             });
                                         }
                                         let id = self.scene.insert_mesh_raw(mesh.name.clone(), [0.0;3], he, MaterialKind::White);
