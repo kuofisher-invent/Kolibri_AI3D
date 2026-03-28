@@ -5,5 +5,6 @@ pub mod import_manager;
 pub mod pdf_parser;
 pub mod skp_importer;
 pub mod skp_backend;
+pub mod skp_sdk_import;
 pub mod sketchup_bridge_backend;
 pub mod unified_ir;

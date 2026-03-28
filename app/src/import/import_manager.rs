@@ -3,6 +3,7 @@
 use super::import_cache::ImportCache;
 use super::unified_ir::UnifiedIR;
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 pub enum ImportFormat {
     Dxf,
@@ -38,7 +39,20 @@ pub fn import_file(path: &str) -> Result<UnifiedIR, String> {
     match format {
         ImportFormat::Dxf => super::dwg_importer::import_dxf_to_unified_ir(path),
         ImportFormat::Dwg => super::dwg_parser::parse_dwg(path),
-        ImportFormat::Skp => super::skp_importer::import_skp(path),
+        ImportFormat::Skp => {
+            // 優先使用 SDK 原生讀取（不需 SketchUp）
+            if kolibri_skp::sdk_available() {
+                match kolibri_skp::import_skp(path) {
+                    Ok(skp_scene) => Ok(super::skp_sdk_import::skp_scene_to_ir(&skp_scene, path)),
+                    Err(e) => {
+                        tracing::warn!("SKP SDK failed: {}, falling back to bridge/heuristic", e);
+                        super::skp_importer::import_skp(path)
+                    }
+                }
+            } else {
+                super::skp_importer::import_skp(path)
+            }
+        }
         ImportFormat::Obj => super::skp_importer::import_obj_to_ir(path),
         ImportFormat::Pdf => super::pdf_parser::parse_pdf(path),
         ImportFormat::Stl => {
@@ -63,8 +77,10 @@ pub fn build_scene_from_cache(
 ) -> BuildResult {
     let mut result = BuildResult::default();
     let mut mesh_cache: HashMap<String, crate::halfedge::HeMesh> = HashMap::new();
+    let build_started = Instant::now();
 
     // Build members (columns, beams) using steel builder
+    let phase_started = Instant::now();
     if !ir.members.is_empty() {
         let drawing_ir = convert_to_drawing_ir(ir);
         let steel_result = crate::builders::steel_builder::build_from_ir(scene, &drawing_ir);
@@ -124,7 +140,9 @@ pub fn build_scene_from_cache(
             result.ids.extend(steel_result.ids);
         }
     }
+    result.phase_timings_ms.push(("build_members".into(), phase_started.elapsed().as_millis()));
 
+    let phase_started = Instant::now();
     for comp in cache.component_defs_in_order() {
         let mut objects = Vec::new();
         for mesh_id in &comp.ir.mesh_ids {
@@ -149,10 +167,12 @@ pub fn build_scene_from_cache(
             },
         );
     }
+    result.phase_timings_ms.push(("build_component_defs".into(), phase_started.elapsed().as_millis()));
 
     let mut instance_to_object: HashMap<String, String> = HashMap::new();
     let mut referenced_meshes: HashSet<String> = HashSet::new();
 
+    let phase_started = Instant::now();
     for inst in cache.instances_in_order() {
         let Some(mesh) = cache.mesh(&inst.ir.mesh_id) else { continue; };
         let Some(base_mesh) = cached_he_mesh(&mut mesh_cache, &mesh.ir) else { continue; };
@@ -184,7 +204,9 @@ pub fn build_scene_from_cache(
         result.meshes += 1;
         instance_to_object.insert(inst.ir.id.clone(), obj.id.clone());
     }
+    result.phase_timings_ms.push(("build_instances".into(), phase_started.elapsed().as_millis()));
 
+    let phase_started = Instant::now();
     for group in cache.groups_in_order() {
         let children: Vec<String> = group
             .ir
@@ -210,7 +232,9 @@ pub fn build_scene_from_cache(
             },
         );
     }
+    result.phase_timings_ms.push(("build_groups".into(), phase_started.elapsed().as_millis()));
 
+    let phase_started = Instant::now();
     for mesh in cache.meshes_in_order() {
         if referenced_meshes.contains(&mesh.ir.id) {
             continue;
@@ -227,10 +251,14 @@ pub fn build_scene_from_cache(
         result.ids.push(obj.id.clone());
         result.meshes += 1;
     }
+    result.phase_timings_ms.push(("build_standalone_meshes".into(), phase_started.elapsed().as_millis()));
 
+    let phase_started = Instant::now();
     if result.meshes > 0 {
         scene.version += 1;
     }
+    result.phase_timings_ms.push(("scene_version_update".into(), phase_started.elapsed().as_millis()));
+    result.phase_timings_ms.push(("build_scene_total".into(), build_started.elapsed().as_millis()));
 
     result
 }
@@ -419,6 +447,7 @@ pub struct BuildResult {
     pub plates: usize,
     pub meshes: usize,
     pub ids: Vec<String>,
+    pub phase_timings_ms: Vec<(String, u128)>,
 }
 
 #[cfg(test)]
