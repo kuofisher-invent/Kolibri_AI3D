@@ -2476,24 +2476,40 @@ impl KolibriApp {
                                     let group_count = skp_scene.groups.len();
                                     let comp_count = skp_scene.component_defs.len();
                                     let mut imported = 0;
-                                    for mesh in &skp_scene.meshes {
+                                    // 建立 mesh_id → mesh 查詢表
+                                    let mesh_map: std::collections::HashMap<&str, &kolibri_skp::SkpMesh> =
+                                        skp_scene.meshes.iter().map(|m| (m.id.as_str(), m)).collect();
+                                    // 按 instance 匯入（帶 transform）
+                                    for inst in &skp_scene.instances {
+                                        let mesh = match mesh_map.get(inst.mesh_id.as_str()) {
+                                            Some(m) => m,
+                                            None => continue,
+                                        };
                                         if mesh.vertices.len() < 3 || mesh.indices.len() < 3 { continue; }
+                                        // 套用 instance transform 到頂點
+                                        let m = inst.transform;
+                                        let transform_pt = |v: [f32; 3]| -> [f32; 3] {
+                                            [m[0]*v[0] + m[4]*v[1] + m[8]*v[2] + m[12],
+                                             m[1]*v[0] + m[5]*v[1] + m[9]*v[2] + m[13],
+                                             m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14]]
+                                        };
                                         let mut he = crate::halfedge::HeMesh::new();
-                                        for v in &mesh.vertices { he.add_vertex(*v); }
+                                        let xf_verts: Vec<[f32; 3]> = mesh.vertices.iter().map(|v| transform_pt(*v)).collect();
+                                        for v in &xf_verts { he.add_vertex(*v); }
                                         for tri in mesh.indices.chunks(3) {
                                             if tri.len() < 3 { continue; }
                                             let (i0, i1, i2) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
-                                            if i0 >= mesh.vertices.len() || i1 >= mesh.vertices.len() || i2 >= mesh.vertices.len() { continue; }
-                                            let v0 = mesh.vertices[i0]; let v1 = mesh.vertices[i1]; let v2 = mesh.vertices[i2];
+                                            if i0 >= xf_verts.len() || i1 >= xf_verts.len() || i2 >= xf_verts.len() { continue; }
+                                            let v0 = xf_verts[i0]; let v1 = xf_verts[i1]; let v2 = xf_verts[i2];
                                             let a = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
                                             let b = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
                                             let nx = a[1]*b[2]-a[2]*b[1]; let ny = a[2]*b[0]-a[0]*b[2]; let nz = a[0]*b[1]-a[1]*b[0];
                                             let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
                                             let fid = he.next_fid();
-                                            let vid0 = i0 as u32 + 1; let vid1 = i1 as u32 + 1; let vid2 = i2 as u32 + 1; // HeMesh vertex IDs start at 1
+                                            let vid0 = i0 as u32 + 1; let vid1 = i1 as u32 + 1; let vid2 = i2 as u32 + 1;
                                             he.faces.insert(fid, crate::halfedge::HeFace { edge: 0, normal: [nx/len, ny/len, nz/len], vert_ids: Some(vec![vid0, vid1, vid2]) });
                                         }
-                                        self.scene.insert_mesh_raw(mesh.name.clone(), [0.0;3], he, MaterialKind::White);
+                                        self.scene.insert_mesh_raw(inst.name.clone(), [0.0;3], he, MaterialKind::White);
                                         imported += 1;
                                     }
                                     self.scene.version += 1;
