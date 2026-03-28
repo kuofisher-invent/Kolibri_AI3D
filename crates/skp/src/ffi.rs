@@ -213,16 +213,20 @@ impl SkpSdk {
         Ok(SkpModel { model, sdk: self })
     }
 
-    /// 從 SUStringRef 取得 Rust String
+    /// 從 SUStringRef 取得 Rust String（正確處理 UTF-8 中文）
     pub(crate) fn string_to_rust(&self, su_str: SUStringRef) -> String {
         unsafe {
             let mut len = 0usize;
             (self.fn_string_get_utf8_length)(su_str, &mut len);
             if len == 0 { return String::new(); }
-            let mut buf = vec![0u8; len + 1];
+            // 給足夠的 buffer（len 是不含 null 的 byte 數）
+            let buf_size = len + 4; // 多給幾個 byte 以防萬一
+            let mut buf = vec![0u8; buf_size];
             let mut actual = 0usize;
-            (self.fn_string_get_utf8)(su_str, len + 1, buf.as_mut_ptr() as *mut c_char, &mut actual);
-            String::from_utf8_lossy(&buf[..actual.saturating_sub(1)]).to_string()
+            (self.fn_string_get_utf8)(su_str, buf_size, buf.as_mut_ptr() as *mut c_char, &mut actual);
+            // actual 包含 null terminator，找到第一個 0 byte 截斷
+            let end = buf.iter().position(|&b| b == 0).unwrap_or(actual);
+            String::from_utf8_lossy(&buf[..end]).to_string()
         }
     }
 
