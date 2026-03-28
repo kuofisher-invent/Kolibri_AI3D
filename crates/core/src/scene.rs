@@ -97,6 +97,8 @@ pub struct SceneObject {
     /// `None` = root-level node; `Some(id)` = child of that node.
     #[serde(default)]
     pub parent_id: Option<String>,
+    #[serde(default)]
+    pub component_def_id: Option<String>,
     /// 鎖定物件（防止選取/移動/刪除）
     #[serde(default)]
     pub locked: bool,
@@ -346,7 +348,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         id
     }
@@ -402,7 +404,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         self.version += 1;
         id
@@ -419,7 +421,7 @@ impl Scene {
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         self.version += 1;
         id
@@ -436,7 +438,7 @@ impl Scene {
             shape: Shape::Sphere { radius: r, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         self.version += 1;
         id
@@ -454,7 +456,7 @@ impl Scene {
             shape: Shape::Line { points, thickness, arc_center: None, arc_radius: None, arc_angle_deg: None },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         self.version += 1;
         id
@@ -471,7 +473,7 @@ impl Scene {
             shape: Shape::Mesh(mesh),
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         id
     }
@@ -595,6 +597,7 @@ impl Scene {
         for id in object_ids {
             if let Some(obj) = self.objects.get_mut(id) {
                 obj.tag = format!("元件:{}", def_id);
+                obj.component_def_id = Some(def_id.clone());
             }
         }
 
@@ -610,11 +613,7 @@ impl Scene {
             None => return,
         };
 
-        let tag = format!("元件:{}", def_id);
-        let instance_ids: Vec<String> = self.objects.iter()
-            .filter(|(_, obj)| obj.tag == tag)
-            .map(|(id, _)| id.clone())
-            .collect();
+        let instance_ids = self.component_instance_ids(def_id);
 
         // For each instance, update its shape to match the definition
         // (simplified: only works for single-object components)
@@ -633,13 +632,18 @@ impl Scene {
 
     /// 自動同步元件：如果 obj_id 是某個元件的實例，則更新定義並同步所有實例
     pub fn auto_sync_component(&mut self, obj_id: &str) {
-        let tag = if let Some(obj) = self.objects.get(obj_id) {
-            obj.tag.clone()
+        let def_id = if let Some(obj) = self.objects.get(obj_id) {
+            obj.component_def_id.clone().or_else(|| {
+                if obj.tag.starts_with("元件:") {
+                    Some(obj.tag.trim_start_matches("元件:").to_string())
+                } else {
+                    None
+                }
+            })
         } else {
             return;
         };
-        if !tag.starts_with("元件:") { return; }
-        let def_id = tag.trim_start_matches("元件:").to_string();
+        let Some(def_id) = def_id else { return; };
 
         // 用此物件更新定義
         if let Some(obj) = self.objects.get(obj_id) {
@@ -654,6 +658,47 @@ impl Scene {
 
         // 同步到所有其他實例
         self.sync_component_instances(&def_id);
+    }
+
+    pub fn component_instance_ids(&self, def_id: &str) -> Vec<String> {
+        let mut ids: Vec<String> = self.objects.iter()
+            .filter(|(_, obj)| {
+                obj.component_def_id.as_deref() == Some(def_id)
+                    || obj.tag == format!("元件:{}", def_id)
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        ids.sort();
+        ids.dedup();
+        ids
+    }
+
+    pub fn component_instance_count(&self, def_id: &str) -> usize {
+        self.component_instance_ids(def_id).len()
+    }
+
+    pub fn component_visible_instance_count(&self, def_id: &str) -> usize {
+        self.component_instance_ids(def_id)
+            .into_iter()
+            .filter(|id| self.objects.get(id).map(|obj| obj.visible).unwrap_or(false))
+            .count()
+    }
+
+    pub fn set_component_instances_visible(&mut self, def_id: &str, visible: bool) -> usize {
+        let instance_ids = self.component_instance_ids(def_id);
+        let mut changed = 0usize;
+        for id in instance_ids {
+            if let Some(obj) = self.objects.get_mut(&id) {
+                if obj.visible != visible {
+                    obj.visible = visible;
+                    changed += 1;
+                }
+            }
+        }
+        if changed > 0 {
+            self.version += 1;
+        }
+        changed
     }
 
     /// Save scene to a JSON file
@@ -811,6 +856,58 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
         println!("Save/load roundtrip test passed!");
+    }
+
+    #[test]
+    fn test_component_instance_helpers_and_visibility() {
+        let mut scene = Scene::default();
+
+        let a = scene.add_box("A".into(), [0.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+        let b = scene.add_box("B".into(), [200.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+        let c = scene.add_box("C".into(), [400.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+
+        let def_id = scene.create_component_def("TestComponent".into(), &[a.clone(), b.clone()]);
+
+        assert_eq!(scene.component_instance_count(&def_id), 2);
+        assert_eq!(scene.component_visible_instance_count(&def_id), 2);
+
+        if let Some(obj) = scene.objects.get_mut(&b) {
+            obj.visible = false;
+        }
+        assert_eq!(scene.component_visible_instance_count(&def_id), 1);
+
+        let changed = scene.set_component_instances_visible(&def_id, true);
+        assert_eq!(changed, 1);
+        assert_eq!(scene.component_visible_instance_count(&def_id), 2);
+
+        assert_eq!(scene.objects.get(&c).and_then(|obj| obj.component_def_id.as_deref()), None);
+        assert!(scene.component_instance_ids(&def_id).contains(&a));
+        assert!(scene.component_instance_ids(&def_id).contains(&b));
+        assert!(!scene.component_instance_ids(&def_id).contains(&c));
+    }
+
+    #[test]
+    fn test_component_instance_ids_fallback_to_tag() {
+        let mut scene = Scene::default();
+
+        let a = scene.add_box("A".into(), [0.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+        let b = scene.add_box("B".into(), [200.0, 0.0, 0.0], 100.0, 100.0, 100.0, MaterialKind::White);
+        let def_id = scene.create_component_def("LegacyTagComponent".into(), &[a.clone(), b.clone()]);
+
+        let legacy_tag = scene.objects.get(&a).map(|obj| obj.tag.clone()).unwrap_or_default();
+        if let Some(obj) = scene.objects.get_mut(&a) {
+            obj.component_def_id = None;
+        }
+        if let Some(obj) = scene.objects.get_mut(&b) {
+            obj.component_def_id = None;
+            obj.tag = legacy_tag;
+        }
+
+        let mut ids = scene.component_instance_ids(&def_id);
+        ids.sort();
+        let mut expected = vec![a, b];
+        expected.sort();
+        assert_eq!(ids, expected);
     }
 }
 

@@ -268,6 +268,7 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
                 texture_path: None,
                 component_kind: Default::default(),
                 parent_id: None,
+                component_def_id: None,
                 locked: false,
             });
             count += 1;
@@ -316,6 +317,7 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
             texture_path: None,
             component_kind: Default::default(),
             parent_id: None,
+            component_def_id: None,
             locked: false,
         });
         scene.version += 1;
@@ -353,7 +355,7 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
             position: [0.0; 3], material: kolibri_core::scene::MaterialKind::White,
             rotation_y: 0.0, tag: "匯入".to_string(), visible: true,
             roughness: 0.5, metallic: 0.0, texture_path: None,
-            component_kind: Default::default(), parent_id: None, locked: false,
+            component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
         });
         count += 1;
     }

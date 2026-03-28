@@ -1,4 +1,4 @@
-//! Import Manager ??detects file format and routes to appropriate importer
+﻿//! Import Manager ??detects file format and routes to appropriate importer
 
 use super::import_cache::ImportCache;
 use super::unified_ir::UnifiedIR;
@@ -42,10 +42,10 @@ pub fn import_file(path: &str) -> Result<UnifiedIR, String> {
         ImportFormat::Obj => super::skp_importer::import_obj_to_ir(path),
         ImportFormat::Pdf => super::pdf_parser::parse_pdf(path),
         ImportFormat::Stl => {
-            Err("STL ?臬隢蝙??瑼? ???臬 ??STL 璅∪?".into())
+            Err("STL ??穿?ｇ?????澗?? ????穿 ??STL ??".into())
         }
         ImportFormat::Unknown => {
-            Err(format!("銝?渡?瑼??澆?: {}", path))
+            Err(format!("????皜??澗???瞉?: {}", path))
         }
     }
 }
@@ -62,6 +62,7 @@ pub fn build_scene_from_cache(
     cache: &ImportCache,
 ) -> BuildResult {
     let mut result = BuildResult::default();
+    let mut mesh_cache: HashMap<String, crate::halfedge::HeMesh> = HashMap::new();
 
     // Build members (columns, beams) using steel builder
     if !ir.members.is_empty() {
@@ -128,27 +129,25 @@ pub fn build_scene_from_cache(
         let mut objects = Vec::new();
         for mesh_id in &comp.ir.mesh_ids {
             let Some(mesh) = cache.mesh(mesh_id) else { continue; };
-            let Some(he_mesh) = ir_mesh_to_he_mesh(&mesh.ir, None) else { continue; };
+            let Some(he_mesh) = cached_he_mesh(&mut mesh_cache, &mesh.ir) else { continue; };
             let mut obj = imported_mesh_object(
                 scene.next_id_pub(),
                 mesh.ir.name.clone(),
                 [0.0, 0.0, 0.0],
-                he_mesh,
+                he_mesh.clone(),
                 material_for_mesh(&mesh.ir, cache),
             );
-            obj.tag = format!("?辣:{}", comp.ir.id);
+            obj.tag = format!("??渲麾:{}", comp.ir.id);
             objects.push(obj);
         }
-        if !objects.is_empty() {
-            scene.component_defs.insert(
-                comp.ir.id.clone(),
-                crate::scene::ComponentDef {
-                    id: comp.ir.id.clone(),
-                    name: comp.ir.name.clone(),
-                    objects,
-                },
-            );
-        }
+        scene.component_defs.insert(
+            comp.ir.id.clone(),
+            crate::scene::ComponentDef {
+                id: comp.ir.id.clone(),
+                name: comp.ir.name.clone(),
+                objects,
+            },
+        );
     }
 
     let mut instance_to_object: HashMap<String, String> = HashMap::new();
@@ -156,7 +155,8 @@ pub fn build_scene_from_cache(
 
     for inst in cache.instances_in_order() {
         let Some(mesh) = cache.mesh(&inst.ir.mesh_id) else { continue; };
-        let Some(he_mesh) = ir_mesh_to_he_mesh(&mesh.ir, Some(inst.ir.transform)) else { continue; };
+        let Some(base_mesh) = cached_he_mesh(&mut mesh_cache, &mesh.ir) else { continue; };
+        let he_mesh = transformed_he_mesh(base_mesh, inst.ir.transform);
         referenced_meshes.insert(mesh.ir.id.clone());
 
         let mut obj = imported_mesh_object(
@@ -171,12 +171,13 @@ pub fn build_scene_from_cache(
             material_for_mesh(&mesh.ir, cache),
         );
         obj.tag = if let Some(def_id) = &inst.ir.component_def_id {
-            format!("?辣:{}", def_id)
+            format!("??渲麾:{}", def_id)
         } else if inst.ir.layer.is_empty() {
-            "?臬".into()
+            "??穿".into()
         } else {
             inst.ir.layer.clone()
         };
+        obj.component_def_id = inst.ir.component_def_id.clone();
 
         scene.objects.insert(obj.id.clone(), obj.clone());
         result.ids.push(obj.id.clone());
@@ -191,10 +192,6 @@ pub fn build_scene_from_cache(
             .iter()
             .filter_map(|child| instance_to_object.get(child).cloned())
             .collect();
-        if children.is_empty() {
-            continue;
-        }
-
         for child_id in &children {
             if let Some(obj) = scene.objects.get_mut(child_id) {
                 obj.parent_id = Some(group.ir.id.clone());
@@ -218,12 +215,12 @@ pub fn build_scene_from_cache(
         if referenced_meshes.contains(&mesh.ir.id) {
             continue;
         }
-        let Some(he_mesh) = ir_mesh_to_he_mesh(&mesh.ir, None) else { continue; };
+        let Some(he_mesh) = cached_he_mesh(&mut mesh_cache, &mesh.ir) else { continue; };
         let obj = imported_mesh_object(
             scene.next_id_pub(),
             mesh.ir.name.clone(),
             [0.0, 0.0, 0.0],
-            he_mesh,
+            he_mesh.clone(),
             material_for_mesh(&mesh.ir, cache),
         );
         scene.objects.insert(obj.id.clone(), obj.clone());
@@ -252,20 +249,20 @@ fn imported_mesh_object(
         position,
         material,
         rotation_y: 0.0,
-        tag: "?臬".into(),
+        tag: "??穿".into(),
         visible: true,
         roughness: 0.5,
         metallic: 0.0,
         texture_path: None,
         component_kind: Default::default(),
         parent_id: None,
+        component_def_id: None,
         locked: false,
     }
 }
 
 fn ir_mesh_to_he_mesh(
     mesh: &super::unified_ir::IrMesh,
-    transform: Option<[f32; 16]>,
 ) -> Option<crate::halfedge::HeMesh> {
     if mesh.vertices.len() < 3 {
         return None;
@@ -274,7 +271,7 @@ fn ir_mesh_to_he_mesh(
     let mut he = crate::halfedge::HeMesh::new();
     let mut vertex_ids = Vec::with_capacity(mesh.vertices.len());
     for v in &mesh.vertices {
-        vertex_ids.push(he.add_vertex(apply_transform(*v, transform)));
+        vertex_ids.push(he.add_vertex(*v));
     }
 
     if !mesh.indices.is_empty() {
@@ -297,10 +294,34 @@ fn ir_mesh_to_he_mesh(
     Some(he)
 }
 
-/// 敺?4x4 column-major transform ?拚??撟喟宏??
-/// TODO: ?芯? SceneObject ?舀摰 transform ??????頧?蝮格
-fn apply_transform(vertex: [f32; 3], transform: Option<[f32; 16]>) -> [f32; 3] {
-    let Some(m) = transform else { return vertex; };
+fn cached_he_mesh<'a>(
+    mesh_cache: &'a mut HashMap<String, crate::halfedge::HeMesh>,
+    mesh: &super::unified_ir::IrMesh,
+) -> Option<&'a crate::halfedge::HeMesh> {
+    if !mesh_cache.contains_key(&mesh.id) {
+        let built = ir_mesh_to_he_mesh(mesh)?;
+        mesh_cache.insert(mesh.id.clone(), built);
+    }
+    mesh_cache.get(&mesh.id)
+}
+
+fn transformed_he_mesh(
+    source: &crate::halfedge::HeMesh,
+    transform: [f32; 16],
+) -> crate::halfedge::HeMesh {
+    let mut mesh = source.clone();
+    for vertex in mesh.vertices.values_mut() {
+        vertex.pos = apply_transform(vertex.pos, transform);
+    }
+    for face in mesh.faces.values_mut() {
+        face.normal = apply_normal_transform(face.normal, transform);
+    }
+    mesh
+}
+
+/// ??4x4 column-major transform ????????摰???
+/// TODO: ??? SceneObject ????堆??transform ?蹇?????謘????格??
+fn apply_transform(vertex: [f32; 3], m: [f32; 16]) -> [f32; 3] {
     let x = vertex[0];
     let y = vertex[1];
     let z = vertex[2];
@@ -309,6 +330,21 @@ fn apply_transform(vertex: [f32; 3], transform: Option<[f32; 16]>) -> [f32; 3] {
         m[1] * x + m[5] * y + m[9] * z + m[13],
         m[2] * x + m[6] * y + m[10] * z + m[14],
     ]
+}
+
+fn apply_normal_transform(normal: [f32; 3], m: [f32; 16]) -> [f32; 3] {
+    let x = normal[0];
+    let y = normal[1];
+    let z = normal[2];
+    let nx = m[0] * x + m[4] * y + m[8] * z;
+    let ny = m[1] * x + m[5] * y + m[9] * z;
+    let nz = m[2] * x + m[6] * y + m[10] * z;
+    let len = (nx * nx + ny * ny + nz * nz).sqrt();
+    if len <= f32::EPSILON {
+        [0.0, 1.0, 0.0]
+    } else {
+        [nx / len, ny / len, nz / len]
+    }
 }
 
 fn material_for_mesh(
@@ -518,7 +554,7 @@ mod tests {
         assert_eq!(obj.position, [0.0, 0.0, 0.0]);
         assert_eq!(obj.parent_id.as_deref(), Some("grp_1"));
         assert!(matches!(obj.shape, crate::scene::Shape::Mesh(_)));
-        assert_eq!(obj.tag, "?辣:comp_1");
+        assert_eq!(obj.tag, "??渲麾:comp_1");
         if let crate::scene::Shape::Mesh(ref mesh) = obj.shape {
             let v = mesh.vertices.values().next().expect("mesh should have vertices");
             assert!(
