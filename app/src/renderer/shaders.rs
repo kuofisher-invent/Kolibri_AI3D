@@ -53,7 +53,7 @@ struct VsIn {
 // ─── WGSL Shader ─────────────────────────────────────────────────────────────
 
 pub(crate) const SHADER: &str = r#"
-pub(crate) struct Uniforms {
+struct Uniforms {
     view_proj: mat4x4<f32>,
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,
@@ -287,7 +287,9 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
     let G = G1_v * G1_l;
 
     let specular = D * F * G / (4.0 * ndv * ndl + 0.001);
-    let ambient = 0.25 + 0.1 * max(dot(n, vec3<f32>(0.0, 1.0, 0.0)), 0.0);
+    // Clay-style ambient: bright, soft, minimal harsh shadows
+    let hemisphere = 0.5 + 0.5 * dot(n, vec3<f32>(0.0, 1.0, 0.0));
+    let ambient = 0.45 + 0.15 * hemisphere;
 
     var base_color = i.color.rgb;
 
@@ -329,22 +331,15 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
         let shadow_depth = light_ndc.z;
         if shadow_uv.x >= 0.0 && shadow_uv.x <= 1.0 && shadow_uv.y >= 0.0 && shadow_uv.y <= 1.0 {
             shadow = textureSampleCompare(shadow_tex, shadow_sampler, shadow_uv, shadow_depth - 0.002);
-            shadow = mix(0.4, 1.0, shadow); // 陰影不會全黑
+            shadow = mix(0.6, 1.0, shadow); // Clay: 陰影更柔和
         }
     }
 
-    // PBR 合成：diffuse + specular + shadow
+    // Clay-style 合成：明亮 diffuse + 柔和 specular + 輕陰影
     let kd = (1.0 - metallic) * base_color;
-    let diffuse_term = kd * (ambient + 0.6 * ndl * shadow);
-    let spec_term = specular * ndl * shadow;
+    let diffuse_term = kd * (ambient + 0.45 * ndl * shadow);
+    let spec_term = specular * ndl * shadow * 0.3; // 降低高光強度
     var col = vec4<f32>(diffuse_term + spec_term, final_alpha);
-
-    // Edge detection: subtle shader-based edges (explicit geometric edges handle most cases)
-    let dx_n = dpdx(i.normal);
-    let dy_n = dpdy(i.normal);
-    let edge = length(dx_n) + length(dy_n);
-    let edge_factor = smoothstep(1.5, 4.0, edge);
-    col = mix(col, vec4<f32>(0.0, 0.0, 0.0, col.a), edge_factor * 0.35);
 
     return col;
 }
@@ -352,7 +347,7 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
 
 // Sky gradient shader (fullscreen quad)
 pub(crate) const SKY_SHADER: &str = r#"
-pub(crate) struct Uniforms {
+struct Uniforms {
     view_proj: mat4x4<f32>,
     sky_color: vec4<f32>,
     ground_color: vec4<f32>,

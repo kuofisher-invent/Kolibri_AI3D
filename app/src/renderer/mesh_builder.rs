@@ -141,8 +141,8 @@ pub(crate) fn build_scene_mesh(
                     }
                 }
                 for (p1, p2) in mesh.all_edge_segments() {
-                    let mesh_edge_color = if render_mode == 5 { [0.0, 0.0, 0.0, 1.0] } else { [0.15, 0.15, 0.15, 1.0] };
-                    let mesh_edge_thick = if render_mode == 5 { edge_thickness_param * 1.5 } else { edge_thickness_param.max(3.0) };
+                    let mesh_edge_color = if render_mode == 5 { [0.0, 0.0, 0.0, 1.0] } else { [0.35, 0.35, 0.35, 1.0] };
+                    let mesh_edge_thick = if render_mode == 5 { edge_thickness_param * 1.5 } else { edge_thickness_param };
                     let ep1 = [p1[0] + p[0], p1[1] + p[1], p1[2] + p[2]];
                     let ep2 = [p2[0] + p[0], p2[1] + p[1], p2[2] + p[2]];
                     push_line_segments(&mut verts, &mut idx, &[ep1, ep2], mesh_edge_thick, mesh_edge_color);
@@ -172,7 +172,7 @@ pub(crate) fn build_scene_mesh(
             let edge_color = if render_mode == 5 {
                 [0.0, 0.0, 0.0, 1.0]  // pure black for sketch
             } else {
-                [0.15, 0.15, 0.15, 1.0] // dark edges
+                [0.35, 0.35, 0.35, 1.0] // subtle gray edges (clay style)
             };
             let edge_thickness = if render_mode == 5 {
                 edge_thickness_param * 1.5  // thicker in sketch mode
