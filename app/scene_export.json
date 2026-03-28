@@ -1,0 +1,24 @@
+{
+  "groups": 1,
+  "object_count": 1,
+  "objects": [
+    {
+      "id": "878b547f",
+      "material": "White",
+      "name": "H100x100x6x8_R",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_y": 0.0,
+      "shape": {
+        "faces": 164,
+        "type": "Mesh",
+        "vertices": 252
+      },
+      "visible": true
+    }
+  ],
+  "version": 3
+}

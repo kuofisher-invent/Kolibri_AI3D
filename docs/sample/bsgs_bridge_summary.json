@@ -1,0 +1,9 @@
+{
+  "bridge_json": "D:\\AI_Design\\Kolibri_Ai3D\\docs\\sample\\bsgs_bridge_export.json",
+  "units": "mm",
+  "meshes": 3624,
+  "instances": 3626,
+  "groups": 585,
+  "component_defs": 28,
+  "materials": 23
+}

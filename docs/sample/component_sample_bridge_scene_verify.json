@@ -1,0 +1,61 @@
+{
+  "verify_kind": "bridge_json",
+  "source_format": "skp",
+  "source_file": "\\\\?\\D:\\AI_Design\\Kolibri_Ai3D\\docs\\sample\\component_sample.skp",
+  "units": "mm",
+  "meshes": 62,
+  "instances": 709,
+  "groups": 187,
+  "component_defs": 11,
+  "materials": 0,
+  "vertices": 127887,
+  "faces": 42629,
+  "scene_objects": 709,
+  "scene_groups": 187,
+  "scene_component_defs": 11,
+  "built_meshes": 709,
+  "built_columns": 0,
+  "built_beams": 0,
+  "build_timings_ms": [
+    [
+      "build_members",
+      0
+    ],
+    [
+      "build_component_defs",
+      4513
+    ],
+    [
+      "build_instances",
+      47147
+    ],
+    [
+      "build_groups",
+      0
+    ],
+    [
+      "build_standalone_meshes",
+      0
+    ],
+    [
+      "scene_version_update",
+      0
+    ],
+    [
+      "build_scene_total",
+      51661
+    ]
+  ],
+  "debug": [
+    "[SKP Bridge Import]",
+    "Source: \\\\?\\D:\\AI_Design\\Kolibri_Ai3D\\docs\\sample\\component_sample.skp",
+    "Backend: sketchup_bridge",
+    "Units: mm",
+    "Meshes: 62",
+    "Instances: 709",
+    "Groups: 187",
+    "ComponentDefs: 11",
+    "Materials: 0",
+    "Layers/Tags: 1"
+  ]
+}

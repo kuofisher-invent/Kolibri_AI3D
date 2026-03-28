@@ -16,28 +16,20 @@ pub fn convert_model(sdk: &SkpSdk, model: &SkpModel) -> Result<SkpScene, SkpErro
     };
 
     let mut state = ConvertState {
-        material_map: HashMap::new(),
         mesh_counter: 0,
         instance_counter: 0,
         group_counter: 0,
-        source_face_ids: HashMap::new(),
-        next_source_face_id: 1,
-        source_vertex_ids: HashMap::new(),
-        next_source_vertex_id: 1,
         processed_defs: HashMap::new(),
     };
 
     let mut entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
-    eprintln!("[converter] Getting entities...");
     let result = unsafe { (sdk.fn_model_get_entities)(model.model, &mut entities) };
     if result != SU_ERROR_NONE {
         return Err(SkpError::SdkError("Failed to get entities".into()));
     }
-    eprintln!("[converter] Got entities (ptr={:?}), converting...", entities.ptr);
 
     // 根層級用 identity transform
     convert_entities(sdk, entities, None, IDENTITY_TRANSFORM, &mut scene, &mut state, false)?;
-    eprintln!("[converter] Done: {} meshes, {} instances", scene.meshes.len(), scene.instances.len());
 
     Ok(scene)
 }
@@ -50,15 +42,10 @@ const IDENTITY_TRANSFORM: [f64; 16] = [
 ];
 
 struct ConvertState {
-    material_map: HashMap<usize, String>,
     mesh_counter: usize,
     instance_counter: usize,
     group_counter: usize,
-    source_face_ids: HashMap<usize, u32>,
-    next_source_face_id: u32,
-    source_vertex_ids: HashMap<usize, u32>,
-    next_source_vertex_id: u32,
-    /// 已處理過的 component definition（key=def ptr）→ (faces mesh, edges, child groups/instances metadata)
+    /// 已處理過的 entities（key=entities ptr）→ local space mesh 快取
     /// 避免重複呼叫 SUMeshHelperCreate 導致 SDK crash
     processed_defs: HashMap<usize, ProcessedDef>,
 }
@@ -103,7 +90,6 @@ fn convert_entities(
     // 用 entities ptr 做快取 key，避免相同 entities 被重複處理（group/component 共用 def 會 crash）
     let entities_key = entities.ptr as usize;
     if !skip_faces {
-        eprintln!("[converter] get_faces (entities={:#x})...", entities_key);
         // 如果已快取此 entities 的 faces，直接用快取的 local mesh
         if let Some(cached) = state.processed_defs.get(&entities_key) {
             if !cached.local_vertices.is_empty() {
@@ -142,12 +128,10 @@ fn convert_entities(
                     component_def_id: None, transform: identity_transform(),
                     name: parent_group_id.unwrap_or("CachedGroup").to_string(), layer: String::new(),
                 });
-                eprintln!("[converter] used cached mesh for entities {:#x}", entities_key);
             }
         } else {
         // 第一次處理：做 SDK 呼叫並快取 local space 資料
         let faces = get_faces(sdk, entities)?;
-        eprintln!("[converter] got {} faces", faces.len());
         if !faces.is_empty() {
             // 快取 local space mesh
             let (local_verts, local_normals, local_indices) = faces_to_local_mesh(sdk, &faces)?;
@@ -185,7 +169,6 @@ fn convert_entities(
                 };
                 (xf(p1), xf(p2))
             }).collect();
-            eprintln!("[converter]   mesh done: {} verts, {} idx, {} edges", vertices.len(), local_indices.len(), edges.len());
             scene.meshes.push(SkpMesh {
                 id: mesh_id.clone(), name: format!("Mesh_{}", state.mesh_counter),
                 vertices, normals, indices: local_indices,
@@ -220,9 +203,7 @@ fn convert_entities(
     }
 
     // ── Groups（累積 transform）──
-    eprintln!("[converter] get_groups...");
     let groups = get_groups(sdk, entities)?;
-    eprintln!("[converter] got {} groups", groups.len());
     for group_ref in &groups {
         state.group_counter += 1;
         let gid = format!("grp_{}", state.group_counter);
@@ -246,9 +227,7 @@ fn convert_entities(
     }
 
     // ── Component instances（快取 def，避免重複 SDK 呼叫導致 crash）──
-    eprintln!("[converter] get_component_instances...");
     let instances = get_component_instances(sdk, entities)?;
-    eprintln!("[converter] got {} instances", instances.len());
     for inst_ref in &instances {
         let mut def_ref = SUComponentDefinitionRef { ptr: std::ptr::null_mut() };
         unsafe { (sdk.fn_comp_inst_get_definition)(*inst_ref, &mut def_ref) };
@@ -289,7 +268,10 @@ fn convert_entities(
         }
 
         // 從快取建立 mesh（套用 instance 的 world transform）
-        let cached = state.processed_defs.get(&def_key).unwrap();
+        let cached = match state.processed_defs.get(&def_key) {
+            Some(c) => c,
+            None => continue,
+        };
         if cached.local_vertices.is_empty() { continue; }
 
         state.mesh_counter += 1;
@@ -416,16 +398,13 @@ fn faces_to_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], world_xf: &[f64; 16], state:
         if face.ptr.is_null() { continue; }
         // 用 MeshHelper 取得正確三角化
         let mut helper = SUMeshHelperRef { ptr: std::ptr::null_mut() };
-        eprintln!("[converter]     face {}/{} MeshHelper create (ptr={:?})...", fi + 1, faces.len(), face.ptr);
         // 先嘗試取得 face 的頂點數來驗證 face ref 是否有效
         let mut nv_check = 0usize;
         let check_rc = unsafe { (sdk.fn_face_get_num_vertices)(*face, &mut nv_check) };
         if check_rc != SU_ERROR_NONE || nv_check == 0 {
-            eprintln!("[converter]     face {} invalid (check_rc={}, nv={}), skipping", fi + 1, check_rc, nv_check);
             continue;
         }
         let rc = unsafe { (sdk.fn_mesh_helper_create)(&mut helper, *face) };
-        if rc != SU_ERROR_NONE { eprintln!("[converter]     face {} FAILED rc={}", fi + 1, rc); continue; }
 
         let mut num_tris = 0usize;
         let mut num_verts = 0usize;
@@ -563,7 +542,7 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
             let n = if i < actual_normals { &nrms[i] } else { &SUVector3D { x: 0.0, y: 0.0, z: 1.0 } };
             normals.push([n.x, n.y, n.z]);
         }
-        for i in 0..actual_idx {
+        for i in 0..actual_idx.min(tri_indices.len()) {
             indices.push(base + tri_indices[i] as u32);
         }
     }
@@ -654,188 +633,11 @@ fn get_sdk_edges(sdk: &SkpSdk, entities: SUEntitiesRef, world_xf: &[f64; 16]) ->
     segments
 }
 
-fn transform_to_f32(xf: &[f64; 16]) -> [f32; 16] {
-    std::array::from_fn(|i| xf[i] as f32)
-}
-
 fn identity_transform() -> [f32; 16] {
     [1.0, 0.0, 0.0, 0.0,
      0.0, 1.0, 0.0, 0.0,
      0.0, 0.0, 1.0, 0.0,
      0.0, 0.0, 0.0, 1.0]
-}
-
-fn source_face_label(state: &mut ConvertState, face: SUFaceRef) -> String {
-    let key = face.ptr as usize;
-    let id = match state.source_face_ids.get(&key).copied() {
-        Some(id) => id,
-        None => {
-            let id = state.next_source_face_id;
-            state.next_source_face_id += 1;
-            state.source_face_ids.insert(key, id);
-            id
-        }
-    };
-    format!("F{}", id)
-}
-
-fn source_vertex_label(state: &mut ConvertState, vertex: SUVertexRef) -> String {
-    let key = vertex.ptr as usize;
-    let id = match state.source_vertex_ids.get(&key).copied() {
-        Some(id) => id,
-        None => {
-            let id = state.next_source_vertex_id;
-            state.next_source_vertex_id += 1;
-            state.source_vertex_ids.insert(key, id);
-            id
-        }
-    };
-    id.to_string()
-}
-
-fn append_face_polygon_mesh(
-    sdk: &SkpSdk,
-    face: SUFaceRef,
-    world_xf: &[f64; 16],
-    state: &mut ConvertState,
-    vertices: &mut Vec<[f32; 3]>,
-    normals: &mut Vec<[f32; 3]>,
-    indices: &mut Vec<u32>,
-    source_vertex_labels: &mut Vec<String>,
-    source_triangle_debug: &mut Vec<SkpTriangleDebug>,
-) -> bool {
-    let mut num_verts = 0usize;
-    unsafe { (sdk.fn_face_get_num_vertices)(face, &mut num_verts) };
-    if num_verts < 3 {
-        return false;
-    }
-
-    let mut face_vertices = vec![SUVertexRef { ptr: std::ptr::null_mut() }; num_verts];
-    let mut actual = 0usize;
-    unsafe { (sdk.fn_face_get_vertices)(face, num_verts, face_vertices.as_mut_ptr(), &mut actual) };
-    if actual < 3 {
-        return false;
-    }
-    face_vertices.truncate(actual);
-    let source_face_label = source_face_label(state, face);
-
-    let mut raw_normal = SUVector3D { x: 0.0, y: 0.0, z: 1.0 };
-    unsafe { (sdk.fn_face_get_normal)(face, &mut raw_normal) };
-    let transformed_normal = transform_normal(world_xf, &raw_normal);
-
-    let mut world_vertices = Vec::with_capacity(face_vertices.len());
-    let mut local_source_labels = Vec::with_capacity(face_vertices.len());
-    for vref in &face_vertices {
-        let mut pos = SUPoint3D { x: 0.0, y: 0.0, z: 0.0 };
-        unsafe { (sdk.fn_vertex_get_position)(*vref, &mut pos) };
-        world_vertices.push(transform_point(world_xf, &pos));
-        local_source_labels.push(source_vertex_label(state, *vref));
-    }
-
-    let tri_indices = triangulate_polygon(&world_vertices, transformed_normal);
-    if tri_indices.is_empty() {
-        return false;
-    }
-
-    let base = vertices.len() as u32;
-    for v in &world_vertices {
-        vertices.push(*v);
-        normals.push(transformed_normal);
-    }
-    source_vertex_labels.extend(local_source_labels.iter().cloned());
-    for tri in tri_indices.chunks(3) {
-        if tri.len() < 3 {
-            continue;
-        }
-        let triangle = [base + tri[0] as u32, base + tri[1] as u32, base + tri[2] as u32];
-        indices.extend(triangle);
-        source_triangle_debug.push(SkpTriangleDebug {
-            triangle_index: source_triangle_debug.len(),
-            indices: triangle,
-            source_face_label: source_face_label.clone(),
-            source_vertex_labels: [
-                local_source_labels[tri[0]].clone(),
-                local_source_labels[tri[1]].clone(),
-                local_source_labels[tri[2]].clone(),
-            ],
-            generator: "sdk_face_polygon".into(),
-        });
-    }
-    true
-}
-
-fn append_face_mesh_helper_mesh(
-    sdk: &SkpSdk,
-    face: SUFaceRef,
-    world_xf: &[f64; 16],
-    state: &mut ConvertState,
-    vertices: &mut Vec<[f32; 3]>,
-    normals: &mut Vec<[f32; 3]>,
-    indices: &mut Vec<u32>,
-    source_vertex_labels: &mut Vec<String>,
-    source_triangle_debug: &mut Vec<SkpTriangleDebug>,
-) {
-    let source_face_label = source_face_label(state, face);
-    let mut helper = SUMeshHelperRef { ptr: std::ptr::null_mut() };
-    let rc = unsafe { (sdk.fn_mesh_helper_create)(&mut helper, face) };
-    if rc != SU_ERROR_NONE {
-        return;
-    }
-
-    let mut num_tris = 0usize;
-    let mut num_verts = 0usize;
-    unsafe {
-        (sdk.fn_mesh_helper_get_num_triangles)(helper, &mut num_tris);
-        (sdk.fn_mesh_helper_get_num_vertices)(helper, &mut num_verts);
-    }
-    if num_tris == 0 || num_verts == 0 {
-        unsafe { (sdk.fn_mesh_helper_release)(&mut helper) };
-        return;
-    }
-
-    let mut pts = vec![SUPoint3D { x: 0.0, y: 0.0, z: 0.0 }; num_verts];
-    let mut actual_verts = 0usize;
-    unsafe { (sdk.fn_mesh_helper_get_vertices)(helper, num_verts, pts.as_mut_ptr(), &mut actual_verts) };
-
-    let mut nrms = vec![SUVector3D { x: 0.0, y: 0.0, z: 0.0 }; num_verts];
-    let mut actual_normals = 0usize;
-    unsafe { (sdk.fn_mesh_helper_get_normals)(helper, num_verts, nrms.as_mut_ptr(), &mut actual_normals) };
-
-    let idx_count = num_tris * 3;
-    let mut tri_indices = vec![0usize; idx_count];
-    let mut actual_idx = 0usize;
-    unsafe { (sdk.fn_mesh_helper_get_vertex_indices)(helper, idx_count, tri_indices.as_mut_ptr(), &mut actual_idx) };
-    unsafe { (sdk.fn_mesh_helper_release)(&mut helper) };
-
-    let base = vertices.len() as u32;
-    let mut helper_source_labels = Vec::with_capacity(actual_verts);
-    for i in 0..actual_verts {
-        vertices.push(transform_point(world_xf, &pts[i]));
-        let n = if i < actual_normals { &nrms[i] } else { &SUVector3D { x: 0.0, y: 0.0, z: 1.0 } };
-        normals.push(transform_normal(world_xf, n));
-        let label = format!("{}:mh{}", source_face_label, i);
-        source_vertex_labels.push(label.clone());
-        helper_source_labels.push(label);
-    }
-    let actual_tri_indices: Vec<usize> = tri_indices.into_iter().take(actual_idx).collect();
-    for tri in actual_tri_indices.chunks(3) {
-        if tri.len() < 3 {
-            continue;
-        }
-        let triangle = [base + tri[0] as u32, base + tri[1] as u32, base + tri[2] as u32];
-        indices.extend(triangle);
-        source_triangle_debug.push(SkpTriangleDebug {
-            triangle_index: source_triangle_debug.len(),
-            indices: triangle,
-            source_face_label: source_face_label.clone(),
-            source_vertex_labels: [
-                helper_source_labels[tri[0]].clone(),
-                helper_source_labels[tri[1]].clone(),
-                helper_source_labels[tri[2]].clone(),
-            ],
-            generator: "sdk_mesh_helper".into(),
-        });
-    }
 }
 
 fn transform_point(world_xf: &[f64; 16], pos: &SUPoint3D) -> [f32; 3] {

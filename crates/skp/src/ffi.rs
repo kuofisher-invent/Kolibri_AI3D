@@ -195,13 +195,11 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
     let mut last_err = String::new();
     let lib = search.iter()
         .find_map(|p| {
-            eprintln!("[skp-sdk] Trying: {} (exists={})", p.display(), p.exists());
             // 設定 DLL 搜尋目錄（絕對路徑），讓 SketchUpAPI.dll 能找到同目錄的依賴 DLL
             if let Some(dir) = p.parent() {
                 let abs_dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
                 if abs_dir.exists() {
                     let dir_str = abs_dir.to_string_lossy();
-                    eprintln!("[skp-sdk] SetDllDirectory: {}", dir_str);
                     #[cfg(target_os = "windows")]
                     unsafe {
                         use std::os::windows::ffi::OsStrExt;
@@ -321,12 +319,6 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
 
         // 初始化 SDK
         (sdk.fn_initialize)();
-
-        // 顯示 API 版本
-        let (major, minor) = sdk.api_version();
-        if major > 0 {
-            eprintln!("[skp-sdk] API version: {}.{}", major, minor);
-        }
 
         Ok(sdk)
     }

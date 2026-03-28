@@ -82,10 +82,9 @@ pub fn import_skp(path: &str) -> Result<SkpScene, SkpError> {
         let sdk = ffi::try_load_sdk()?;
         let model = sdk.open_model(&path_owned)?;
         let result = converter::convert_model(&sdk, &model);
-        // 注意：不要手動 drop model/sdk — SUModelRelease 在某些情況下會 crash
-        // （快取的 entities ref 跟 release 衝突）。
-        // 讓 Rust 自動 Drop 順序處理（model 先 drop，sdk 後 drop）。
-        // 如果 worker 子進程，process exit 會清理一切。
+        // SAFETY: 刻意跳過 SUModelRelease/SUTerminate 來避免 SDK 內部 crash。
+        // entities 快取後 release model 會導致 segfault。
+        // 子進程 worker 用 process exit 清理資源，主進程則由 OS 回收。
         std::mem::forget(model);
         std::mem::forget(sdk);
         result
@@ -225,7 +224,8 @@ pub struct SkpMaterial {
     pub opacity: f32,
 }
 
-/// 除錯：列出 SKP 原始面數量和每面的三角化結果
+/// 除錯：列出 SKP 原始面數量和每面的三角化結果（僅供診斷用）
+#[doc(hidden)]
 pub fn debug_raw_faces(path: &str) {
     let sdk = match ffi::try_load_sdk() { Ok(s) => s, Err(e) => { println!("SDK: {}", e); return; } };
     let model = match sdk.open_model(path) { Ok(m) => m, Err(e) => { println!("Open: {}", e); return; } };

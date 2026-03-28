@@ -1,0 +1,53 @@
+{
+  "verify_kind": "bridge_json",
+  "source_format": "skp",
+  "source_file": "\\\\?\\D:\\AI_Design\\Kolibri_Ai3D\\docs\\sample\\bsgs_scaffold_ascii.skp",
+  "units": "mm",
+  "meshes": 3624,
+  "instances": 3626,
+  "groups": 585,
+  "component_defs": 28,
+  "materials": 23,
+  "vertices": 2747985,
+  "faces": 915995,
+  "scene_objects": 3626,
+  "scene_groups": 81,
+  "scene_component_defs": 4,
+  "built_meshes": 3626,
+  "built_columns": 0,
+  "built_beams": 0,
+  "build_timings_ms": [
+    [
+      "build_component_defs",
+      162
+    ],
+    [
+      "build_instances",
+      128571
+    ],
+    [
+      "build_groups",
+      3
+    ],
+    [
+      "build_standalone_meshes",
+      2
+    ],
+    [
+      "build_scene_total",
+      128738
+    ]
+  ],
+  "debug": [
+    "[SKP Bridge Import]",
+    "Source: \\\\?\\D:\\AI_Design\\Kolibri_Ai3D\\docs\\sample\\bsgs_scaffold_ascii.skp",
+    "Backend: sketchup_bridge",
+    "Units: mm",
+    "Meshes: 3624",
+    "Instances: 3626",
+    "Groups: 585",
+    "ComponentDefs: 28",
+    "Materials: 23",
+    "Layers/Tags: 2"
+  ]
+}
