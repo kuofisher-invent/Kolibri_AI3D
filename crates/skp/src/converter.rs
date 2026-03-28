@@ -518,14 +518,17 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
             let mut actual_e = 0usize;
             unsafe { (sdk.fn_face_get_edges)(*face, ne, edges.as_mut_ptr(), &mut actual_e) };
             for edge in &edges[..actual_e] {
-                // 跳過 soft/smooth 邊
+                // 跳過 soft/smooth/hidden 邊（跟 SketchUp 顯示邏輯一致）
                 let mut soft = false;
                 let mut smooth = false;
+                let mut hidden = false;
                 unsafe {
                     (sdk.fn_edge_get_soft)(*edge, &mut soft);
                     (sdk.fn_edge_get_smooth)(*edge, &mut smooth);
+                    let de = (sdk.fn_edge_to_drawing_element)(*edge);
+                    (sdk.fn_drawing_element_get_hidden)(de, &mut hidden);
                 }
-                if soft || smooth { continue; }
+                if soft || smooth || hidden { continue; }
 
                 let mut sv = SUVertexRef { ptr: std::ptr::null_mut() };
                 let mut ev = SUVertexRef { ptr: std::ptr::null_mut() };
@@ -623,11 +626,14 @@ fn get_local_edges(sdk: &SkpSdk, entities: SUEntitiesRef) -> Vec<([f64; 3], [f64
     for edge in &edges[..actual] {
         let mut soft = false;
         let mut smooth = false;
+        let mut hidden = false;
         unsafe {
             (sdk.fn_edge_get_soft)(*edge, &mut soft);
             (sdk.fn_edge_get_smooth)(*edge, &mut smooth);
+            let de = (sdk.fn_edge_to_drawing_element)(*edge);
+            (sdk.fn_drawing_element_get_hidden)(de, &mut hidden);
         }
-        if soft || smooth { continue; }
+        if soft || smooth || hidden { continue; }
 
         let mut sv = SUVertexRef { ptr: std::ptr::null_mut() };
         let mut ev = SUVertexRef { ptr: std::ptr::null_mut() };

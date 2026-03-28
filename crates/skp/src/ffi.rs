@@ -28,6 +28,7 @@ use crate::SkpError;
 #[repr(C)] #[derive(Copy, Clone)] pub struct SUMeshHelperRef { pub ptr: *mut std::ffi::c_void }
 #[repr(C)] #[derive(Copy, Clone)] pub struct SUStringRef { pub ptr: *mut std::ffi::c_void }
 #[repr(C)] #[derive(Copy, Clone)] pub struct SULayerRef { pub ptr: *mut std::ffi::c_void }
+#[repr(C)] #[derive(Copy, Clone)] pub struct SUDrawingElementRef { pub ptr: *mut std::ffi::c_void }
 
 #[repr(C)] #[derive(Copy, Clone, Debug)]
 pub struct SUPoint3D { pub x: f64, pub y: f64, pub z: f64 }
@@ -138,6 +139,8 @@ pub struct SkpSdk {
     pub(crate) fn_edge_get_end_vertex: unsafe extern "C" fn(SUEdgeRef, *mut SUVertexRef) -> i32,
     pub(crate) fn_edge_get_soft: unsafe extern "C" fn(SUEdgeRef, *mut bool) -> i32,
     pub(crate) fn_edge_get_smooth: unsafe extern "C" fn(SUEdgeRef, *mut bool) -> i32,
+    pub(crate) fn_edge_to_drawing_element: unsafe extern "C" fn(SUEdgeRef) -> SUDrawingElementRef,
+    pub(crate) fn_drawing_element_get_hidden: unsafe extern "C" fn(SUDrawingElementRef, *mut bool) -> i32,
     // MeshHelper（正確三角化，支援凹多邊形）
     pub(crate) fn_mesh_helper_create: unsafe extern "C" fn(*mut SUMeshHelperRef, SUFaceRef) -> i32,
     pub(crate) fn_mesh_helper_release: unsafe extern "C" fn(*mut SUMeshHelperRef) -> i32,
@@ -285,6 +288,8 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_edge_get_end_vertex, b"SUEdgeGetEndVertex");
         load!(fn_edge_get_soft, b"SUEdgeGetSoft");
         load!(fn_edge_get_smooth, b"SUEdgeGetSmooth");
+        load!(fn_edge_to_drawing_element, b"SUEdgeToDrawingElement");
+        load!(fn_drawing_element_get_hidden, b"SUDrawingElementGetHidden");
         load!(fn_mesh_helper_create, b"SUMeshHelperCreate");
         load!(fn_mesh_helper_release, b"SUMeshHelperRelease");
         load!(fn_mesh_helper_get_num_triangles, b"SUMeshHelperGetNumTriangles");
@@ -316,6 +321,7 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
             fn_entities_get_num_edges, fn_entities_get_edges,
             fn_edge_get_start_vertex, fn_edge_get_end_vertex,
             fn_edge_get_soft, fn_edge_get_smooth,
+            fn_edge_to_drawing_element, fn_drawing_element_get_hidden,
             fn_mesh_helper_create, fn_mesh_helper_release,
             fn_mesh_helper_get_num_triangles, fn_mesh_helper_get_num_vertices,
             fn_mesh_helper_get_vertex_indices, fn_mesh_helper_get_vertices, fn_mesh_helper_get_normals,

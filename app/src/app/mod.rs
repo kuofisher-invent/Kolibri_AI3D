@@ -239,7 +239,7 @@ impl KolibriApp {
             viewer: ViewerState {
                 camera: OrbitCamera::default(),
                 render_mode: RenderMode::Shaded,
-                edge_thickness: 2.0,
+                edge_thickness: 1.0,
                 show_colors: true,
                 sky_color: [0.53, 0.72, 0.9],
                 ground_color: [0.65, 0.63, 0.60],
