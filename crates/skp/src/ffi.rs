@@ -95,23 +95,44 @@ const SDK_PATHS: &[&str] = &[
     "SketchUpAPI.dll",
     "sketchup_sdk/SketchUpAPI.dll",
     "./lib/SketchUpAPI.dll",
+    "C:/Program Files/SketchUp/SketchUp 2025/SketchUp/SketchUpAPI.dll",
     "C:/Program Files/SketchUp/SketchUp 2024/SketchUpAPI.dll",
     "C:/Program Files/SketchUp/SketchUp 2023/SketchUpAPI.dll",
 ];
 
 /// 嘗試載入 SDK
 pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
-    let lib = SDK_PATHS.iter()
-        .find_map(|p| unsafe { Library::new(p).ok() })
+    // 先搜尋固定路徑，再搜尋執行檔旁邊
+    let mut search = SDK_PATHS.iter().map(|s| std::path::PathBuf::from(s)).collect::<Vec<_>>();
+    // 加入執行檔所在目錄
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            search.push(dir.join("SketchUpAPI.dll"));
+        }
+    }
+    // 加入當前工作目錄
+    if let Ok(cwd) = std::env::current_dir() {
+        search.push(cwd.join("SketchUpAPI.dll"));
+    }
+
+    let mut last_err = String::new();
+    let lib = search.iter()
+        .find_map(|p| {
+            eprintln!("[skp-sdk] Trying: {} (exists={})", p.display(), p.exists());
+            match unsafe { Library::new(p) } {
+                Ok(lib) => Some(lib),
+                Err(e) => { last_err = format!("{}: {}", p.display(), e); eprintln!("[skp-sdk] FAIL: {}", last_err); None }
+            }
+        })
         .ok_or_else(|| SkpError::SdkNotFound(
-            format!("Searched: {:?}", SDK_PATHS)
+            format!("Last error: {}. Searched {} paths", last_err, search.len())
         ))?;
 
     unsafe {
         macro_rules! load {
             ($name:ident, $sym:expr) => {
                 let $name: Symbol<_> = lib.get($sym)
-                    .map_err(|e| SkpError::SdkNotFound(format!("Symbol {}: {}", stringify!($name), e)))?;
+                    .map_err(|e| { eprintln!("[skp-sdk] Symbol load FAIL: {} — {}", stringify!($name), e); SkpError::SdkNotFound(format!("Symbol {}: {}", stringify!($name), e)) })?;
                 let $name = *$name;
             };
         }
@@ -130,7 +151,16 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_face_get_num_vertices, b"SUFaceGetNumVertices");
         load!(fn_face_get_vertices, b"SUFaceGetVertices");
         load!(fn_face_get_normal, b"SUFaceGetNormal");
-        load!(fn_face_get_material, b"SUFaceGetMaterial");
+        // SUFaceGetMaterial 在 SU2025 可能改名或不存在，改為 optional
+        let fn_face_get_material = match lib.get::<unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32>(b"SUFaceGetMaterial") {
+            Ok(sym) => *sym,
+            Err(_) => {
+                eprintln!("[skp-sdk] WARNING: SUFaceGetMaterial not found, material extraction disabled");
+                // 用 dummy function
+                unsafe extern "C" fn dummy(_: SUFaceRef, _: *mut SUMaterialRef) -> i32 { -1 }
+                dummy as unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32
+            }
+        };
         load!(fn_vertex_get_position, b"SUVertexGetPosition");
         load!(fn_material_get_name, b"SUMaterialGetName");
         load!(fn_material_get_color, b"SUMaterialGetColor");
