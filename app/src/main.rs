@@ -24,6 +24,7 @@ mod inference_engine;
 mod icons;
 mod layout;
 mod mcp_server;
+mod mcp_http_bridge;
 mod measure;
 mod menu;
 mod obj_io;

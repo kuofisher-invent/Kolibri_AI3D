@@ -77,6 +77,13 @@ pub struct KolibriApp {
     pub(crate) defer_auto_save_until: Option<std::time::Instant>,
     pub(crate) startup_scene_path: Option<String>,
     pub(crate) startup_scene_attempted: bool,
+    pub(crate) startup_screenshot_path: Option<String>,
+    pub(crate) startup_screenshot_delay_frames: u32,
+    pub(crate) startup_screenshot_attempts: u32,
+    pub(crate) startup_screenshot_requested: bool,
+    pub(crate) startup_screenshot_wait_logged: bool,
+    pub(crate) startup_screenshot_missing_logged: bool,
+    pub(crate) startup_screenshot_completed: bool,
 
     // Texture manager
     pub(crate) texture_manager: crate::texture_manager::TextureManager,
@@ -348,6 +355,13 @@ impl KolibriApp {
             defer_auto_save_until: None,
             startup_scene_path: std::env::var("KOLIBRI_STARTUP_SCENE").ok(),
             startup_scene_attempted: false,
+            startup_screenshot_path: std::env::var("KOLIBRI_STARTUP_SCREENSHOT_OUT").ok(),
+            startup_screenshot_delay_frames: 0,
+            startup_screenshot_attempts: 0,
+            startup_screenshot_requested: false,
+            startup_screenshot_wait_logged: false,
+            startup_screenshot_missing_logged: false,
+            startup_screenshot_completed: false,
             texture_manager: crate::texture_manager::TextureManager::new(),
             spatial_index: None,
             spatial_index_version: u64::MAX,
@@ -442,6 +456,16 @@ impl KolibriApp {
                     ),
                 );
                 self.write_startup_scene_state(&path, None);
+                if self.startup_screenshot_path.is_some() {
+                    self.startup_screenshot_delay_frames = 120;
+                    self.startup_screenshot_attempts = 0;
+                    self.startup_screenshot_requested = false;
+                    self.startup_screenshot_wait_logged = false;
+                    self.startup_screenshot_missing_logged = false;
+                    self.log_import_phase("startup_screenshot_armed", "delay_frames=120".to_string());
+                } else {
+                    self.log_import_phase("startup_screenshot_env_missing", "KOLIBRI_STARTUP_SCREENSHOT_OUT not set".to_string());
+                }
             }
             Err(err) => {
                 self.log_import_phase(
@@ -462,6 +486,7 @@ impl KolibriApp {
             groups: usize,
             component_defs: usize,
             version: u64,
+            startup_screenshot_path: Option<&'a str>,
             error: Option<String>,
         }
 
@@ -471,6 +496,7 @@ impl KolibriApp {
             groups: self.scene.groups.len(),
             component_defs: self.scene.component_defs.len(),
             version: self.scene.version,
+            startup_screenshot_path: self.startup_screenshot_path.as_deref(),
             error,
         };
 
@@ -482,6 +508,97 @@ impl KolibriApp {
         if let Ok(json) = serde_json::to_string_pretty(&state) {
             let _ = std::fs::write(&state_path, json);
         }
+    }
+
+    fn maybe_capture_startup_screenshot(&mut self, ctx: &egui::Context) {
+        if self.startup_screenshot_completed {
+            return;
+        }
+        let Some(path) = self.startup_screenshot_path.clone() else {
+            return;
+        };
+        if !self.startup_scene_attempted || self.scene.objects.is_empty() {
+            return;
+        }
+        if self.viewport.size[0] < 2 || self.viewport.size[1] < 2 {
+            if !self.startup_screenshot_wait_logged {
+                self.log_import_phase(
+                    "startup_screenshot_waiting_size",
+                    format!("width={} height={}", self.viewport.size[0], self.viewport.size[1]),
+                );
+                self.startup_screenshot_wait_logged = true;
+            }
+            ctx.request_repaint();
+            return;
+        }
+        if self.startup_screenshot_delay_frames > 0 {
+            if self.startup_screenshot_delay_frames == 120
+                || self.startup_screenshot_delay_frames == 60
+                || self.startup_screenshot_delay_frames == 15
+                || self.startup_screenshot_delay_frames == 1
+            {
+                self.log_import_phase(
+                    "startup_screenshot_countdown",
+                    format!("frames_remaining={}", self.startup_screenshot_delay_frames),
+                );
+            }
+            self.startup_screenshot_delay_frames -= 1;
+            ctx.request_repaint();
+            return;
+        }
+        if !self.startup_screenshot_requested {
+            if let Some(parent) = std::path::Path::new(&path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            self.startup_screenshot_attempts += 1;
+            self.startup_screenshot_requested = true;
+            self.startup_screenshot_missing_logged = false;
+            self.log_import_phase(
+                "startup_screenshot_start",
+                format!(
+                    "attempt={} width={} height={} path={}",
+                    self.startup_screenshot_attempts,
+                    self.viewport.size[0],
+                    self.viewport.size[1],
+                    path
+                ),
+            );
+            self.viewport.save_screenshot(&self.device, &self.queue, &path);
+            self.startup_screenshot_delay_frames = 15;
+            ctx.request_repaint();
+            return;
+        }
+        if std::path::Path::new(&path).exists() {
+            self.log_import_phase("startup_screenshot_saved", format!("path={}", path));
+            self.startup_screenshot_completed = true;
+
+            if std::env::var("KOLIBRI_EXIT_AFTER_STARTUP_SCREENSHOT").ok().as_deref() == Some("1") {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+            return;
+        }
+        if !self.startup_screenshot_missing_logged {
+            self.log_import_phase(
+                "startup_screenshot_missing_after_save",
+                format!("attempt={} path={}", self.startup_screenshot_attempts, path),
+            );
+            self.startup_screenshot_missing_logged = true;
+        }
+        if self.startup_screenshot_attempts < 3 {
+            self.startup_screenshot_requested = false;
+            self.startup_screenshot_delay_frames = 60;
+            self.log_import_phase(
+                "startup_screenshot_retry_scheduled",
+                format!("next_attempt={} delay_frames=60", self.startup_screenshot_attempts + 1),
+            );
+            ctx.request_repaint();
+            return;
+        }
+        self.log_import_phase(
+            "startup_screenshot_failed",
+            format!("attempts={} path={}", self.startup_screenshot_attempts, path),
+        );
+        self.startup_screenshot_completed = true;
     }
 
     fn log_ir_summary(&mut self, phase: &str, ir: &crate::import::unified_ir::UnifiedIR) {
@@ -1014,12 +1131,32 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Keep a light heartbeat so deferred startup work and file-based automation
+        // still progress when the scene is otherwise idle.
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        // Auto-start MCP HTTP bridge（操作 APP 的 GUI 場景）
+        if !self.mcp_http_running && !self.editor.recovery_checked {
+            let auto_mcp = std::env::args().any(|a| a == "--auto-mcp")
+                || std::env::var("KOLIBRI_AUTO_MCP").is_ok();
+            if auto_mcp {
+                let port = self.mcp_http_port;
+                let bridge = crate::mcp_http_bridge::create_bridge_and_start_http(port);
+                self.mcp_bridge = Some(bridge);
+                self.mcp_http_running = true;
+            }
+        }
         self.poll_background_task();
         if self.background_task_active() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
         if !self.startup_scene_attempted && self.startup_scene_path.is_some() {
             self.try_load_startup_scene();
+        }
+        if self.startup_scene_attempted
+            && self.startup_screenshot_path.is_some()
+            && !self.startup_screenshot_completed
+        {
+            ctx.request_repaint_after(std::time::Duration::from_millis(16));
         }
         // ── Crash recovery: 啟動時檢查 autosave ──
         if !self.editor.recovery_checked {
@@ -2142,6 +2279,7 @@ impl eframe::App for KolibriApp {
 
         // ── Test bridge: poll for commands ──
         self.poll_test_bridge();
+        self.maybe_capture_startup_screenshot(ctx);
 
         ctx.request_repaint();
     }

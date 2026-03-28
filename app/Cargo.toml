@@ -31,7 +31,9 @@ flate2 = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tokio = { version = "1", features = ["rt-multi-thread"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
 rstar = "0.12"
 rayon = "1"
 sysinfo = "0.30"
