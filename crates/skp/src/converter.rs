@@ -99,20 +99,20 @@ fn convert_entities(
                     let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
                     let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
                     let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                    [wx as f32, wz as f32, wy as f32]
+                    [-(wx as f32), wz as f32, wy as f32]
                 }).collect();
                 let normals: Vec<[f32; 3]> = cached.local_normals.iter().map(|n| {
                     let nx = (world_transform[0]*n[0] + world_transform[4]*n[1] + world_transform[8]*n[2]) as f32;
                     let ny = (world_transform[1]*n[0] + world_transform[5]*n[1] + world_transform[9]*n[2]) as f32;
                     let nz = (world_transform[2]*n[0] + world_transform[6]*n[1] + world_transform[10]*n[2]) as f32;
-                    [nx, nz, ny]
+                    [-nx, nz, ny]
                 }).collect();
                 let edges: Vec<([f32; 3], [f32; 3])> = cached.edges.iter().map(|(p1, p2)| {
                     let xf = |v: &[f64; 3]| -> [f32; 3] {
                         let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
                         let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
                         let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                        [wx as f32, wz as f32, wy as f32]
+                        [-(wx as f32), wz as f32, wy as f32]
                     };
                     (xf(p1), xf(p2))
                 }).collect();
@@ -152,20 +152,20 @@ fn convert_entities(
                 let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
                 let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
                 let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                [wx as f32, wz as f32, wy as f32]
+                [-(wx as f32), wz as f32, wy as f32]
             }).collect();
             let normals: Vec<[f32; 3]> = local_normals.iter().map(|n| {
                 let nx = (world_transform[0]*n[0] + world_transform[4]*n[1] + world_transform[8]*n[2]) as f32;
                 let ny = (world_transform[1]*n[0] + world_transform[5]*n[1] + world_transform[9]*n[2]) as f32;
                 let nz = (world_transform[2]*n[0] + world_transform[6]*n[1] + world_transform[10]*n[2]) as f32;
-                [nx, nz, ny]
+                [-nx, nz, ny]
             }).collect();
             let edges: Vec<([f32; 3], [f32; 3])> = local_edges.iter().map(|(p1, p2)| {
                 let xf = |v: &[f64; 3]| -> [f32; 3] {
                     let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
                     let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
                     let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                    [wx as f32, wz as f32, wy as f32]
+                    [-(wx as f32), wz as f32, wy as f32]
                 };
                 (xf(p1), xf(p2))
             }).collect();
@@ -281,14 +281,14 @@ fn convert_entities(
             let wx = (inst_world[0]*v[0] + inst_world[4]*v[1] + inst_world[8]*v[2] + inst_world[12]) * 25.4;
             let wy = (inst_world[1]*v[0] + inst_world[5]*v[1] + inst_world[9]*v[2] + inst_world[13]) * 25.4;
             let wz = (inst_world[2]*v[0] + inst_world[6]*v[1] + inst_world[10]*v[2] + inst_world[14]) * 25.4;
-            [wx as f32, wz as f32, wy as f32]
+            [-(wx as f32), wz as f32, wy as f32]
         }).collect();
 
         let normals: Vec<[f32; 3]> = cached.local_normals.iter().map(|n| {
             let nx = (inst_world[0]*n[0] + inst_world[4]*n[1] + inst_world[8]*n[2]) as f32;
             let ny = (inst_world[1]*n[0] + inst_world[5]*n[1] + inst_world[9]*n[2]) as f32;
             let nz = (inst_world[2]*n[0] + inst_world[6]*n[1] + inst_world[10]*n[2]) as f32;
-            [nx, nz, ny]
+            [-nx, nz, ny]
         }).collect();
 
         let edges: Vec<([f32; 3], [f32; 3])> = cached.edges.iter().map(|(p1, p2)| {
@@ -296,7 +296,7 @@ fn convert_entities(
                 let wx = (inst_world[0]*v[0] + inst_world[4]*v[1] + inst_world[8]*v[2] + inst_world[12]) * 25.4;
                 let wy = (inst_world[1]*v[0] + inst_world[5]*v[1] + inst_world[9]*v[2] + inst_world[13]) * 25.4;
                 let wz = (inst_world[2]*v[0] + inst_world[6]*v[1] + inst_world[10]*v[2] + inst_world[14]) * 25.4;
-                [wx as f32, wz as f32, wy as f32]
+                [-(wx as f32), wz as f32, wy as f32]
             };
             (xf(p1), xf(p2))
         }).collect();
@@ -439,13 +439,13 @@ fn faces_to_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], world_xf: &[f64; 16], state:
             let wy = (world_xf[1]*pos.x + world_xf[5]*pos.y + world_xf[9]*pos.z + world_xf[13]) * 25.4;
             let wz = (world_xf[2]*pos.x + world_xf[6]*pos.y + world_xf[10]*pos.z + world_xf[14]) * 25.4;
             // SU(X,Y,Z) → Kolibri(X,Z,Y)
-            vertices.push([wx as f32, wz as f32, wy as f32]);
+            vertices.push([-(wx as f32), wz as f32, wy as f32]);
 
             let n = if i < actual_normals { &nrms[i] } else { &SUVector3D { x: 0.0, y: 0.0, z: 1.0 } };
             let nx = (world_xf[0]*n.x + world_xf[4]*n.y + world_xf[8]*n.z) as f32;
             let ny = (world_xf[1]*n.x + world_xf[5]*n.y + world_xf[9]*n.z) as f32;
             let nz = (world_xf[2]*n.x + world_xf[6]*n.y + world_xf[10]*n.z) as f32;
-            normals.push([nx, nz, ny]);
+            normals.push([-nx, nz, ny]);
         }
 
         // 索引（0-based）— 逐三角形檢查 winding
@@ -471,13 +471,13 @@ fn faces_to_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], world_xf: &[f64; 16], state:
                 // MeshHelper 法線（已轉換，取第一個頂點的）
                 let mn = if vi0 < normals.len() { normals[vi0] } else { [0.0, 1.0, 0.0] };
                 let dot = cx * mn[0] + cy * mn[1] + cz * mn[2];
-                if dot >= 0.0 {
-                    // 方向一致，保持原序
+                if dot < 0.0 {
+                    // negate-X 後手性反轉，dot < 0 表示方向一致
                     indices.push(base + i0 as u32);
                     indices.push(base + i1 as u32);
                     indices.push(base + i2 as u32);
                 } else {
-                    // 方向相反，翻轉 winding
+                    // 翻轉 winding
                     indices.push(base + i0 as u32);
                     indices.push(base + i2 as u32);
                     indices.push(base + i1 as u32);
@@ -542,8 +542,15 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
             let n = if i < actual_normals { &nrms[i] } else { &SUVector3D { x: 0.0, y: 0.0, z: 1.0 } };
             normals.push([n.x, n.y, n.z]);
         }
-        for i in 0..actual_idx.min(tri_indices.len()) {
-            indices.push(base + tri_indices[i] as u32);
+        // 翻轉 winding order（因為 negate X 改變了手性）
+        let end = actual_idx.min(tri_indices.len());
+        for tri in 0..(end / 3) {
+            let i0 = tri_indices[tri * 3];
+            let i1 = tri_indices[tri * 3 + 1];
+            let i2 = tri_indices[tri * 3 + 2];
+            indices.push(base + i0 as u32);
+            indices.push(base + i2 as u32);  // 交換 i1, i2
+            indices.push(base + i1 as u32);
         }
     }
     Ok((vertices, normals, indices))
@@ -625,7 +632,7 @@ fn get_sdk_edges(sdk: &SkpSdk, entities: SUEntitiesRef, world_xf: &[f64; 16]) ->
             let wx = (world_xf[0]*p.x + world_xf[4]*p.y + world_xf[8]*p.z + world_xf[12]) * 25.4;
             let wy = (world_xf[1]*p.x + world_xf[5]*p.y + world_xf[9]*p.z + world_xf[13]) * 25.4;
             let wz = (world_xf[2]*p.x + world_xf[6]*p.y + world_xf[10]*p.z + world_xf[14]) * 25.4;
-            [wx as f32, wz as f32, wy as f32] // SU(X,Y,Z) → Kolibri(X,Z,Y)
+            [-(wx as f32), wz as f32, wy as f32] // SU(X,Y,Z) → Kolibri(X,Z,Y)
         };
 
         segments.push((transform_pt(&sp), transform_pt(&ep)));
@@ -644,14 +651,14 @@ fn transform_point(world_xf: &[f64; 16], pos: &SUPoint3D) -> [f32; 3] {
     let wx = (world_xf[0] * pos.x + world_xf[4] * pos.y + world_xf[8] * pos.z + world_xf[12]) * 25.4;
     let wy = (world_xf[1] * pos.x + world_xf[5] * pos.y + world_xf[9] * pos.z + world_xf[13]) * 25.4;
     let wz = (world_xf[2] * pos.x + world_xf[6] * pos.y + world_xf[10] * pos.z + world_xf[14]) * 25.4;
-    [wx as f32, wz as f32, wy as f32]
+    [-(wx as f32), wz as f32, wy as f32]
 }
 
 fn transform_normal(world_xf: &[f64; 16], n: &SUVector3D) -> [f32; 3] {
     let nx = (world_xf[0] * n.x + world_xf[4] * n.y + world_xf[8] * n.z) as f32;
     let ny = (world_xf[1] * n.x + world_xf[5] * n.y + world_xf[9] * n.z) as f32;
     let nz = (world_xf[2] * n.x + world_xf[6] * n.y + world_xf[10] * n.z) as f32;
-    normalize3([nx, nz, ny])
+    normalize3([-nx, nz, ny])
 }
 
 fn triangulate_polygon(vertices: &[[f32; 3]], normal: [f32; 3]) -> Vec<usize> {
