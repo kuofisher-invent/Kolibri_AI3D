@@ -2468,13 +2468,35 @@ impl KolibriApp {
                     "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "skp" => {
-                        // SKP SDK 原生匯入
+                        // SKP SDK 原生匯入（快速路徑：直接建 face HashMap，跳過慢的 add_face）
                         if kolibri_skp::sdk_available() {
                             match kolibri_skp::import_skp(&path) {
                                 Ok(skp_scene) => {
-                                    let ir = crate::import::skp_sdk_import::skp_scene_to_ir(&skp_scene, &path);
-                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
-                                    Ok(json!({"imported": build.meshes, "groups": ir.groups.len(), "components": ir.component_defs.len()}))
+                                    let mesh_count = skp_scene.meshes.len();
+                                    let group_count = skp_scene.groups.len();
+                                    let comp_count = skp_scene.component_defs.len();
+                                    let mut imported = 0;
+                                    for mesh in &skp_scene.meshes {
+                                        if mesh.vertices.len() < 3 || mesh.indices.len() < 3 { continue; }
+                                        let mut he = crate::halfedge::HeMesh::new();
+                                        for v in &mesh.vertices { he.add_vertex(*v); }
+                                        for tri in mesh.indices.chunks(3) {
+                                            if tri.len() < 3 { continue; }
+                                            let (i0, i1, i2) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+                                            if i0 >= mesh.vertices.len() || i1 >= mesh.vertices.len() || i2 >= mesh.vertices.len() { continue; }
+                                            let v0 = mesh.vertices[i0]; let v1 = mesh.vertices[i1]; let v2 = mesh.vertices[i2];
+                                            let a = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+                                            let b = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+                                            let nx = a[1]*b[2]-a[2]*b[1]; let ny = a[2]*b[0]-a[0]*b[2]; let nz = a[0]*b[1]-a[1]*b[0];
+                                            let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
+                                            let fid = he.next_fid();
+                                            he.faces.insert(fid, crate::halfedge::HeFace { edge: 0, normal: [nx/len, ny/len, nz/len] });
+                                        }
+                                        self.scene.insert_mesh_raw(mesh.name.clone(), [0.0;3], he, MaterialKind::White);
+                                        imported += 1;
+                                    }
+                                    self.scene.version += 1;
+                                    Ok(json!({"imported": imported, "meshes": mesh_count, "groups": group_count, "components": comp_count}))
                                 }
                                 Err(e) => Err(format!("SKP SDK: {}", e)),
                             }
