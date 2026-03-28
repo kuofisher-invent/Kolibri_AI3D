@@ -14,3 +14,7 @@ thiserror = "2"
 [[bin]]
 name = "kolibri-skp-test"
 path = "src/bin/test_sdk.rs"
+
+[[bin]]
+name = "kolibri-skp-scene-test"
+path = "src/bin/test_import_scene.rs"

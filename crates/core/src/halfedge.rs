@@ -55,6 +55,13 @@ impl HeMesh {
         }
     }
 
+    /// Get next face ID and increment counter (for direct face insertion)
+    pub fn next_fid(&mut self) -> FId {
+        let id = self.next_fid;
+        self.next_fid += 1;
+        id
+    }
+
     /// Add a vertex, return its ID
     pub fn add_vertex(&mut self, pos: [f32; 3]) -> VId {
         let id = self.next_vid;

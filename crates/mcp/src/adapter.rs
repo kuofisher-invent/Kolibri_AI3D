@@ -645,6 +645,53 @@ impl KolibriAdapter {
                     "obj" => kolibri_io::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "stl" => kolibri_io::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
                     "dxf" => kolibri_io::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "skp" => {
+                        // SKP: 用 SDK 原生讀取
+                        if kolibri_skp::sdk_available() {
+                            match kolibri_skp::import_skp(&path) {
+                                Ok(skp_scene) => {
+                                    let mesh_count = skp_scene.meshes.len();
+                                    let group_count = skp_scene.groups.len();
+                                    let comp_count = skp_scene.component_defs.len();
+                                    // 直接建入 mesh 物件（快速路徑：跳過 add_face，直接建 HashMap）
+                                    let mut ids = Vec::new();
+                                    for mesh in &skp_scene.meshes {
+                                        if mesh.vertices.len() < 3 || mesh.indices.len() < 3 { continue; }
+                                        let mut he = kolibri_core::halfedge::HeMesh::new();
+                                        // 只加頂點
+                                        let vids: Vec<u32> = mesh.vertices.iter().map(|v| he.add_vertex(*v)).collect();
+                                        // 直接建 face（不建 edge topology，只存頂點+法線）
+                                        for tri in mesh.indices.chunks(3) {
+                                            if tri.len() < 3 { continue; }
+                                            let (i0, i1, i2) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+                                            if i0 >= vids.len() || i1 >= vids.len() || i2 >= vids.len() { continue; }
+                                            let v0 = mesh.vertices[i0];
+                                            let v1 = mesh.vertices[i1];
+                                            let v2 = mesh.vertices[i2];
+                                            let a = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+                                            let b = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+                                            let nx = a[1]*b[2]-a[2]*b[1];
+                                            let ny = a[2]*b[0]-a[0]*b[2];
+                                            let nz = a[0]*b[1]-a[1]*b[0];
+                                            let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
+                                            let fid = he.next_fid();
+                                            he.faces.insert(fid, kolibri_core::halfedge::HeFace {
+                                                edge: 0,
+                                                normal: [nx/len, ny/len, nz/len],
+                                            });
+                                        }
+                                        let id = self.scene.insert_mesh_raw(mesh.name.clone(), [0.0;3], he, MaterialKind::White);
+                                        ids.push(id);
+                                    }
+                                    self.scene.version += 1;
+                                    Ok(json!({"imported": ids.len(), "meshes": mesh_count, "groups": group_count, "components": comp_count}))
+                                }
+                                Err(e) => Err(format!("SKP SDK error: {}", e)),
+                            }
+                        } else {
+                            Err("SKP SDK DLL not available".into())
+                        }
+                    }
                     _ => Err(format!("Unsupported format: {}", ext)),
                 };
                 match result {
