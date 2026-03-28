@@ -1,0 +1,342 @@
+use std::sync::Arc;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use eframe::{egui, wgpu};
+use eframe::epaint::mutex::RwLock;
+use serde::Serialize;
+
+use crate::camera::{self, OrbitCamera};
+use crate::renderer::ViewportRenderer;
+use crate::scene::{MaterialKind, Scene, Shape};
+use crate::app::{KolibriApp, Tool, WorkMode, DrawState, ScaleHandle, PullFace, SnapType, SnapResult, AiSuggestion, SuggestionAction, RightTab, CursorHint, EditorState, SelectionMode, RenderMode, ViewerState, BackgroundTaskResult, BackgroundSceneBuild, SpatialEntry, parse_material_name};
+
+impl KolibriApp {
+    pub(crate) fn handle_mcp_command(&mut self, cmd: crate::mcp_server::McpCommand) -> crate::mcp_server::McpResult {
+        use crate::mcp_server::{McpCommand, McpResult};
+        use serde_json::json;
+
+        let actor = crate::ai_log::ActorId::claude();
+
+        match cmd {
+            McpCommand::GetSceneState => {
+                let objects: Vec<serde_json::Value> = self.scene.objects.values().map(|obj| {
+                    json!({
+                        "id": obj.id,
+                        "name": obj.name,
+                        "position": obj.position,
+                        "shape": format!("{:?}", obj.shape),
+                        "material": format!("{:?}", obj.material),
+                    })
+                }).collect();
+                McpResult { success: true, data: json!({ "objects": objects, "count": objects.len() }) }
+            }
+            McpCommand::CreateBox { name, position, width, height, depth, material } => {
+                self.scene.snapshot();
+                let mat = parse_material_name(&material);
+                let n = if name.is_empty() { self.next_name("Box") } else { name };
+                let id = self.scene.add_box(n, position, width, height, depth, mat);
+                self.ai_log.log(&actor, "\u{5efa}\u{7acb}\u{65b9}\u{584a}", &format!("{:.0}\u{00d7}{:.0}\u{00d7}{:.0}", width, height, depth), vec![id.clone()]);
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            McpCommand::CreateCylinder { name, position, radius, height, material } => {
+                self.scene.snapshot();
+                let mat = parse_material_name(&material);
+                let n = if name.is_empty() { self.next_name("Cylinder") } else { name };
+                let id = self.scene.add_cylinder(n, position, radius, height, 48, mat);
+                self.ai_log.log(&actor, "\u{5efa}\u{7acb}\u{5713}\u{67f1}", &format!("r={:.0} h={:.0}", radius, height), vec![id.clone()]);
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            McpCommand::CreateSphere { name, position, radius, material } => {
+                self.scene.snapshot();
+                let mat = parse_material_name(&material);
+                let n = if name.is_empty() { self.next_name("Sphere") } else { name };
+                let id = self.scene.add_sphere(n, position, radius, 32, mat);
+                self.ai_log.log(&actor, "\u{5efa}\u{7acb}\u{7403}\u{9ad4}", &format!("r={:.0}", radius), vec![id.clone()]);
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            McpCommand::DeleteObject { id } => {
+                self.scene.snapshot();
+                self.scene.delete(&id);
+                self.ai_log.log(&actor, "\u{522a}\u{9664}\u{7269}\u{4ef6}", &id, vec![id.clone()]);
+                McpResult { success: true, data: json!({ "deleted": id }) }
+            }
+            McpCommand::MoveObject { id, position } => {
+                self.scene.snapshot();
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.position = position;
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "\u{79fb}\u{52d5}\u{7269}\u{4ef6}", &format!("{:?}", position), vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "moved": id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::SetMaterial { id, material } => {
+                self.scene.snapshot();
+                let mat = parse_material_name(&material);
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.material = mat;
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "\u{8a2d}\u{5b9a}\u{6750}\u{8cea}", &material, vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "updated": id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::ClearScene => {
+                self.scene.snapshot();
+                let count = self.scene.objects.len();
+                self.scene.objects.clear();
+                self.import_object_debug.clear();
+                self.scene.version += 1;
+                self.editor.selected_ids.clear();
+                self.ai_log.log(&actor, "清空場景", &format!("{} objects removed", count), vec![]);
+                McpResult { success: true, data: json!({ "cleared": count }) }
+            }
+            McpCommand::RotateObject { id, angle_deg } => {
+                self.scene.snapshot_ids(&[&id], "MCP旋轉");
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.rotation_y += angle_deg.to_radians();
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "旋轉物件", &format!("{} {:.0}°", id, angle_deg), vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "rotated": id, "angle_deg": angle_deg }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::ScaleObject { id, factor } => {
+                self.scene.snapshot_ids(&[&id], "MCP縮放");
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    match &mut obj.shape {
+                        Shape::Box { width, height, depth } => {
+                            *width *= factor[0]; *height *= factor[1]; *depth *= factor[2];
+                        }
+                        Shape::Cylinder { radius, height, .. } => {
+                            *radius *= factor[0]; *height *= factor[1];
+                        }
+                        Shape::Sphere { radius, .. } => {
+                            *radius *= factor[0];
+                        }
+                        _ => {}
+                    }
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "縮放物件", &format!("{} x[{:.2},{:.2},{:.2}]", id, factor[0], factor[1], factor[2]), vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "scaled": id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::DuplicateObject { id, offset } => {
+                if let Some(obj) = self.scene.objects.get(&id).cloned() {
+                    self.scene.snapshot();
+                    let mut clone = obj;
+                    clone.id = self.scene.next_id_pub();
+                    clone.name = format!("{}_copy", clone.name);
+                    clone.position[0] += offset[0];
+                    clone.position[1] += offset[1];
+                    clone.position[2] += offset[2];
+                    let new_id = clone.id.clone();
+                    self.scene.objects.insert(new_id.clone(), clone);
+                    self.scene.version += 1;
+                    self.ai_log.log(&actor, "複製物件", &format!("{} → {}", id, new_id), vec![new_id.clone()]);
+                    McpResult { success: true, data: json!({ "original": id, "copy_id": new_id }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::GetObjectInfo { id } => {
+                if let Some(obj) = self.scene.objects.get(&id) {
+                    let shape_info = match &obj.shape {
+                        Shape::Box { width, height, depth } => json!({"type":"box","width":width,"height":height,"depth":depth}),
+                        Shape::Cylinder { radius, height, segments } => json!({"type":"cylinder","radius":radius,"height":height,"segments":segments}),
+                        Shape::Sphere { radius, segments } => json!({"type":"sphere","radius":radius,"segments":segments}),
+                        Shape::Line { points, thickness, .. } => json!({"type":"line","point_count":points.len(),"thickness":thickness}),
+                        Shape::Mesh(mesh) => json!({"type":"mesh","vertices":mesh.vertices.len(),"faces":mesh.faces.len(),"edges":mesh.edges.len()}),
+                    };
+                    McpResult { success: true, data: json!({
+                        "id": obj.id, "name": obj.name, "position": obj.position,
+                        "rotation_y_deg": obj.rotation_y.to_degrees(),
+                        "material": obj.material.label(),
+                        "tag": obj.tag, "visible": obj.visible,
+                        "roughness": obj.roughness, "metallic": obj.metallic,
+                        "shape": shape_info,
+                    }) }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Object not found" }) }
+                }
+            }
+            McpCommand::Undo => {
+                let ok = self.scene.undo();
+                McpResult { success: ok, data: json!({ "undo": ok, "undo_count": self.scene.undo_count() }) }
+            }
+            McpCommand::Redo => {
+                let ok = self.scene.redo();
+                McpResult { success: ok, data: json!({ "redo": ok, "redo_count": self.scene.redo_count() }) }
+            }
+            McpCommand::Shutdown => {
+                self.ai_log.log(&actor, "關閉應用", "MCP shutdown", vec![]);
+                std::thread::spawn(|| {
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    std::process::exit(0);
+                });
+                McpResult { success: true, data: json!({ "message": "Shutting down..." }) }
+            }
+            McpCommand::ImportFile { path } => {
+                let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+                let result = match ext.as_str() {
+                    "obj" => crate::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "skp" => {
+                        // SKP SDK 匯入（子進程隔離，避免 DLL 崩潰影響主 APP）
+                        if kolibri_skp::sdk_available() {
+                            match kolibri_skp::import_skp_subprocess(&path) {
+                                Ok(skp_scene) => {
+                                    let ir = crate::import::skp_sdk_import::skp_scene_to_ir(&skp_scene, &path);
+                                    let stats = ir.stats.clone();
+                                    // 建立 mesh_id → mesh 查詢表
+                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                    self.import_object_debug = build.object_debug.clone();
+                                    Self::write_import_source_debug(&self.import_object_debug);
+                                    Ok(json!({
+                                        "imported": stats.instance_count,
+                                        "meshes": stats.mesh_count,
+                                        "groups": stats.group_count,
+                                        "components": stats.component_count,
+                                        "materials": stats.material_count,
+                                        "built_meshes": build.meshes,
+                                        "source_debug_path": "logs/import_source_debug.json",
+                                    }))
+                                    /*
+                                    // 按 instance 匯入（帶 transform）
+                                    for inst in &skp_scene.instances {
+                                        let mesh = match mesh_map.get(inst.mesh_id.as_str()) {
+                                            Some(m) => m,
+                                            None => continue,
+                                        };
+                                        if mesh.vertices.len() < 3 || mesh.indices.len() < 3 { continue; }
+                                        // 套用 instance transform 到頂點
+                                        let m = inst.transform;
+                                        let transform_pt = |v: [f32; 3]| -> [f32; 3] {
+                                            [m[0]*v[0] + m[4]*v[1] + m[8]*v[2] + m[12],
+                                             m[1]*v[0] + m[5]*v[1] + m[9]*v[2] + m[13],
+                                             m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14]]
+                                        };
+                                        let mut he = crate::halfedge::HeMesh::new();
+                                        let xf_verts: Vec<[f32; 3]> = mesh.vertices.iter().map(|v| transform_pt(*v)).collect();
+                                        for v in &xf_verts { he.add_vertex(*v); }
+                                        for tri in mesh.indices.chunks(3) {
+                                            if tri.len() < 3 { continue; }
+                                            let (i0, i1, i2) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
+                                            if i0 >= xf_verts.len() || i1 >= xf_verts.len() || i2 >= xf_verts.len() { continue; }
+                                            let v0 = xf_verts[i0]; let v1 = xf_verts[i1]; let v2 = xf_verts[i2];
+                                            let a = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+                                            let b = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+                                            let nx = a[1]*b[2]-a[2]*b[1]; let ny = a[2]*b[0]-a[0]*b[2]; let nz = a[0]*b[1]-a[1]*b[0];
+                                            let len = (nx*nx+ny*ny+nz*nz).sqrt().max(1e-10);
+                                            let fid = he.next_fid();
+                                            let vid0 = i0 as u32 + 1; let vid1 = i1 as u32 + 1; let vid2 = i2 as u32 + 1;
+                                            he.faces.insert(fid, crate::halfedge::HeFace { edge: 0, normal: [nx/len, ny/len, nz/len], vert_ids: Some(vec![vid0, vid1, vid2]), source_face_label: None });
+                                        }
+                                        // SDK 原始邊線（也套用 instance transform）
+                                        he.sdk_edge_segments = mesh.edges.iter().map(|(p1, p2)| {
+                                            (transform_pt(*p1), transform_pt(*p2))
+                                        }).collect();
+                                        // 底部對齊地面
+                                        let min_y = xf_verts.iter().map(|v| v[1]).fold(f32::MAX, f32::min);
+                                        self.scene.insert_mesh_raw(inst.name.clone(), [0.0, -min_y, 0.0], he, MaterialKind::White);
+                                        imported += 1;
+                                    }
+                                    self.scene.version += 1;
+                                    Ok(json!({"imported": imported, "meshes": mesh_count, "groups": group_count, "components": comp_count}))
+                                    */
+                                }
+                                Err(e) => {
+                                    tracing::warn!("SKP SDK subprocess failed: {}, trying unified import", e);
+                                    // Fallback: 走統一匯入管線（bridge/heuristic）
+                                    match crate::import::import_manager::import_file(&path) {
+                                        Ok(ir) => {
+                                            let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                            Ok(json!({
+                                                "imported": build.meshes,
+                                                "fallback": true,
+                                                "sdk_error": format!("{}", e),
+                                            }))
+                                        }
+                                        Err(e2) => Err(format!("SKP SDK: {} | Fallback: {}", e, e2)),
+                                    }
+                                }
+                            }
+                        } else {
+                            // 沒有 SDK DLL，直接走統一匯入
+                            match crate::import::import_manager::import_file(&path) {
+                                Ok(ir) => {
+                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                    Ok(json!({
+                                        "imported": build.meshes,
+                                        "fallback": true,
+                                    }))
+                                }
+                                Err(e) => Err(format!("SKP import: {}", e)),
+                            }
+                        }
+                    }
+                    _ => Err(format!("Unsupported: {}", ext)),
+                };
+                match result {
+                    Ok(data) => McpResult { success: true, data },
+                    Err(e) => McpResult { success: false, data: json!({"error": e}) },
+                }
+            }
+            McpCommand::Screenshot { path } => {
+                self.viewport.save_screenshot(&self.device, &self.queue, &path);
+                let exists = std::path::Path::new(&path).exists();
+                McpResult {
+                    success: exists,
+                    data: json!({"path": path, "saved": exists}),
+                }
+            }
+            McpCommand::ExportScene { path } => {
+                // 匯出完整場景為 JSON
+                let mut objects = Vec::new();
+                for obj in self.scene.objects.values() {
+                    let shape_info = match &obj.shape {
+                        Shape::Mesh(m) => json!({
+                            "type": "Mesh",
+                            "vertices": m.vertices.len(),
+                            "faces": m.faces.len(),
+                        }),
+                        Shape::Box { width, height, depth } => json!({
+                            "type": "Box", "width": width, "height": height, "depth": depth
+                        }),
+                        Shape::Cylinder { radius, height, .. } => json!({
+                            "type": "Cylinder", "radius": radius, "height": height
+                        }),
+                        Shape::Sphere { radius, .. } => json!({
+                            "type": "Sphere", "radius": radius
+                        }),
+                        Shape::Line { .. } => json!({"type": "Line"}),
+                    };
+                    objects.push(json!({
+                        "id": obj.id,
+                        "name": obj.name,
+                        "position": obj.position,
+                        "material": format!("{:?}", obj.material),
+                        "shape": shape_info,
+                        "visible": obj.visible,
+                        "rotation_y": obj.rotation_y,
+                    }));
+                }
+                let export = json!({
+                    "object_count": self.scene.objects.len(),
+                    "objects": objects,
+                    "groups": self.scene.groups.len(),
+                    "version": self.scene.version,
+                });
+                match std::fs::write(&path, serde_json::to_string_pretty(&export).unwrap_or_default()) {
+                    Ok(_) => McpResult { success: true, data: json!({"path": path, "objects": self.scene.objects.len()}) },
+                    Err(e) => McpResult { success: false, data: json!({"error": format!("{}", e)}) },
+                }
+            }
+        }
+    }
+}

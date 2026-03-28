@@ -1,0 +1,2 @@
+[skp] File version: SU 2023 (major=23), SDK max version: SU 2023 (major=25)
+[skp-sdk] FAIL: D:\AI_Design\Kolibri_Ai3D\target\debug\docs/SU_SDK/binaries/sketchup/x64/SketchUpAPI.dll: LoadLibraryExW failed
