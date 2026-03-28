@@ -57,6 +57,7 @@ pub enum McpCommand {
     Undo,
     Redo,
     Shutdown,
+    ImportFile { path: String },
 }
 
 /// MCP result sent back from GUI thread to MCP thread

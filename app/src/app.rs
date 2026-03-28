@@ -2455,12 +2455,39 @@ impl KolibriApp {
             }
             McpCommand::Shutdown => {
                 self.ai_log.log(&actor, "關閉應用", "MCP shutdown", vec![]);
-                // 延遲一小段時間讓回應送出後再結束
                 std::thread::spawn(|| {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     std::process::exit(0);
                 });
                 McpResult { success: true, data: json!({ "message": "Shutting down..." }) }
+            }
+            McpCommand::ImportFile { path } => {
+                let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+                let result = match ext.as_str() {
+                    "obj" => crate::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "skp" => {
+                        // SKP SDK 原生匯入
+                        if kolibri_skp::sdk_available() {
+                            match kolibri_skp::import_skp(&path) {
+                                Ok(skp_scene) => {
+                                    let ir = crate::import::skp_sdk_import::skp_scene_to_ir(&skp_scene, &path);
+                                    let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
+                                    Ok(json!({"imported": build.meshes, "groups": ir.groups.len(), "components": ir.component_defs.len()}))
+                                }
+                                Err(e) => Err(format!("SKP SDK: {}", e)),
+                            }
+                        } else {
+                            Err("SKP SDK DLL not available".into())
+                        }
+                    }
+                    _ => Err(format!("Unsupported: {}", ext)),
+                };
+                match result {
+                    Ok(data) => McpResult { success: true, data },
+                    Err(e) => McpResult { success: false, data: json!({"error": e}) },
+                }
             }
         }
     }

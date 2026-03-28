@@ -113,7 +113,7 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
                                     if !send_ok {
                                         return Json(JsonRpcResponse::err(id, -32603, "GUI not responding"));
                                     }
-                                    match result_rx.recv_timeout(std::time::Duration::from_secs(10)) {
+                                    match result_rx.recv_timeout(std::time::Duration::from_secs(120)) {
                                         Ok(result) => {
                                             let text = serde_json::to_string_pretty(&result.data).unwrap_or_default();
                                             JsonRpcResponse::ok(id, json!({
@@ -253,6 +253,9 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
         "undo" => Some(McpCommand::Undo),
         "redo" => Some(McpCommand::Redo),
         "shutdown" => Some(McpCommand::Shutdown),
+        "import_file" => Some(McpCommand::ImportFile {
+            path: args["path"].as_str().unwrap_or("").into(),
+        }),
         _ => None,
     }
 }
