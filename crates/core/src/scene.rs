@@ -702,29 +702,51 @@ impl Scene {
     }
 
     /// Save scene to a JSON file
+    /// Save scene to file (GZip compressed JSON for .k3d)
     pub fn save_to_file(&self, path: &str) -> Result<(), crate::error::FileError> {
         use crate::error::FileError;
-        use std::io::BufWriter;
+        use std::io::Write;
 
         let file_data = SceneFile {
-            version: "1.0".into(),
+            version: "1.1".into(), // 1.1 = gzip compressed
             app: "Kolibri_Ai3D".into(),
             objects: self.objects.values().cloned().collect(),
             groups: self.groups.values().cloned().collect(),
             component_defs: self.component_defs.values().cloned().collect(),
         };
+        let json = serde_json::to_string(&file_data)?; // minified（省空間）
         let file = std::fs::File::create(path)
             .map_err(|e| FileError::Write { path: path.to_string(), source: e })?;
-        let writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, &file_data)?;
+        let mut gz = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
+        gz.write_all(json.as_bytes())
+            .map_err(|e| FileError::Write { path: path.to_string(), source: e })?;
+        gz.finish()
+            .map_err(|e| FileError::Write { path: path.to_string(), source: e })?;
         Ok(())
     }
 
-    /// Load scene from a JSON file
+    /// Load scene from file (auto-detect gzip or plain JSON)
     pub fn load_from_file(&mut self, path: &str) -> Result<usize, crate::error::FileError> {
         use crate::error::FileError;
-        let json = std::fs::read_to_string(path)
+        use std::io::Read;
+
+        let raw = std::fs::read(path)
             .map_err(|e| FileError::Read { path: path.to_string(), source: e })?;
+
+        // 自動偵測：gzip magic bytes (0x1F 0x8B) 或 plain JSON
+        let json = if raw.len() >= 2 && raw[0] == 0x1F && raw[1] == 0x8B {
+            // GZip 壓縮
+            let mut decoder = flate2::read::GzDecoder::new(&raw[..]);
+            let mut s = String::new();
+            decoder.read_to_string(&mut s)
+                .map_err(|e| FileError::Read { path: path.to_string(), source: e })?;
+            s
+        } else {
+            // 舊版 plain JSON（向下相容）
+            String::from_utf8(raw)
+                .map_err(|e| FileError::Deserialize(e.to_string()))?
+        };
+
         let file_data: SceneFile = serde_json::from_str(&json)
             .map_err(|e| FileError::Deserialize(e.to_string()))?;
         self.snapshot();
