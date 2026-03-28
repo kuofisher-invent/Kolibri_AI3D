@@ -352,7 +352,7 @@ impl KolibriApp {
                         "+", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
                     if plus_resp.clicked() {
                         // Zoom in: decrease distance by 20%
-                        self.viewer.camera.distance = (self.viewer.camera.distance * 0.8).clamp(200.0, 100_000.0);
+                        self.viewer.camera.distance = (self.viewer.camera.distance * 0.8).clamp(10.0, 200_000.0);
                     }
 
                     // "-" Zoom Out
@@ -373,7 +373,7 @@ impl KolibriApp {
                         "\u{2212}", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
                     if minus_resp.clicked() {
                         // Zoom out: increase distance by 20%
-                        self.viewer.camera.distance = (self.viewer.camera.distance * 1.2).clamp(200.0, 100_000.0);
+                        self.viewer.camera.distance = (self.viewer.camera.distance * 1.2).clamp(10.0, 200_000.0);
                     }
                 }
 

@@ -134,8 +134,9 @@ fn convert_entities(
         let faces = get_faces(sdk, entities)?;
         if !faces.is_empty() {
             // 快取 local space mesh
-            let (local_verts, local_normals, local_indices) = faces_to_local_mesh(sdk, &faces)?;
-            let local_edges = get_local_edges(sdk, entities);
+            let (local_verts, local_normals, local_indices, local_face_edges) = faces_to_local_mesh(sdk, &faces)?;
+            // 優先使用 SUFaceGetEdges（面輪廓邊），fallback 到 SUEntitiesGetEdges
+            let local_edges = if !local_face_edges.is_empty() { local_face_edges } else { get_local_edges(sdk, entities) };
             state.processed_defs.insert(entities_key, ProcessedDef {
                 local_vertices: local_verts.clone(),
                 local_normals: local_normals.clone(),
@@ -246,12 +247,12 @@ fn convert_entities(
             unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
 
             let def_faces = get_faces(sdk, def_entities)?;
-            let (local_verts, local_normals, local_indices) = if !def_faces.is_empty() {
+            let (local_verts, local_normals, local_indices, local_face_edges) = if !def_faces.is_empty() {
                 faces_to_local_mesh(sdk, &def_faces)?
             } else {
-                (Vec::new(), Vec::new(), Vec::new())
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new())
             };
-            let local_edges = get_local_edges(sdk, def_entities);
+            let local_edges = if !local_face_edges.is_empty() { local_face_edges } else { get_local_edges(sdk, def_entities) };
             let def_id = format!("comp_{}", def_key);
 
             state.processed_defs.insert(def_key, ProcessedDef {
@@ -500,12 +501,48 @@ fn faces_to_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], world_xf: &[f64; 16], state:
 }
 
 /// 將 faces 轉為 local space mesh（不套用 transform，用於 component def 快取）
-fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3]>, Vec<[f64; 3]>, Vec<u32>), SkpError> {
+/// 回傳 (vertices, normals, indices, face_edges)
+/// face_edges 是面的真正輪廓邊（SUFaceGetEdges），不含三角化邊
+fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3]>, Vec<[f64; 3]>, Vec<u32>, Vec<([f64; 3], [f64; 3])>), SkpError> {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut indices = Vec::new();
+    let mut face_edges = Vec::new();
 
     for face in faces {
+        // 讀取面的輪廓邊（SUFaceGetEdges — 官方範例推薦方式）
+        let mut ne = 0usize;
+        unsafe { (sdk.fn_face_get_num_edges)(*face, &mut ne) };
+        if ne > 0 {
+            let mut edges = vec![SUEdgeRef { ptr: std::ptr::null_mut() }; ne];
+            let mut actual_e = 0usize;
+            unsafe { (sdk.fn_face_get_edges)(*face, ne, edges.as_mut_ptr(), &mut actual_e) };
+            for edge in &edges[..actual_e] {
+                // 跳過 soft/smooth 邊
+                let mut soft = false;
+                let mut smooth = false;
+                unsafe {
+                    (sdk.fn_edge_get_soft)(*edge, &mut soft);
+                    (sdk.fn_edge_get_smooth)(*edge, &mut smooth);
+                }
+                if soft || smooth { continue; }
+
+                let mut sv = SUVertexRef { ptr: std::ptr::null_mut() };
+                let mut ev = SUVertexRef { ptr: std::ptr::null_mut() };
+                unsafe {
+                    (sdk.fn_edge_get_start_vertex)(*edge, &mut sv);
+                    (sdk.fn_edge_get_end_vertex)(*edge, &mut ev);
+                }
+                let mut sp = SUPoint3D { x: 0.0, y: 0.0, z: 0.0 };
+                let mut ep = SUPoint3D { x: 0.0, y: 0.0, z: 0.0 };
+                unsafe {
+                    (sdk.fn_vertex_get_position)(sv, &mut sp);
+                    (sdk.fn_vertex_get_position)(ev, &mut ep);
+                }
+                face_edges.push(([sp.x, sp.y, sp.z], [ep.x, ep.y, ep.z]));
+            }
+        }
+
         let mut helper = SUMeshHelperRef { ptr: std::ptr::null_mut() };
         let rc = unsafe { (sdk.fn_mesh_helper_create)(&mut helper, *face) };
         if rc != SU_ERROR_NONE { continue; }
@@ -553,7 +590,23 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
             indices.push(base + i1 as u32);
         }
     }
-    Ok((vertices, normals, indices))
+    // 去重 face_edges（相同邊可能被多個面引用）
+    face_edges.sort_by(|a, b| {
+        let key = |e: &([f64; 3], [f64; 3])| -> u64 {
+            let h1 = (e.0[0] * 1000.0) as i64;
+            let h2 = (e.0[1] * 1000.0) as i64;
+            (h1.wrapping_mul(31) ^ h2) as u64
+        };
+        key(a).cmp(&key(b))
+    });
+    face_edges.dedup_by(|a, b| {
+        let close = |x: f64, y: f64| (x - y).abs() < 0.01;
+        (close(a.0[0], b.0[0]) && close(a.0[1], b.0[1]) && close(a.0[2], b.0[2])
+         && close(a.1[0], b.1[0]) && close(a.1[1], b.1[1]) && close(a.1[2], b.1[2]))
+        || (close(a.0[0], b.1[0]) && close(a.0[1], b.1[1]) && close(a.0[2], b.1[2])
+         && close(a.1[0], b.0[0]) && close(a.1[1], b.0[1]) && close(a.1[2], b.0[2]))
+    });
+    Ok((vertices, normals, indices, face_edges))
 }
 
 /// 讀取 SDK 原始邊線（local space，不套用 transform）

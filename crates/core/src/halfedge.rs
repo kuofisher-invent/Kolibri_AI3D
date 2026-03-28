@@ -496,7 +496,7 @@ impl HeMesh {
                 let n0 = &normals[0];
                 let n1 = &normals[1];
                 let dot = n0[0]*n1[0] + n0[1]*n1[1] + n0[2]*n1[2];
-                dot.abs() < 0.999 // 法線夾角 > ~2.5° → 顯示
+                dot.abs() < 0.9998 // 法線夾角 > ~1° → 顯示（過濾三角化邊）
             } else {
                 true
             };

@@ -113,6 +113,8 @@ pub struct SkpSdk {
     pub(crate) fn_face_get_vertices: unsafe extern "C" fn(SUFaceRef, usize, *mut SUVertexRef, *mut usize) -> i32,
     pub(crate) fn_face_get_normal: unsafe extern "C" fn(SUFaceRef, *mut SUVector3D) -> i32,
     pub(crate) fn_face_get_front_material: unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32,
+    pub(crate) fn_face_get_num_edges: unsafe extern "C" fn(SUFaceRef, *mut usize) -> i32,
+    pub(crate) fn_face_get_edges: unsafe extern "C" fn(SUFaceRef, usize, *mut SUEdgeRef, *mut usize) -> i32,
     // Vertex
     pub(crate) fn_vertex_get_position: unsafe extern "C" fn(SUVertexRef, *mut SUPoint3D) -> i32,
     // Material
@@ -255,6 +257,8 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_face_get_num_vertices, b"SUFaceGetNumVertices");
         load!(fn_face_get_vertices, b"SUFaceGetVertices");
         load!(fn_face_get_normal, b"SUFaceGetNormal");
+        load!(fn_face_get_num_edges, b"SUFaceGetNumEdges");
+        load!(fn_face_get_edges, b"SUFaceGetEdges");
         // 正確 API 名稱是 SUFaceGetFrontMaterial（不是 SUFaceGetMaterial）
         let fn_face_get_front_material = match lib.get::<unsafe extern "C" fn(SUFaceRef, *mut SUMaterialRef) -> i32>(b"SUFaceGetFrontMaterial") {
             Ok(sym) => *sym,
@@ -303,6 +307,7 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
             fn_entities_get_num_instances, fn_entities_get_instances,
             fn_face_get_num_vertices, fn_face_get_vertices,
             fn_face_get_normal, fn_face_get_front_material,
+            fn_face_get_num_edges, fn_face_get_edges,
             fn_vertex_get_position,
             fn_material_get_name, fn_material_get_color,
             fn_comp_def_get_name, fn_comp_def_get_entities,

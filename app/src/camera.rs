@@ -59,14 +59,14 @@ impl OrbitCamera {
 
     pub fn zoom(&mut self, delta: f32) {
         self.distance *= (1.0 - delta * 0.001).clamp(0.5, 2.0);
-        self.distance = self.distance.clamp(200.0, 100_000.0);
+        self.distance = self.distance.clamp(10.0, 200_000.0);
     }
 
     /// Zoom toward a world point (cursor-centered zoom like SketchUp)
     pub fn zoom_toward(&mut self, delta: f32, world_point: Option<Vec3>) {
         let old_distance = self.distance;
         let factor = (1.0 - delta * 0.002).clamp(0.3, 3.0);
-        self.distance = (self.distance * factor).clamp(200.0, 100_000.0);
+        self.distance = (self.distance * factor).clamp(10.0, 200_000.0);
 
         // Move target toward the world point proportionally
         if let Some(wp) = world_point {
