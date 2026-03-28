@@ -85,6 +85,14 @@ impl KolibriApp {
     }
 
     pub(crate) fn check_auto_save(&mut self) {
+        if self.background_task_active()
+            || self.pending_unified_ir.is_some()
+            || self.import_review.is_some()
+            || self.auto_save_deferred()
+        {
+            return;
+        }
+
         if self.last_auto_save.elapsed().as_secs() >= 120
             && self.scene.version != self.auto_save_version
             && !self.scene.objects.is_empty()
@@ -101,6 +109,7 @@ impl KolibriApp {
             if let Ok(()) = self.scene.save_to_file(&path) {
                 self.auto_save_version = self.scene.version;
                 self.last_auto_save = std::time::Instant::now();
+                self.console_push("INFO", format!("[ImportPhase] autosave_done | path={}", path));
                 self.toasts.push(("自動儲存完成".into(), std::time::Instant::now()));
                 tracing::info!("Auto-saved to {}", path);
             }

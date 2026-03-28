@@ -1291,14 +1291,16 @@ impl KolibriApp {
                         egui::FontId::proportional(16.0), egui::Color32::from_rgb(31, 36, 48));
                     y_ir += 30.0;
 
+                    let heavy_import = crate::app::KolibriApp::is_heavy_import(ir);
                     let info_lines = [
                         format!("來源檔案: {}", std::path::Path::new(&ir.source_file).file_name()
                             .map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
                         format!("網格數: {}", ir.stats.mesh_count),
+                        format!("實例數: {}", ir.stats.instance_count),
                         format!("頂點數: {}", ir.stats.vertex_count),
                         format!("面數: {}", ir.stats.face_count),
                         format!("群組數: {}", ir.stats.group_count),
-                        format!("構件數: {}", ir.stats.member_count),
+                        format!("元件定義數: {}", ir.stats.component_count),
                         format!("材質數: {}", ir.stats.material_count),
                     ];
 
@@ -1306,6 +1308,18 @@ impl KolibriApp {
                         ui.painter().text(egui::pos2(x_ir, y_ir), egui::Align2::LEFT_TOP,
                             line_text, egui::FontId::proportional(12.0), egui::Color32::from_rgb(60, 65, 80));
                         y_ir += 20.0;
+                    }
+
+                    if heavy_import {
+                        y_ir += 6.0;
+                        ui.painter().text(
+                            egui::pos2(x_ir, y_ir),
+                            egui::Align2::LEFT_TOP,
+                            "大型 SKP 將啟用保護模式: 略過自動縮放，並延後 autosave。",
+                            egui::FontId::proportional(11.0),
+                            egui::Color32::from_rgb(180, 120, 40),
+                        );
+                        y_ir += 26.0;
                     }
 
                     y_ir += 15.0;
@@ -1326,10 +1340,28 @@ impl KolibriApp {
                     let cancel_resp = ui.allocate_rect(btn_cancel, egui::Sense::click());
 
                     if confirm_resp.clicked() {
+                        self.log_import_phase(
+                            "import_review_confirmed",
+                            format!(
+                                "format={} source_file={} heavy_mode={}",
+                                ir.source_format.to_uppercase(),
+                                ir.source_file,
+                                crate::app::KolibriApp::is_heavy_import(ir),
+                            ),
+                        );
                         let ir_data = self.pending_unified_ir.take().unwrap();
                         self.start_scene_build_task(ir_data);
                     }
                     if cancel_resp.clicked() {
+                        self.log_import_phase(
+                            "import_review_cancelled",
+                            format!(
+                                "format={} source_file={} heavy_mode={}",
+                                ir.source_format.to_uppercase(),
+                                ir.source_file,
+                                crate::app::KolibriApp::is_heavy_import(ir),
+                            ),
+                        );
                         self.pending_unified_ir = None;
                     }
                 }
@@ -1731,6 +1763,63 @@ impl KolibriApp {
                         &info,
                         egui::FontId::proportional(10.0),
                         egui::Color32::from_rgba_unmultiplied(160, 165, 180, 150),
+                    );
+                }
+
+                if self.background_task_active() {
+                    let overlay_rect = egui::Rect::from_center_size(
+                        rect.center(),
+                        egui::vec2(420.0, 150.0),
+                    );
+                    let elapsed = self
+                        .background_task_elapsed()
+                        .map(|d| format!("{:.1}s", d.as_secs_f32()))
+                        .unwrap_or_else(|| "0.0s".to_string());
+                    let label = self
+                        .background_task_label
+                        .clone()
+                        .unwrap_or_else(|| "背景工作進行中".to_string());
+
+                    ui.painter().rect_filled(
+                        rect,
+                        0.0,
+                        egui::Color32::from_rgba_unmultiplied(245, 246, 250, 180),
+                    );
+                    ui.painter().rect_filled(
+                        overlay_rect,
+                        18.0,
+                        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 245),
+                    );
+                    ui.painter().rect_stroke(
+                        overlay_rect,
+                        18.0,
+                        egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245)),
+                    );
+                    ui.painter().circle_stroke(
+                        egui::pos2(overlay_rect.center().x, overlay_rect.top() + 34.0),
+                        14.0,
+                        egui::Stroke::new(3.0, egui::Color32::from_rgb(76, 139, 245)),
+                    );
+                    ui.painter().text(
+                        egui::pos2(overlay_rect.center().x, overlay_rect.top() + 58.0),
+                        egui::Align2::CENTER_TOP,
+                        label,
+                        egui::FontId::proportional(18.0),
+                        egui::Color32::from_rgb(31, 36, 48),
+                    );
+                    ui.painter().text(
+                        egui::pos2(overlay_rect.center().x, overlay_rect.top() + 88.0),
+                        egui::Align2::CENTER_TOP,
+                        format!("已執行 {}", elapsed),
+                        egui::FontId::proportional(12.0),
+                        egui::Color32::from_rgb(110, 118, 135),
+                    );
+                    ui.painter().text(
+                        egui::pos2(overlay_rect.center().x, overlay_rect.top() + 112.0),
+                        egui::Align2::CENTER_TOP,
+                        "匯入期間已暫停互動與 autosave，請稍候。",
+                        egui::FontId::proportional(12.0),
+                        egui::Color32::from_rgb(110, 118, 135),
                     );
                 }
 

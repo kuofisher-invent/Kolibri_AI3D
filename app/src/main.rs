@@ -69,6 +69,14 @@ fn main() -> eframe::Result<()> {
         return run_verify_bridge_json(&args, path);
     }
 
+    if let Some(path) = cli_arg_value(&args, "--import-scene-out") {
+        return run_import_scene_out(&args, path);
+    }
+
+    if let Some(path) = cli_arg_value(&args, "--open-scene") {
+        std::env::set_var("KOLIBRI_STARTUP_SCENE", path);
+    }
+
     // 結構化日誌（tracing 取代 env_logger）
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -271,14 +279,55 @@ fn run_verify_bridge_json(args: &[String], json_path: &str) -> eframe::Result<()
     Ok(())
 }
 
+fn run_import_scene_out(args: &[String], output_path: &str) -> eframe::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
+
+    let input_path = cli_arg_value(args, "--source-file");
+    let bridge_json_path = cli_arg_value(args, "--bridge-json");
+
+    let ir = if let Some(json_path) = bridge_json_path {
+        crate::import::sketchup_bridge_backend::import_bridge_json_file(json_path, input_path)
+            .map_err(io_error_to_eframe)?
+    } else {
+        let input_path = input_path
+            .ok_or_else(|| io_error_to_eframe("Missing --source-file or --bridge-json for --import-scene-out"))?;
+        crate::import::import_manager::import_file(input_path)
+            .map_err(io_error_to_eframe)?
+    };
+    let report = build_verify_report("scene_export".to_string(), ir.clone(), false);
+    print_verify_report(&report);
+
+    let mut scene = crate::scene::Scene::default();
+    println!("scene_export_phase=build_scene_start");
+    let build = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
+    println!(
+        "scene_export_phase=build_scene_done objects={} groups={} component_defs={} built_meshes={}",
+        scene.objects.len(),
+        scene.groups.len(),
+        scene.component_defs.len(),
+        build.meshes
+    );
+    println!("scene_export_phase=save_scene_start path={}", output_path);
+    scene
+        .save_to_file(output_path)
+        .map_err(|e| io_error_to_eframe(e.to_string()))?;
+    println!("scene_export_phase=save_scene_done path={}", output_path);
+    println!("scene_json={}", output_path);
+
+    Ok(())
+}
+
 fn build_verify_report(
     verify_kind: String,
     ir: crate::import::unified_ir::UnifiedIR,
     skip_scene: bool,
 ) -> VerifyReport {
-    let (scene_objects, scene_groups, scene_component_defs, built_meshes, built_columns, built_beams) =
+    let (scene_objects, scene_groups, scene_component_defs, built_meshes, built_columns, built_beams, build_timings_ms) =
         if skip_scene {
-            (0, 0, 0, 0, 0, 0)
+            (0, 0, 0, 0, 0, 0, Vec::new())
         } else {
             let mut scene = crate::scene::Scene::default();
             let build = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
@@ -289,6 +338,7 @@ fn build_verify_report(
                 build.meshes,
                 build.columns,
                 build.beams,
+                build.phase_timings_ms,
             )
         };
 
@@ -310,6 +360,7 @@ fn build_verify_report(
         built_meshes,
         built_columns,
         built_beams,
+        build_timings_ms,
         debug: ir.debug_report.clone(),
     }
 }
@@ -332,6 +383,9 @@ fn print_verify_report(report: &VerifyReport) {
     println!("built_meshes={}", report.built_meshes);
     println!("built_columns={}", report.built_columns);
     println!("built_beams={}", report.built_beams);
+    for (phase, elapsed_ms) in &report.build_timings_ms {
+        println!("build_timing={}={}", phase, elapsed_ms);
+    }
     for line in &report.debug {
         println!("debug={}", line);
     }
@@ -363,5 +417,6 @@ struct VerifyReport {
     built_meshes: usize,
     built_columns: usize,
     built_beams: usize,
+    build_timings_ms: Vec<(String, u128)>,
     debug: Vec<String>,
 }

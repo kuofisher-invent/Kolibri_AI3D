@@ -704,6 +704,8 @@ impl Scene {
     /// Save scene to a JSON file
     pub fn save_to_file(&self, path: &str) -> Result<(), crate::error::FileError> {
         use crate::error::FileError;
+        use std::io::BufWriter;
+
         let file_data = SceneFile {
             version: "1.0".into(),
             app: "Kolibri_Ai3D".into(),
@@ -711,9 +713,10 @@ impl Scene {
             groups: self.groups.values().cloned().collect(),
             component_defs: self.component_defs.values().cloned().collect(),
         };
-        let json = serde_json::to_string_pretty(&file_data)?;
-        std::fs::write(path, json)
+        let file = std::fs::File::create(path)
             .map_err(|e| FileError::Write { path: path.to_string(), source: e })?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, &file_data)?;
         Ok(())
     }
 

@@ -1,14 +1,14 @@
 //! Half-edge mesh data structure for free-form modeling
 //! Supports: vertices, edges, faces with topology queries
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
 pub type VId = u32;
 pub type EId = u32;
 pub type FId = u32;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct HeMesh {
     pub vertices: HashMap<VId, HeVertex>,
     pub edges: HashMap<EId, HeEdge>,
@@ -41,6 +41,57 @@ pub struct HeFace {
 
 impl Default for HeMesh {
     fn default() -> Self { Self::new() }
+}
+
+#[derive(Serialize, Deserialize)]
+struct HeMeshSerde {
+    vertices: Vec<(VId, HeVertex)>,
+    edges: Vec<(EId, HeEdge)>,
+    faces: Vec<(FId, HeFace)>,
+    next_vid: VId,
+    next_eid: EId,
+    next_fid: FId,
+}
+
+impl Serialize for HeMesh {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut vertices: Vec<_> = self.vertices.iter().map(|(&id, vertex)| (id, vertex.clone())).collect();
+        let mut edges: Vec<_> = self.edges.iter().map(|(&id, edge)| (id, edge.clone())).collect();
+        let mut faces: Vec<_> = self.faces.iter().map(|(&id, face)| (id, face.clone())).collect();
+        vertices.sort_by_key(|(id, _)| *id);
+        edges.sort_by_key(|(id, _)| *id);
+        faces.sort_by_key(|(id, _)| *id);
+
+        HeMeshSerde {
+            vertices,
+            edges,
+            faces,
+            next_vid: self.next_vid,
+            next_eid: self.next_eid,
+            next_fid: self.next_fid,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for HeMesh {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let helper = HeMeshSerde::deserialize(deserializer)?;
+        Ok(Self {
+            vertices: helper.vertices.into_iter().collect(),
+            edges: helper.edges.into_iter().collect(),
+            faces: helper.faces.into_iter().collect(),
+            next_vid: helper.next_vid,
+            next_eid: helper.next_eid,
+            next_fid: helper.next_fid,
+        })
+    }
 }
 
 impl HeMesh {
