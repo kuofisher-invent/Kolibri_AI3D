@@ -253,6 +253,7 @@ pub(crate) struct EditorState {
     pub(crate) sticky_axis: Option<u8>,
     pub(crate) last_line_dir: Option<[f32; 2]>,
     pub(crate) editing_group_id: Option<String>,
+    pub(crate) editing_component_def_id: Option<String>,
     pub(crate) suggestion: Option<AiSuggestion>,
     pub(crate) cursor_dimension: Option<(f32, f32, String)>,
     pub(crate) move_origin: Option<[f32; 3]>,

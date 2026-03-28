@@ -1207,6 +1207,94 @@ impl KolibriApp {
             return;
         }
         let id = self.editor.selected_ids[0].clone();
+        let active_component_def_id = self
+            .scene
+            .objects
+            .get(&id)
+            .and_then(|obj| {
+                obj.component_def_id
+                    .clone()
+                    .or_else(|| obj.tag.strip_prefix("元件:").map(|s| s.to_string()))
+            });
+        let active_component_name = active_component_def_id
+            .as_ref()
+            .and_then(|def_id| self.scene.component_defs.get(def_id))
+            .map(|def| def.name.clone());
+        let is_editing_component =
+            self.editor.editing_component_def_id.as_ref() == active_component_def_id.as_ref();
+        let active_component_instance_ids = active_component_def_id
+            .as_ref()
+            .map(|def_id| self.scene.component_instance_ids(def_id))
+            .unwrap_or_default();
+        let active_component_visible_count = active_component_def_id
+            .as_deref()
+            .map(|def_id| self.scene.component_visible_instance_count(def_id))
+            .unwrap_or(0);
+
+        if let (Some(def_id), Some(def_name)) = (&active_component_def_id, &active_component_name) {
+            section_frame_full(ui, |ui| {
+                section_header_text(ui, "COMPONENT EDITING");
+                if let Some(summary) = self.current_component_edit_summary() {
+                    ui.small(summary);
+                }
+                ui.label(egui::RichText::new(format!("Definition: {}", def_name)).strong());
+                ui.small(format!("Definition ID: {}", def_id));
+                ui.small(format!(
+                    "Visible instances: {}/{}",
+                    active_component_visible_count,
+                    active_component_instance_ids.len()
+                ));
+                ui.horizontal(|ui| {
+                    if is_editing_component {
+                        if ui.button("Focus").clicked() {
+                            self.editor.selected_ids = active_component_instance_ids.clone();
+                            self.focus_on_objects(&active_component_instance_ids);
+                            self.right_tab = RightTab::Properties;
+                        }
+                        if ui.button("Select All").clicked() {
+                            self.editor.selected_ids = active_component_instance_ids.clone();
+                            self.right_tab = RightTab::Properties;
+                        }
+                        if ui.button("Finish Sync").clicked() {
+                            self.finish_component_editing(true);
+                        }
+                        if ui.button("Exit").clicked() {
+                            self.finish_component_editing(false);
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Primary").clicked() {
+                        if let Some(first_id) = active_component_instance_ids.first() {
+                            self.editor.selected_ids = vec![first_id.clone()];
+                            if !is_editing_component {
+                                self.editor.editing_component_def_id = None;
+                            }
+                            self.right_tab = RightTab::Properties;
+                        }
+                    }
+                    if ui.button("Show").clicked() {
+                        self.scene.set_component_instances_visible(def_id, true);
+                    }
+                    if ui.button("Hide").clicked() {
+                        self.scene.set_component_instances_visible(def_id, false);
+                    }
+                    if !is_editing_component && ui.button("Edit Component").clicked() {
+                        if let Some(first_id) = active_component_instance_ids.first() {
+                            self.editor.selected_ids = vec![first_id.clone()];
+                        }
+                        self.editor.editing_component_def_id = Some(def_id.clone());
+                        self.right_tab = RightTab::Properties;
+                        self.file_message = Some((
+                            format!("Entering component editing: {}", def_name),
+                            std::time::Instant::now(),
+                        ));
+                    }
+                });
+            });
+            ui.add_space(8.0);
+        }
+
         let obj = match self.scene.objects.get_mut(&id) {
             Some(o) => o,
             None => { self.editor.selected_ids.clear(); return; }

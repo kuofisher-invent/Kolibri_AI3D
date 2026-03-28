@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::mpsc::{Receiver, TryRecvError};
 use eframe::{egui, wgpu};
 use eframe::epaint::mutex::RwLock;
 
@@ -69,6 +70,8 @@ pub struct KolibriApp {
     pub(crate) pending_ir: Option<crate::cad_import::ir::DrawingIR>,
     pub(crate) import_review: Option<crate::import_review::ImportReview>,
     pub(crate) pending_unified_ir: Option<crate::import::unified_ir::UnifiedIR>,
+    pub(crate) background_task_rx: Option<Receiver<BackgroundTaskResult>>,
+    pub(crate) background_task_label: Option<String>,
 
     // Texture manager
     pub(crate) texture_manager: crate::texture_manager::TextureManager,
@@ -84,6 +87,16 @@ pub(crate) struct SpatialEntry {
     pub id: String,
     pub min: [f32; 3],
     pub max: [f32; 3],
+}
+
+pub(crate) struct BackgroundSceneBuild {
+    pub scene: Scene,
+    pub result: crate::import::import_manager::BuildResult,
+}
+
+pub(crate) enum BackgroundTaskResult {
+    Import(Result<crate::import::unified_ir::UnifiedIR, String>),
+    Build(Result<BackgroundSceneBuild, String>),
 }
 
 impl rstar::RTreeObject for SpatialEntry {
@@ -245,6 +258,7 @@ impl KolibriApp {
                 sticky_axis: None,
                 last_line_dir: None,
                 editing_group_id: None,
+                editing_component_def_id: None,
                 suggestion: None,
                 cursor_dimension: None,
                 move_origin: None,
@@ -318,6 +332,8 @@ impl KolibriApp {
             pending_ir: None,
             import_review: None,
             pending_unified_ir: None,
+            background_task_rx: None,
+            background_task_label: None,
             texture_manager: crate::texture_manager::TextureManager::new(),
             spatial_index: None,
             spatial_index_version: u64::MAX,
@@ -339,6 +355,137 @@ impl KolibriApp {
     pub(crate) fn toast(&mut self, msg: impl Into<String>) {
         self.toasts.push((msg.into(), std::time::Instant::now()));
         if self.toasts.len() > 5 { self.toasts.remove(0); }
+    }
+
+    pub(crate) fn background_task_active(&self) -> bool {
+        self.background_task_rx.is_some()
+    }
+
+    pub(crate) fn start_import_task(&mut self, path: String) {
+        if self.background_task_active() {
+            self.file_message = Some(("已有匯入工作進行中，請稍候".into(), std::time::Instant::now()));
+            return;
+        }
+
+        let filename = std::path::Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or(path.as_str())
+            .to_string();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.background_task_rx = Some(rx);
+        self.background_task_label = Some(format!("匯入中: {}", filename));
+        self.viewer.show_console = true;
+        self.console_push("INFO", format!("[Import] 背景匯入開始: {}", path));
+
+        std::thread::spawn(move || {
+            let result = crate::import::import_manager::import_file(&path);
+            let _ = tx.send(BackgroundTaskResult::Import(result));
+        });
+    }
+
+    pub(crate) fn start_scene_build_task(&mut self, ir: crate::import::unified_ir::UnifiedIR) {
+        if self.background_task_active() {
+            self.file_message = Some(("已有背景工作進行中，請稍候".into(), std::time::Instant::now()));
+            return;
+        }
+
+        let mut scene = self.scene.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.background_task_rx = Some(rx);
+        self.background_task_label = Some(format!("建構場景中: {}", ir.source_format.to_uppercase()));
+        self.console_push("INFO", format!("[Import] 背景建構場景開始: {}", ir.source_format.to_uppercase()));
+
+        std::thread::spawn(move || {
+            scene.snapshot();
+            let result = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
+            let _ = tx.send(BackgroundTaskResult::Build(Ok(BackgroundSceneBuild { scene, result })));
+        });
+    }
+
+    pub(crate) fn poll_background_task(&mut self) {
+        let message = match self.background_task_rx.as_ref() {
+            Some(rx) => match rx.try_recv() {
+                Ok(message) => Some(message),
+                Err(TryRecvError::Empty) => None,
+                Err(TryRecvError::Disconnected) => {
+                    self.background_task_rx = None;
+                    self.background_task_label = None;
+                    self.file_message = Some(("背景工作中斷".into(), std::time::Instant::now()));
+                    None
+                }
+            },
+            None => None,
+        };
+
+        let Some(message) = message else { return; };
+        self.background_task_rx = None;
+        self.background_task_label = None;
+
+        match message {
+            BackgroundTaskResult::Import(Ok(ir)) => {
+                for line in &ir.debug_report {
+                    let level = if line.contains("ERROR") || line.contains("WARN") { "WARN" } else { "INFO" };
+                    self.console_push(level, line.clone());
+                }
+                if ir.debug_report.is_empty() {
+                    self.console_push(
+                        "INFO",
+                        format!(
+                            "[Import] 完成: {} | 頂點: {} | 面: {} | Mesh: {} | 實例: {} | 材質: {}",
+                            ir.source_format.to_uppercase(),
+                            ir.stats.vertex_count,
+                            ir.stats.face_count,
+                            ir.stats.mesh_count,
+                            ir.stats.member_count,
+                            ir.stats.material_count,
+                        ),
+                    );
+                }
+                let summary = format!(
+                    "匯入解析完成 ({})\n\n頂點: {}\n面: {}\nMesh: {}\n群組: {}\n實例: {}\n材質: {}",
+                    ir.source_format.to_uppercase(),
+                    ir.stats.vertex_count,
+                    ir.stats.face_count,
+                    ir.stats.mesh_count,
+                    ir.stats.group_count,
+                    ir.stats.member_count,
+                    ir.stats.material_count,
+                );
+                self.pending_unified_ir = Some(ir);
+                self.viewer.show_console = true;
+                self.file_message = Some((summary, std::time::Instant::now()));
+            }
+            BackgroundTaskResult::Import(Err(e)) => {
+                self.console_push("ERROR", format!("[Import] 匯入失敗: {}", e));
+                self.file_message = Some((format!("匯入失敗:\n{}", e), std::time::Instant::now()));
+            }
+            BackgroundTaskResult::Build(Ok(done)) => {
+                self.scene = done.scene;
+                self.editor.selected_ids = done.result.ids;
+                self.zoom_extents();
+                if done.result.columns > 0 || done.result.beams > 0 {
+                    self.console_push(
+                        "INFO",
+                        format!(
+                            "[SemanticDetector] Steel members created: {} columns, {} beams, {} plates",
+                            done.result.columns, done.result.beams, done.result.plates
+                        ),
+                    );
+                }
+                self.file_message = Some((
+                    format!(
+                        "場景建構完成: {} 柱 + {} 梁 + {} 板 + {} Mesh",
+                        done.result.columns, done.result.beams, done.result.plates, done.result.meshes
+                    ),
+                    std::time::Instant::now(),
+                ));
+            }
+            BackgroundTaskResult::Build(Err(e)) => {
+                self.console_push("ERROR", format!("[Import] 場景建構失敗: {}", e));
+                self.file_message = Some((format!("場景建構失敗:\n{}", e), std::time::Instant::now()));
+            }
+        }
     }
 
     pub(crate) fn next_name(&mut self, prefix: &str) -> String {
@@ -561,6 +708,10 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.poll_background_task();
+        if self.background_task_active() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
         // ── Crash recovery: 啟動時檢查 autosave ──
         if !self.editor.recovery_checked {
             self.editor.recovery_checked = true;
@@ -1049,7 +1200,7 @@ impl eframe::App for KolibriApp {
                 };
                 let hf = self.editor.hovered_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
                 let sf = self.editor.selected_face.as_ref().map(|(id, face)| (id.as_str(), face.as_u8()));
-                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, self.viewer.grid_spacing);
+                self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), self.editor.editing_component_def_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, self.viewer.grid_spacing);
 
                 if let Some(tex_id) = self.viewport.texture_id {
                     ui.painter().image(tex_id, rect, egui::Rect::from_min_max(egui::pos2(0.0,0.0), egui::pos2(1.0,1.0)), egui::Color32::WHITE);

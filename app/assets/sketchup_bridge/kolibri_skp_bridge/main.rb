@@ -54,20 +54,21 @@ module Kolibri
         materials: {},
         material_list: [],
         meshes: [],
+        mesh_index: {},
         instances: [],
         groups: [],
         group_index: {},
         component_defs: [],
-        component_map: {}
+        component_map: {},
+        definition_map: {}
       }
 
-      export_component_definitions(model, state)
-      export_entities(model.entities, Geom::Transformation.new, nil, state, 'root')
+      export_root_entities(model.entities, state)
 
       {
-        'bridge_version' => '0.1.0',
-        'source_file' => model.path.to_s,
-        'model_name' => model.title.to_s,
+        'bridge_version' => '0.2.0',
+        'source_file' => sanitize_text(model.path.to_s),
+        'model_name' => sanitize_text(model.title.to_s),
         'units' => model_units(model),
         'materials' => state[:material_list],
         'meshes' => state[:meshes],
@@ -77,83 +78,98 @@ module Kolibri
       }
     end
 
-    def export_component_definitions(model, state)
-      model.definitions.each do |definition|
-        next if definition.group?
-        next if definition.image?
-
-        def_id = "comp_#{entity_id(definition)}"
-        mesh_ids = build_direct_meshes(
-          definition.entities,
-          Geom::Transformation.new,
-          state,
-          "def_#{entity_id(definition)}",
-          definition_name(definition)
-        )
-
-        component = {
-          'id' => def_id,
-          'name' => definition_name(definition),
-          'mesh_ids' => mesh_ids,
-          'instance_count' => definition.count_instances
-        }
-
-        state[:component_map][definition] = component
-        state[:component_defs] << component
-      end
-    end
-
-    def export_entities(entities, transform, parent_group_id, state, prefix)
-      direct_mesh_ids = build_direct_meshes(entities, transform, state, prefix, prefix)
-      direct_mesh_ids.each do |mesh_id|
+    def export_root_entities(entities, state)
+      root_mesh_ids = build_direct_meshes(entities, state, 'root', 'Root')
+      root_mesh_ids.each do |mesh_id|
         create_instance(state, {
           'mesh_id' => mesh_id,
           'component_def_id' => nil,
           'transform' => IDENTITY,
-          'name' => prefix,
+          'name' => 'Root',
           'layer' => '',
-          'parent_group_id' => parent_group_id
+          'parent_group_id' => nil
         })
       end
 
-      entities.each do |entity|
-        case entity
-        when Sketchup::Group
-          export_group(entity, transform, parent_group_id, state)
-        when Sketchup::ComponentInstance
-          export_component_instance(entity, transform, parent_group_id, state)
-        end
+      export_nested_children(entities, Geom::Transformation.new, nil, state)
+    end
+
+    def export_definition(definition, state)
+      return state[:definition_map][definition] if state[:definition_map].key?(definition)
+
+      mesh_ids = build_direct_meshes(
+        definition.entities,
+        state,
+        "def_#{entity_id(definition)}",
+        definition_name(definition)
+      )
+
+      definition_info = {
+        'id' => "def_#{entity_id(definition)}",
+        'component_id' => "comp_#{entity_id(definition)}",
+        'name' => definition_name(definition),
+        'mesh_ids' => mesh_ids,
+        'group_definition' => definition.group?
+      }
+
+      state[:definition_map][definition] = definition_info
+
+      unless definition.group? || definition.image?
+        component = {
+          'id' => definition_info['component_id'],
+          'name' => definition_info['name'],
+          'mesh_ids' => mesh_ids,
+          'instance_count' => definition.count_instances
+        }
+        state[:component_map][definition] = component
+        state[:component_defs] << component
       end
+
+      definition_info
     end
 
     def export_group(group, parent_transform, parent_group_id, state)
       gid = "grp_#{entity_id(group)}"
       create_group(state, gid, object_name(group, 'Group'), parent_group_id)
 
+      definition_info = export_definition(group.definition, state)
       world_transform = parent_transform * group.transformation
-      export_entities(group.entities, world_transform, gid, state, gid)
+      transform_array = world_transform.to_a.map { |v| v.to_f }
+
+      definition_info['mesh_ids'].each do |mesh_id|
+        create_instance(state, {
+          'mesh_id' => mesh_id,
+          'component_def_id' => nil,
+          'transform' => transform_array,
+          'name' => object_name(group, 'Group'),
+          'layer' => entity_layer(group),
+          'parent_group_id' => gid
+        })
+      end
+
+      export_nested_children(group.definition.entities, world_transform, gid, state)
     end
 
     def export_component_instance(instance, parent_transform, parent_group_id, state)
       definition = instance.definition
+      definition_info = export_definition(definition, state)
       component = state[:component_map][definition]
 
       gid = "cmpinst_#{entity_id(instance)}"
       create_group(state, gid, object_name(instance, definition_name(definition)), parent_group_id)
 
       world_transform = parent_transform * instance.transformation
+      transform_array = world_transform.to_a.map { |v| v.to_f }
 
-      if component
-        component['mesh_ids'].each do |mesh_id|
-          create_instance(state, {
-            'mesh_id' => mesh_id,
-            'component_def_id' => component['id'],
-            'transform' => world_transform.to_a.map { |v| v.to_f },
-            'name' => object_name(instance, definition_name(definition)),
-            'layer' => entity_layer(instance),
-            'parent_group_id' => gid
-          })
-        end
+      definition_info['mesh_ids'].each do |mesh_id|
+        create_instance(state, {
+          'mesh_id' => mesh_id,
+          'component_def_id' => component ? component['id'] : nil,
+          'transform' => transform_array,
+          'name' => object_name(instance, definition_name(definition)),
+          'layer' => entity_layer(instance),
+          'parent_group_id' => gid
+        })
       end
 
       export_nested_children(definition.entities, world_transform, gid, state)
@@ -170,7 +186,7 @@ module Kolibri
       end
     end
 
-    def build_direct_meshes(entities, transform, state, prefix, name_base)
+    def build_direct_meshes(entities, state, prefix, name_base)
       buckets = {}
 
       entities.grep(Sketchup::Face).each do |face|
@@ -189,16 +205,13 @@ module Kolibri
           point_indices = polygon.map { |idx| idx.abs - 1 }
           next if point_indices.length < 3
 
-          transformed = point_indices.map do |point_index|
-            points[point_index].transform(transform)
-          end
-
+          local_points = point_indices.map { |point_index| points[point_index] }
           base = bucket['vertices'].length
-          transformed.each do |pt|
+          local_points.each do |pt|
             bucket['vertices'] << [pt.x.to_f, pt.y.to_f, pt.z.to_f]
           end
 
-          (1...(transformed.length - 1)).each do |fan|
+          (1...(local_points.length - 1)).each do |fan|
             bucket['indices'] << base
             bucket['indices'] << base + fan
             bucket['indices'] << base + fan + 1
@@ -211,14 +224,17 @@ module Kolibri
         next if bucket['indices'].empty?
 
         mesh_id = "#{prefix}_mesh_#{index}"
-        state[:meshes] << {
-          'id' => mesh_id,
-          'name' => "#{name_base}_#{material_key}",
-          'vertices' => bucket['vertices'],
-          'normals' => [],
-          'indices' => bucket['indices'],
-          'material_id' => bucket['material_id']
-        }
+        unless state[:mesh_index].key?(mesh_id)
+          state[:mesh_index][mesh_id] = true
+          state[:meshes] << {
+            'id' => mesh_id,
+            'name' => sanitize_text("#{name_base}_#{material_key}"),
+            'vertices' => bucket['vertices'],
+            'normals' => [],
+            'indices' => bucket['indices'],
+            'material_id' => bucket['material_id']
+          }
+        end
         mesh_ids << mesh_id
       end
 
@@ -235,13 +251,13 @@ module Kolibri
       alpha = material.alpha.to_f
       texture_path = nil
       if material.texture
-        texture_path = material.texture.filename.to_s
+        texture_path = sanitize_text(material.texture.filename.to_s)
       end
 
       state[:materials][mat_id] = true
       state[:material_list] << {
         'id' => mat_id,
-        'name' => material.display_name.to_s,
+        'name' => sanitize_text(material.display_name.to_s),
         'color' => [
           color.red.to_f / 255.0,
           color.green.to_f / 255.0,
@@ -294,7 +310,7 @@ module Kolibri
     end
 
     def object_name(entity, fallback)
-      value = entity.name.to_s.strip
+      value = sanitize_text(entity.name.to_s).strip
       value.empty? ? fallback : value
     end
 
@@ -304,9 +320,9 @@ module Kolibri
 
     def entity_layer(entity)
       if entity.respond_to?(:layer) && entity.layer
-        entity.layer.name.to_s
+        sanitize_text(entity.layer.name.to_s)
       elsif entity.respond_to?(:tag) && entity.tag
-        entity.tag.name.to_s
+        sanitize_text(entity.tag.name.to_s)
       else
         ''
       end
@@ -324,6 +340,14 @@ module Kolibri
       end
     rescue
       'inch'
+    end
+
+    def sanitize_text(value)
+      value.to_s
+        .encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+        .gsub(/[\u0000-\u001F]/, ' ')
+    rescue
+      value.to_s.gsub(/[\u0000-\u001F]/, ' ')
     end
 
     def same_path?(a, b)

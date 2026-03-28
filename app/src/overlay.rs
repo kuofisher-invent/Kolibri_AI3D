@@ -1,4 +1,4 @@
-//! 2D overlay 繪圖工具（虛線、圓弧計算）
+﻿//! 2D overlay 繪圖工具（虛線、圓弧計算）
 //! 從 app.rs 拆分出來
 
 use eframe::egui;
@@ -1327,21 +1327,7 @@ impl KolibriApp {
 
                     if confirm_resp.clicked() {
                         let ir_data = self.pending_unified_ir.take().unwrap();
-                        self.scene.snapshot();
-                        let result = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir_data);
-                        self.editor.selected_ids = result.ids;
-                        self.zoom_extents();
-                        if result.columns > 0 || result.beams > 0 {
-                            self.console_push("INFO", format!(
-                                "[SemanticDetector] Steel members created: {} columns, {} beams, {} plates",
-                                result.columns, result.beams, result.plates
-                            ));
-                        }
-                        self.file_message = Some((
-                            format!("建模完成: {} 柱 + {} 梁 + {} 板 + {} 網格",
-                                result.columns, result.beams, result.plates, result.meshes),
-                            std::time::Instant::now()
-                        ));
+                        self.start_scene_build_task(ir_data);
                     }
                     if cancel_resp.clicked() {
                         self.pending_unified_ir = None;

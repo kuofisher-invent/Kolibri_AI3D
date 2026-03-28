@@ -1,4 +1,4 @@
-use eframe::egui;
+﻿use eframe::egui;
 
 use crate::app::{
     compute_arc, DrawState, KolibriApp, PullFace, RenderMode, RightTab, ScaleHandle, SelectionMode, Tool,
@@ -3339,37 +3339,7 @@ impl KolibriApp {
                 if let Some(path) = file {
                     let ps = path.to_string_lossy().to_string();
                     self.console_push("INFO", format!("[Import] 開始匯入: {}", ps));
-                    match crate::import::import_manager::import_file(&ps) {
-                        Ok(ir) => {
-                            // Push structured debug report to console
-                            for line in &ir.debug_report {
-                                let level = if line.contains("❌") || line.contains("ERROR") { "WARN" }
-                                    else if line.contains("⚠") { "WARN" }
-                                    else { "INFO" };
-                                self.console_push(level, line.clone());
-                            }
-                            if ir.debug_report.is_empty() {
-                                self.console_push("INFO", format!("[Import] 格式: {} | 頂點: {} | 面: {} | 網格: {} | 構件: {} | 材質: {}",
-                                    ir.source_format.to_uppercase(),
-                                    ir.stats.vertex_count, ir.stats.face_count,
-                                    ir.stats.mesh_count, ir.stats.member_count, ir.stats.material_count));
-                            }
-                            let summary = format!(
-                                "匯入解析完成 ({})\n\n頂點: {}\n面: {}\n網格: {}\n群組: {}\n構件: {}\n材質: {}",
-                                ir.source_format.to_uppercase(),
-                                ir.stats.vertex_count, ir.stats.face_count,
-                                ir.stats.mesh_count, ir.stats.group_count,
-                                ir.stats.member_count, ir.stats.material_count,
-                            );
-                            self.viewer.show_console = true; // auto-open console on import
-                            self.pending_unified_ir = Some(ir);
-                            self.file_message = Some((summary, std::time::Instant::now()));
-                        }
-                        Err(e) => {
-                            self.console_push("ERROR", format!("[Import] 匯入失敗: {}", e));
-                            self.file_message = Some((format!("匯入失敗:\n{}", e), std::time::Instant::now()));
-                        }
-                    }
+                    self.start_import_task(ps.clone());
                 }
             }
             MenuAction::SplitObject => {

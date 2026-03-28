@@ -408,6 +408,7 @@ pub struct ViewportRenderer {
     cached_idx: Vec<u32>,
     cached_edge_thickness: f32,
     cached_render_mode: u32,
+    cached_editing_component_def_id: Option<String>,
     /// Per-object mesh cache for incremental rebuild
     per_object_cache: std::collections::HashMap<String, (u64, Vec<Vertex>, Vec<u32>)>,
     // ── Performance: shadow caching ──
@@ -618,6 +619,7 @@ impl ViewportRenderer {
             cached_idx: Vec::new(),
             cached_edge_thickness: -1.0,
             cached_render_mode: u32::MAX,
+            cached_editing_component_def_id: None,
             per_object_cache: std::collections::HashMap::new(),
             // Pre-allocated GPU buffers (None = not yet created)
             cached_shadow_verts: Vec::new(),
@@ -911,6 +913,7 @@ impl ViewportRenderer {
         selected_ids: &[String],
         hovered_id: Option<&str>,
         editing_group_id: Option<&str>,
+        editing_component_def_id: Option<&str>,
         preview: &(Vec<Vertex>, Vec<u32>),
         render_mode: u32,
         sky_color: [f32; 3],
@@ -959,11 +962,12 @@ impl ViewportRenderer {
         let has_preview = !preview.0.is_empty();
         let style_changed = (self.cached_edge_thickness - edge_thickness).abs() > 0.01
             || self.cached_render_mode != render_mode;
-        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed;
+        let editing_component_changed = self.cached_editing_component_def_id.as_deref() != editing_component_def_id;
+        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed || editing_component_changed;
 
         if scene_dirty {
             let (verts, idx) = build_scene_mesh(
-                scene, selected_ids, hovered_id, editing_group_id,
+                scene, selected_ids, hovered_id, editing_group_id, editing_component_def_id,
                 hovered_face, selected_face,
                 edge_thickness, render_mode,
                 texture_manager,
@@ -974,6 +978,7 @@ impl ViewportRenderer {
             self.cached_scene_version = scene.version;
             self.cached_edge_thickness = edge_thickness;
             self.cached_render_mode = render_mode;
+            self.cached_editing_component_def_id = editing_component_def_id.map(|s| s.to_string());
         }
 
         // Combine cached scene mesh + preview geometry
@@ -1372,6 +1377,7 @@ fn generate_grid(size: f32, step: f32) -> Vec<Vertex> {
 fn build_scene_mesh(
     scene: &Scene, selected_ids: &[String], hovered: Option<&str>,
     editing_group_id: Option<&str>,
+    editing_component_def_id: Option<&str>,
     hovered_face: Option<(&str, u8)>,
     selected_face: Option<(&str, u8)>,
     edge_thickness_param: f32,
@@ -1438,6 +1444,15 @@ fn build_scene_mesh(
         // Group isolation: dim non-group objects
         if let Some(gid) = editing_group_id {
             if obj.id != gid {
+                color[0] *= 0.3;
+                color[1] *= 0.3;
+                color[2] *= 0.3;
+                color[3] *= 0.3;
+            }
+        }
+
+        if let Some(def_id) = editing_component_def_id {
+            if obj.component_def_id.as_deref() != Some(def_id) {
                 color[0] *= 0.3;
                 color[1] *= 0.3;
                 color[2] *= 0.3;
@@ -1842,7 +1857,7 @@ fn build_scene_mesh(
     {
         let mesh = &scene.free_mesh;
         let mat_color = scene.free_mesh_material.color();
-        let face_color = if editing_group_id.is_some() {
+        let face_color = if editing_group_id.is_some() || editing_component_def_id.is_some() {
             [mat_color[0] * 0.3, mat_color[1] * 0.3, mat_color[2] * 0.3, mat_color[3]]
         } else {
             mat_color

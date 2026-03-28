@@ -2,6 +2,57 @@
 
 Last updated: 2026-03-27
 
+## 2026-03-27 Status Update
+
+The repo is no longer at the "placeholder scene reconstruction" stage described below.
+The current implementation has already moved several major pieces into production shape:
+
+- SketchUp bridge export is now definition-based instead of flattening repeated geometry.
+- Rust import now supports `SkpBackend`-style bridge loading into `UnifiedIR`.
+- `ImportCache` exists as a staging layer for `meshes`, `instances`, `groups`, `component_defs`, and `materials`.
+- `build_scene_from_ir()` / import manager now reconstruct real mesh objects, groups, component definitions, and component instances.
+- `SceneObject` has a formal `component_def_id`, with legacy tag fallback only for older data.
+- The app UI now has a scene hierarchy view plus `definition -> instances` browsing for imported components.
+- The app also has an explicit component editing mode with sync/exit workflow.
+
+In other words:
+
+1. `bridge JSON -> UnifiedIR` is working
+2. `UnifiedIR -> Scene` is working
+3. app-side component/group editing UX is partially working
+
+What is still incomplete is not the basic import path, but the next refinement layer:
+
+- make the bridge preserve even more SketchUp metadata
+- keep improving very large scene performance
+- evolve `ComponentDef` from snapshot-like storage toward a cleaner definition graph
+- eventually replace the bridge with an FFI/native backend if SDK access is ready
+
+## Current Recommended Architecture
+
+Current practical pipeline in this repo:
+
+```text
+SKP
+-> SketchUp bridge backend
+-> bridge JSON
+-> UnifiedIR
+-> ImportCache
+-> Scene
+-> Scene hierarchy / component editing UI
+```
+
+Current recommendation:
+
+- treat the SketchUp bridge as the production backend
+- keep Rust as the owner of parsing, validation, caching, and scene reconstruction
+- keep the door open for a future native SDK/FFI backend without rewriting the app-side pipeline
+
+Related status notes:
+
+- `docs/project/SKP_STATUS_UPDATE_2026_03_27.md`
+- `docs/project/COMPONENT_EDITING_STATUS.md`
+
 ## Goal
 
 Use Rust to read SketchUp `.skp` files and import enough structure into Kolibri so the app can preserve:

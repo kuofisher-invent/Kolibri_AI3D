@@ -32,6 +32,7 @@ mod panels;
 mod preview;
 mod renderer;
 mod scene;
+mod scene_hierarchy;
 mod snap;
 mod stl_io;
 mod test_bridge;
@@ -58,6 +59,14 @@ fn main() -> eframe::Result<()> {
 
     if let Some(path) = cli_arg_value(&args, "--verify-import") {
         return run_verify_import("auto", path);
+    }
+
+    if let Some(path) = cli_arg_value(&args, "--export-skp-bridge-json") {
+        return run_export_skp_bridge_json(&args, path);
+    }
+
+    if let Some(path) = cli_arg_value(&args, "--verify-bridge-json") {
+        return run_verify_bridge_json(&args, path);
     }
 
     // 結構化日誌（tracing 取代 env_logger）
@@ -203,11 +212,88 @@ fn run_verify_import(kind: &str, path: &str) -> eframe::Result<()> {
         )));
     }
 
-    let mut scene = crate::scene::Scene::default();
-    let build = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
+    let report = build_verify_report(
+        kind.to_string(),
+        ir,
+        std::env::args().any(|arg| arg == "--verify-no-scene"),
+    );
+    print_verify_report(&report);
 
-    let report = VerifyReport {
-        verify_kind: kind.to_string(),
+    if let Some(output_path) = cli_arg_value(&std::env::args().collect::<Vec<_>>(), "--verify-out") {
+        let json = serde_json::to_string_pretty(&report).map_err(|e| io_error_to_eframe(e.to_string()))?;
+        std::fs::write(output_path, json).map_err(|e| io_error_to_eframe(e.to_string()))?;
+    }
+
+    Ok(())
+}
+
+fn run_export_skp_bridge_json(args: &[String], path: &str) -> eframe::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
+
+    let export_path = crate::import::sketchup_bridge_backend::export_bridge_json(path)
+        .map_err(io_error_to_eframe)?;
+
+    if let Some(output_path) = cli_arg_value(args, "--verify-out") {
+        std::fs::copy(&export_path, output_path).map_err(|e| io_error_to_eframe(e.to_string()))?;
+        println!("bridge_json={}", output_path);
+    } else {
+        println!("bridge_json={}", export_path.display());
+    }
+
+    Ok(())
+}
+
+fn run_verify_bridge_json(args: &[String], json_path: &str) -> eframe::Result<()> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .init();
+
+    let source_file = cli_arg_value(args, "--source-file");
+    let ir = crate::import::sketchup_bridge_backend::import_bridge_json_file(json_path, source_file)
+        .map_err(io_error_to_eframe)?;
+
+    let report = build_verify_report(
+        "bridge_json".to_string(),
+        ir,
+        args.iter().any(|arg| arg == "--verify-no-scene"),
+    );
+    print_verify_report(&report);
+
+    if let Some(output_path) = cli_arg_value(args, "--verify-out") {
+        let json = serde_json::to_string_pretty(&report).map_err(|e| io_error_to_eframe(e.to_string()))?;
+        std::fs::write(output_path, json).map_err(|e| io_error_to_eframe(e.to_string()))?;
+    }
+
+    Ok(())
+}
+
+fn build_verify_report(
+    verify_kind: String,
+    ir: crate::import::unified_ir::UnifiedIR,
+    skip_scene: bool,
+) -> VerifyReport {
+    let (scene_objects, scene_groups, scene_component_defs, built_meshes, built_columns, built_beams) =
+        if skip_scene {
+            (0, 0, 0, 0, 0, 0)
+        } else {
+            let mut scene = crate::scene::Scene::default();
+            let build = crate::import::import_manager::build_scene_from_ir(&mut scene, &ir);
+            (
+                scene.objects.len(),
+                scene.groups.len(),
+                scene.component_defs.len(),
+                build.meshes,
+                build.columns,
+                build.beams,
+            )
+        };
+
+    VerifyReport {
+        verify_kind,
         source_format: ir.source_format.clone(),
         source_file: ir.source_file.clone(),
         units: ir.units.clone(),
@@ -218,15 +304,17 @@ fn run_verify_import(kind: &str, path: &str) -> eframe::Result<()> {
         materials: ir.stats.material_count,
         vertices: ir.stats.vertex_count,
         faces: ir.stats.face_count,
-        scene_objects: scene.objects.len(),
-        scene_groups: scene.groups.len(),
-        scene_component_defs: scene.component_defs.len(),
-        built_meshes: build.meshes,
-        built_columns: build.columns,
-        built_beams: build.beams,
+        scene_objects,
+        scene_groups,
+        scene_component_defs,
+        built_meshes,
+        built_columns,
+        built_beams,
         debug: ir.debug_report.clone(),
-    };
+    }
+}
 
+fn print_verify_report(report: &VerifyReport) {
     println!("verify_kind={}", report.verify_kind);
     println!("source_format={}", report.source_format);
     println!("source_file={}", report.source_file);
@@ -247,13 +335,6 @@ fn run_verify_import(kind: &str, path: &str) -> eframe::Result<()> {
     for line in &report.debug {
         println!("debug={}", line);
     }
-
-    if let Some(output_path) = cli_arg_value(&std::env::args().collect::<Vec<_>>(), "--verify-out") {
-        let json = serde_json::to_string_pretty(&report).map_err(|e| io_error_to_eframe(e.to_string()))?;
-        std::fs::write(output_path, json).map_err(|e| io_error_to_eframe(e.to_string()))?;
-    }
-
-    Ok(())
 }
 
 fn io_error_to_eframe(message: impl Into<String>) -> eframe::Error {
