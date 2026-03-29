@@ -265,9 +265,10 @@ impl KolibriApp {
                 // ── Navigation pad (bottom-left of viewport) ──
                 {
                     let pad_size = 130.0;
+                    let pad_h = pad_size + 24.0;
                     let pad_rect = egui::Rect::from_min_size(
-                        egui::pos2(rect.left() + 16.0, rect.bottom() - pad_size - 60.0),
-                        egui::vec2(pad_size, pad_size + 24.0),
+                        egui::pos2(rect.left() + 16.0, rect.bottom() - pad_h - 16.0),
+                        egui::vec2(pad_size, pad_h),
                     );
                     ui.painter().rect_filled(pad_rect, 22.0,
                         egui::Color32::from_rgba_unmultiplied(255, 255, 255, 225));
@@ -280,17 +281,27 @@ impl KolibriApp {
                         egui::Align2::LEFT_TOP, "\u{8996}\u{89d2} / \u{5e73}\u{79fb}",
                         egui::FontId::proportional(11.0), egui::Color32::from_rgb(110, 118, 135));
 
-                    // 3x3 button grid
-                    let arrows = ["", "\u{2191}", "", "\u{2190}", "\u{29bf}", "\u{2192}", "", "\u{2193}", ""];
+                    // 3x3 button grid + zoom buttons integrated
+                    //    ↑
+                    // ←  ⊿  →
+                    // +  ↓  −
+                    let buttons: [(usize, usize, &str, i32); 8] = [
+                        (0, 1, "\u{2191}", 1),  // row0 col1 = ↑ (forward)
+                        (1, 0, "\u{2190}", 3),  // row1 col0 = ← (strafe left)
+                        (1, 1, "\u{29bf}", 4),  // row1 col1 = ⊿ (reset iso)
+                        (1, 2, "\u{2192}", 5),  // row1 col2 = → (strafe right)
+                        (2, 0, "+", 10),         // row2 col0 = + (zoom in)
+                        (2, 1, "\u{2193}", 7),  // row2 col1 = ↓ (backward)
+                        (2, 2, "\u{2212}", 11), // row2 col2 = − (zoom out)
+                        (0, 0, "", -1),          // placeholder
+                    ];
                     let btn_size = 32.0;
                     let gap = 6.0;
                     let grid_start_x = pad_rect.center().x - (btn_size * 1.5 + gap);
                     let grid_start_y = pad_rect.top() + 28.0;
 
-                    for (i, label) in arrows.iter().enumerate() {
+                    for &(row, col, label, action) in &buttons {
                         if label.is_empty() { continue; }
-                        let row = i / 3;
-                        let col = i % 3;
                         let btn_rect = egui::Rect::from_min_size(
                             egui::pos2(
                                 grid_start_x + col as f32 * (btn_size + gap),
@@ -313,67 +324,17 @@ impl KolibriApp {
 
                         if response.clicked() {
                             let step = self.viewer.camera.distance * 0.1;
-                            match i {
+                            match action {
                                 1 => self.viewer.camera.walk_forward(step),
                                 3 => self.viewer.camera.walk_strafe(-step),
                                 4 => self.viewer.animate_camera_to(|c| c.set_iso()),
                                 5 => self.viewer.camera.walk_strafe(step),
                                 7 => self.viewer.camera.walk_forward(-step),
+                                10 => self.viewer.camera.distance = (self.viewer.camera.distance * 0.8).clamp(10.0, 200_000.0),
+                                11 => self.viewer.camera.distance = (self.viewer.camera.distance * 1.2).clamp(10.0, 200_000.0),
                                 _ => {}
                             }
                         }
-                    }
-                }
-
-                // ── Zoom In / Zoom Out buttons (below navigation pad) ──
-                {
-                    let zoom_btn_w = 58.0;
-                    let zoom_btn_h = 32.0;
-                    let zoom_gap = 6.0;
-                    let zoom_total_w = zoom_btn_w * 2.0 + zoom_gap;
-                    let zoom_x = rect.left() + 16.0 + (130.0 - zoom_total_w) / 2.0;
-                    let zoom_y = rect.bottom() - 52.0; // below nav pad
-
-                    // "+" Zoom In
-                    let plus_rect = egui::Rect::from_min_size(
-                        egui::pos2(zoom_x, zoom_y),
-                        egui::vec2(zoom_btn_w, zoom_btn_h),
-                    );
-                    let plus_resp = ui.allocate_rect(plus_rect, egui::Sense::click());
-                    let plus_bg = if plus_resp.hovered() {
-                        egui::Color32::from_rgb(240, 242, 248)
-                    } else {
-                        egui::Color32::WHITE
-                    };
-                    ui.painter().rect_filled(plus_rect, 12.0, plus_bg);
-                    ui.painter().rect_stroke(plus_rect, 12.0,
-                        egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)));
-                    ui.painter().text(plus_rect.center(), egui::Align2::CENTER_CENTER,
-                        "+", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
-                    if plus_resp.clicked() {
-                        // Zoom in: decrease distance by 20%
-                        self.viewer.camera.distance = (self.viewer.camera.distance * 0.8).clamp(10.0, 200_000.0);
-                    }
-
-                    // "-" Zoom Out
-                    let minus_rect = egui::Rect::from_min_size(
-                        egui::pos2(zoom_x + zoom_btn_w + zoom_gap, zoom_y),
-                        egui::vec2(zoom_btn_w, zoom_btn_h),
-                    );
-                    let minus_resp = ui.allocate_rect(minus_rect, egui::Sense::click());
-                    let minus_bg = if minus_resp.hovered() {
-                        egui::Color32::from_rgb(240, 242, 248)
-                    } else {
-                        egui::Color32::WHITE
-                    };
-                    ui.painter().rect_filled(minus_rect, 12.0, minus_bg);
-                    ui.painter().rect_stroke(minus_rect, 12.0,
-                        egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)));
-                    ui.painter().text(minus_rect.center(), egui::Align2::CENTER_CENTER,
-                        "\u{2212}", egui::FontId::proportional(16.0), egui::Color32::from_rgb(110, 118, 135));
-                    if minus_resp.clicked() {
-                        // Zoom out: increase distance by 20%
-                        self.viewer.camera.distance = (self.viewer.camera.distance * 1.2).clamp(10.0, 200_000.0);
                     }
                 }
 
