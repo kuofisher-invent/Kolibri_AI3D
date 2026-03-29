@@ -796,6 +796,54 @@ impl ViewportRenderer {
                 } else { None }
             } else { None };
 
+            // ── Build selection highlight buffers（tinted faces + blue edges）──
+            let sel_highlight_bufs = if !selected_ids.is_empty() {
+                let sel_set: std::collections::HashSet<&str> = selected_ids.iter().map(|s| s.as_str()).collect();
+                let mut tinted_verts: Vec<Vertex> = Vec::new();
+                let mut tinted_idx: Vec<u32> = Vec::new();
+                let mut blue_edges: Vec<Vertex> = Vec::new();
+                let sel_tint = [0.2_f32, 0.5, 1.0]; // blue tint
+                let edge_color = [0.15_f32, 0.45, 1.0, 1.0];
+
+                for sel_id in &sel_set {
+                    if let Some(slot) = self.gpu_objects.get(*sel_id) {
+                        let base = tinted_verts.len() as u32;
+                        for v in &slot.cpu_face_verts {
+                            let c = v.color;
+                            tinted_verts.push(Vertex {
+                                position: v.position,
+                                normal: v.normal,
+                                color: [
+                                    c[0] * 0.4 + sel_tint[0] * 0.6,
+                                    c[1] * 0.4 + sel_tint[1] * 0.6,
+                                    c[2] * 0.4 + sel_tint[2] * 0.6,
+                                    c[3],
+                                ],
+                            });
+                        }
+                        tinted_idx.extend(slot.cpu_face_idx.iter().map(|i| i + base));
+                        for v in &slot.cpu_edge_verts {
+                            blue_edges.push(Vertex { position: v.position, normal: v.normal, color: edge_color });
+                        }
+                    }
+                }
+
+                if !tinted_verts.is_empty() {
+                    let fvb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None, contents: bytemuck::cast_slice(&tinted_verts), usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    let fib = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None, contents: bytemuck::cast_slice(&tinted_idx), usage: wgpu::BufferUsages::INDEX,
+                    });
+                    let evb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: if blue_edges.is_empty() { &[0u8; 40] } else { bytemuck::cast_slice(&blue_edges) },
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    Some((fvb, fib, tinted_idx.len() as u32, evb, blue_edges.len() as u32))
+                } else { None }
+            } else { None };
+
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("viewport_enc"),
             });
@@ -858,11 +906,27 @@ impl ViewportRenderer {
                     }
                 }
 
-                // ── Selection highlight（AABB outline）──
-                if let Some((ref sel_buf, sel_count)) = sel_outline_buf {
-                    pass.set_pipeline(&self.line_pipeline);
-                    pass.set_vertex_buffer(0, sel_buf.slice(..));
-                    pass.draw(0..sel_count, 0..1);
+                // ── Selection highlight（選取物件 tint + outline + edges）──
+                if let Some((ref sel_face_vb, ref sel_face_ib, sel_face_count, ref sel_edge_vb, sel_edge_count)) = sel_highlight_bufs {
+                    // Tinted faces
+                    if sel_face_count > 0 {
+                        pass.set_pipeline(&self.tri_pipeline);
+                        pass.set_vertex_buffer(0, sel_face_vb.slice(..));
+                        pass.set_index_buffer(sel_face_ib.slice(..), wgpu::IndexFormat::Uint32);
+                        pass.draw_indexed(0..sel_face_count, 0, 0..1);
+                    }
+                    // AABB outline
+                    if let Some((ref sel_buf, sel_count)) = sel_outline_buf {
+                        pass.set_pipeline(&self.line_pipeline);
+                        pass.set_vertex_buffer(0, sel_buf.slice(..));
+                        pass.draw(0..sel_count, 0..1);
+                    }
+                    // Edges（藍色）
+                    if sel_edge_count > 0 {
+                        pass.set_pipeline(&self.line_pipeline);
+                        pass.set_vertex_buffer(0, sel_edge_vb.slice(..));
+                        pass.draw(0..sel_edge_count, 0..1);
+                    }
                 }
 
                 // Preview geometry

@@ -140,13 +140,18 @@ impl KolibriApp {
                     if shift {
                         self.viewer.camera.pan(d.x, d.y);
                     } else if self.editor.rubber_band.is_some() {
-                        // Continue rubber band drag (don't break on hover)
+                        // Continue rubber band drag
                         if let Some(hp) = response.hover_pos() {
                             if let Some((_, ref mut end)) = self.editor.rubber_band {
                                 *end = hp;
                             }
                         }
-                    } else if self.editor.hovered_id.is_none() {
+                    } else if self.editor.selected_ids.is_empty() && self.editor.hovered_id.is_none() {
+                        // 只有在沒有選取物件且沒有 hover 物件時才 orbit
+                        // 大場景下 hovered_id 可能是 None 但有選取物件，此時不 orbit
+                        self.viewer.camera.orbit(d.x, d.y);
+                    } else if self.editor.hovered_id.is_none() && self.scene.objects.len() > 500 {
+                        // 大場景：沒有 hover 功能，左鍵拖曳 = orbit（用中鍵替代）
                         self.viewer.camera.orbit(d.x, d.y);
                     }
                 }
