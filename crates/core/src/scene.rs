@@ -102,6 +102,9 @@ pub struct SceneObject {
     /// 鎖定物件（防止選取/移動/刪除）
     #[serde(default)]
     pub locked: bool,
+    /// 物件版本（每次修改遞增，用於增量渲染快取）
+    #[serde(default)]
+    pub obj_version: u64,
 }
 
 fn default_tag() -> String { "預設".to_string() }
@@ -348,7 +351,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         id
     }
@@ -404,7 +407,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         self.version += 1;
         id
@@ -421,7 +424,7 @@ impl Scene {
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         self.version += 1;
         id
@@ -438,7 +441,7 @@ impl Scene {
             shape: Shape::Sphere { radius: r, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         self.version += 1;
         id
@@ -456,7 +459,7 @@ impl Scene {
             shape: Shape::Line { points, thickness, arc_center: None, arc_radius: None, arc_angle_deg: None },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         self.version += 1;
         id
@@ -473,7 +476,7 @@ impl Scene {
             shape: Shape::Mesh(mesh),
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });
         id
     }

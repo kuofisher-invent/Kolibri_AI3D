@@ -85,8 +85,29 @@ pub fn build_scene_from_cache(
     cache: &ImportCache,
 ) -> BuildResult {
     let mut result = BuildResult::default();
-    let mut mesh_cache: HashMap<String, crate::halfedge::HeMesh> = HashMap::new();
     let build_started = Instant::now();
+
+    // ── 平行建置 HeMesh 快取（rayon）──
+    let phase_started = Instant::now();
+    let mesh_entries: Vec<_> = cache.meshes_in_order()
+        .map(|m| m.ir.clone())
+        .collect();
+    let parallel_meshes: Vec<(String, Option<crate::halfedge::HeMesh>)> = {
+        use rayon::prelude::*;
+        mesh_entries.par_iter()
+            .map(|ir_mesh| {
+                let he = ir_mesh_to_he_mesh(ir_mesh);
+                (ir_mesh.id.clone(), he)
+            })
+            .collect()
+    };
+    let mut mesh_cache: HashMap<String, crate::halfedge::HeMesh> = HashMap::new();
+    for (id, he) in parallel_meshes {
+        if let Some(he) = he {
+            mesh_cache.insert(id, he);
+        }
+    }
+    result.phase_timings_ms.push(("parallel_he_mesh_build".into(), phase_started.elapsed().as_millis()));
 
     // Build members (columns, beams) using steel builder
     let phase_started = Instant::now();
@@ -188,12 +209,8 @@ pub fn build_scene_from_cache(
         let he_mesh = transformed_he_mesh(base_mesh, inst.ir.transform);
         referenced_meshes.insert(mesh.ir.id.clone());
 
-        // 計算 mesh 底部 Y，將物件放置在地面 (Y=0) 上
-        let min_y = he_mesh.vertices.values()
-            .map(|v| v.pos[1])
-            .fold(f32::MAX, f32::min);
-        let ground_offset_y = if min_y.is_finite() { -min_y } else { 0.0 };
-
+        // 頂點已在 world space（transform 已 bake），不做 per-instance 偏移
+        // 全域置中在最後統一處理（line 274+）
         let mut obj = imported_mesh_object(
             scene.next_id_pub(),
             if inst.ir.name.is_empty() {
@@ -201,7 +218,7 @@ pub fn build_scene_from_cache(
             } else {
                 inst.ir.name.clone()
             },
-            [0.0, ground_offset_y, 0.0],
+            [0.0, 0.0, 0.0],
             he_mesh,
             material_for_mesh(&mesh.ir, cache),
         );
@@ -213,6 +230,12 @@ pub fn build_scene_from_cache(
             inst.ir.layer.clone()
         };
         obj.component_def_id = inst.ir.component_def_id.clone();
+
+        // Debug: log material assignment
+        if result.meshes < 5 {
+            eprintln!("[MAT-DEBUG] obj={} mesh={} mat_id={:?} → material={:?} color={:?}",
+                obj.id, mesh.ir.id, mesh.ir.material_id, obj.material, obj.material.color());
+        }
 
         scene.objects.insert(obj.id.clone(), obj.clone());
         result.object_debug.insert(obj.id.clone(), imported_object_debug(&mesh.ir));
@@ -302,17 +325,38 @@ pub fn build_scene_from_cache(
             let bottom_y = global_min[1];
             let center_z = (global_min[2] + global_max[2]) / 2.0;
 
+            // 直接偏移頂點座標（不是 obj.position），讓物件幾何在原點附近
             for obj_id in &result.ids {
                 if let Some(obj) = scene.objects.get_mut(obj_id) {
-                    obj.position[0] -= center_x;
-                    obj.position[1] -= bottom_y; // bottom on ground (Y=0)
-                    obj.position[2] -= center_z;
+                    if let crate::scene::Shape::Mesh(ref mut he) = obj.shape {
+                        for v in he.vertices.values_mut() {
+                            v.pos[0] -= center_x;
+                            v.pos[1] -= bottom_y;
+                            v.pos[2] -= center_z;
+                        }
+                        // 偏移 SDK edge segments
+                        for seg in &mut he.sdk_edge_segments {
+                            seg.0[0] -= center_x; seg.0[1] -= bottom_y; seg.0[2] -= center_z;
+                            seg.1[0] -= center_x; seg.1[1] -= bottom_y; seg.1[2] -= center_z;
+                        }
+                        he.invalidate_cache();
+                    }
+                    // position 保持 [0,0,0]
                 }
             }
 
+            // 記錄場景範圍（用於相機自動 zoom）
+            let scene_extent = [
+                global_max[0] - global_min[0],
+                global_max[1] - global_min[1],
+                global_max[2] - global_min[2],
+            ];
+            result.scene_extent = Some(scene_extent);
+
             tracing::info!(
-                "[Import] Centered {} objects: offset=({:.1}, {:.1}, {:.1})",
+                "[Import] Centered {} objects: offset=({:.1}, {:.1}, {:.1}), extent=({:.0}x{:.0}x{:.0})",
                 result.ids.len(), -center_x, -bottom_y, -center_z,
+                scene_extent[0], scene_extent[1], scene_extent[2],
             );
         }
     }
@@ -351,6 +395,7 @@ fn imported_mesh_object(
         parent_id: None,
         component_def_id: None,
         locked: false,
+        obj_version: 0,
     }
 }
 
@@ -389,17 +434,18 @@ fn ir_mesh_to_he_mesh(
         he.add_face(&vertex_ids);
     }
 
+    // 填入 SDK 原始邊線（避免 fallback 到 vert_ids 路徑產生三角化對角線）
+    if !mesh.edges.is_empty() {
+        he.sdk_edge_segments = mesh.edges.clone();
+    }
+
     Some(he)
 }
 
 fn cached_he_mesh<'a>(
-    mesh_cache: &'a mut HashMap<String, crate::halfedge::HeMesh>,
+    mesh_cache: &'a HashMap<String, crate::halfedge::HeMesh>,
     mesh: &super::unified_ir::IrMesh,
 ) -> Option<&'a crate::halfedge::HeMesh> {
-    if !mesh_cache.contains_key(&mesh.id) {
-        let built = ir_mesh_to_he_mesh(mesh)?;
-        mesh_cache.insert(mesh.id.clone(), built);
-    }
     mesh_cache.get(&mesh.id)
 }
 
@@ -413,6 +459,11 @@ fn transformed_he_mesh(
     }
     for face in mesh.faces.values_mut() {
         face.normal = apply_normal_transform(face.normal, transform);
+    }
+    // SDK 邊線也需套用 instance transform
+    for seg in &mut mesh.sdk_edge_segments {
+        seg.0 = apply_transform(seg.0, transform);
+        seg.1 = apply_transform(seg.1, transform);
     }
     mesh
 }
@@ -453,7 +504,8 @@ fn material_for_mesh(
         .as_ref()
         .and_then(|id| cache.material(id))
         .map(|mat| material_from_ir(&mat.ir))
-        .unwrap_or(crate::scene::MaterialKind::White)
+        // SKP 匯入預設 Clay 灰色（SketchUp 風格）
+        .unwrap_or(crate::scene::MaterialKind::Custom([0.85, 0.85, 0.83, 1.0]))
 }
 
 fn material_from_ir(mat: &super::unified_ir::IrMaterial) -> crate::scene::MaterialKind {
@@ -519,6 +571,8 @@ pub struct BuildResult {
     pub ids: Vec<String>,
     pub phase_timings_ms: Vec<(String, u128)>,
     pub object_debug: HashMap<String, ImportedObjectDebug>,
+    /// 場景範圍 [width, height, depth]（用於相機自動 zoom）
+    pub scene_extent: Option<[f32; 3]>,
 }
 
 #[cfg(test)]
@@ -541,6 +595,7 @@ mod tests {
                 material_id: Some("mat_1".into()),
                 source_vertex_labels: vec![],
                 source_triangle_debug: vec![],
+                edges: vec![],
             }],
             instances: vec![unified_ir::IrInstance {
                 id: "inst_1".into(),
@@ -612,6 +667,7 @@ mod tests {
                 material_id: None,
                 source_vertex_labels: vec![],
                 source_triangle_debug: vec![],
+                edges: vec![],
             }],
             instances: vec![unified_ir::IrInstance {
                 id: "inst_1".into(),
@@ -655,16 +711,18 @@ mod tests {
         assert!(scene.groups.contains_key("grp_1"));
 
         let obj = scene.objects.values().next().expect("expected imported object");
-        assert_eq!(obj.position, [0.0, 0.0, 0.0]);
+        // 置中改為直接偏移頂點，position 保持 [0,0,0]
+        assert!((obj.position[0]).abs() < 0.01, "position X should be 0");
+        assert!((obj.position[1]).abs() < 0.01, "position Y should be 0");
+        assert!((obj.position[2]).abs() < 0.01, "position Z should be 0");
         assert_eq!(obj.parent_id.as_deref(), Some("grp_1"));
         assert!(matches!(obj.shape, crate::scene::Shape::Mesh(_)));
         assert_eq!(obj.tag, "元件:comp_1");
         if let crate::scene::Shape::Mesh(ref mesh) = obj.shape {
             let v = mesh.vertices.values().next().expect("mesh should have vertices");
-            assert!(
-                (v.pos[0] - 250.0).abs() < 0.01 || (v.pos[2] - 500.0).abs() < 0.01,
-                "Transform should be baked into vertices"
-            );
+            // 頂點經 transform + 置中偏移後，應在原點附近
+            // 原始頂點 [250..350, 0..100, 500]，center=(300,0,500) → 偏移後 [-50..50, 0..100, 0]
+            assert!(v.pos[0].abs() < 60.0, "Vertex X should be centered near origin, got {}", v.pos[0]);
         }
     }
 }

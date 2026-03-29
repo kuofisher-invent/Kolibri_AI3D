@@ -40,6 +40,22 @@ pub struct IrMesh {
     pub normals: Vec<[f32; 3]>,
     pub indices: Vec<u32>,           // triangle indices
     pub material_id: Option<String>,
+    #[serde(default)]
+    pub source_vertex_labels: Vec<String>,
+    #[serde(default)]
+    pub source_triangle_debug: Vec<IrTriangleDebug>,
+    /// SDK 原始邊線（過濾 soft/smooth/hidden 後的乾淨邊）
+    #[serde(default)]
+    pub edges: Vec<([f32; 3], [f32; 3])>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IrTriangleDebug {
+    pub triangle_index: usize,
+    pub indices: [u32; 3],
+    pub source_face_label: String,
+    pub source_vertex_labels: [String; 3],
+    pub generator: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +81,8 @@ pub struct IrGroup {
     pub id: String,
     pub name: String,
     pub children: Vec<String>,      // instance IDs
+    #[serde(default)]
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

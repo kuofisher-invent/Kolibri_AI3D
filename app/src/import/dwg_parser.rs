@@ -163,6 +163,7 @@ pub fn parse_dwg(path: &str) -> Result<UnifiedIR, String> {
             material_id: None,
             source_vertex_labels: vec![],
             source_triangle_debug: vec![],
+            edges: vec![],
         });
 
         tracing::info!(

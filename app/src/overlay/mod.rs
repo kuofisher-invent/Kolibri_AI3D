@@ -166,10 +166,21 @@ impl KolibriApp {
         rect: egui::Rect,
         response: &egui::Response,
     ) {
-        self.draw_cursor_overlays(ui, vp, rect, response);
-        self.draw_guide_overlays(ui, vp, rect, response);
-        self.draw_gizmo_overlays(ui, vp, rect, response);
-        self.draw_navigation_overlays(ui, vp, rect, response);
-        self.draw_hud_overlays(ui, vp, rect, response);
+        let big = self.scene.objects.len() > 100;
+        macro_rules! timed {
+            ($name:expr, $call:expr) => {{
+                let _t = std::time::Instant::now();
+                $call;
+                if big {
+                    let ms = _t.elapsed().as_secs_f32() * 1000.0;
+                    if ms > 5.0 { eprintln!("[PERF-OVERLAY] {}={:.0}ms", $name, ms); }
+                }
+            }};
+        }
+        timed!("cursor", self.draw_cursor_overlays(ui, vp, rect, response));
+        timed!("guide", self.draw_guide_overlays(ui, vp, rect, response));
+        timed!("gizmo", self.draw_gizmo_overlays(ui, vp, rect, response));
+        timed!("nav", self.draw_navigation_overlays(ui, vp, rect, response));
+        timed!("hud", self.draw_hud_overlays(ui, vp, rect, response));
     }
 }

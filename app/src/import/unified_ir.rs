@@ -1,5 +1,9 @@
 //! Unified Intermediate Representation for all import formats
 //! Both DWG and SKP convert to this format before building the scene
+//!
+//! 注意：此檔案與 crates/io/src/import/unified_ir.rs 保持同步
+//! 因為 grids/levels 型別依賴 crate::cad_import::ir（app 專用），
+//! 無法直接 re-export 自 kolibri_io
 
 use serde::{Serialize, Deserialize};
 
@@ -44,6 +48,9 @@ pub struct IrMesh {
     pub source_vertex_labels: Vec<String>,
     #[serde(default)]
     pub source_triangle_debug: Vec<IrTriangleDebug>,
+    /// SDK 原始邊線（過濾 soft/smooth/hidden 後的乾淨邊）
+    #[serde(default)]
+    pub edges: Vec<([f32; 3], [f32; 3])>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

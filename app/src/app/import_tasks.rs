@@ -415,7 +415,7 @@ impl KolibriApp {
                 result,
                 duration: started.elapsed(),
                 replace_scene,
-                skip_zoom_extents: heavy_import,
+                skip_zoom_extents: false, // 頂點已在 build_scene_from_ir 中置中，zoom 安全
                 defer_auto_save: heavy_import,
                 source_format: ir.source_format.clone(),
             })));

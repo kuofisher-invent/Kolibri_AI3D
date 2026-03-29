@@ -97,6 +97,15 @@ pub struct KolibriApp {
     // Spatial index for fast pick()
     pub(crate) spatial_index: Option<rstar::RTree<SpatialEntry>>,
     pub(crate) spatial_index_version: u64,
+
+    // ── Performance monitor ──
+    pub(crate) perf_frame_times: std::collections::VecDeque<f32>, // 最近 120 幀的時間（ms）
+    pub(crate) perf_last_frame: std::time::Instant,
+    pub(crate) perf_ram_mb: f32,
+    pub(crate) perf_ram_update: std::time::Instant,
+    pub(crate) perf_gpu_verts: usize,
+    pub(crate) perf_gpu_idx: usize,
+    pub(crate) perf_mesh_build_ms: f32,
 }
 
 /// rstar entry: AABB + object ID
@@ -381,6 +390,14 @@ impl KolibriApp {
             texture_manager: crate::texture_manager::TextureManager::new(),
             spatial_index: None,
             spatial_index_version: u64::MAX,
+            // Performance monitor
+            perf_frame_times: std::collections::VecDeque::with_capacity(120),
+            perf_last_frame: std::time::Instant::now(),
+            perf_ram_mb: 0.0,
+            perf_ram_update: std::time::Instant::now(),
+            perf_gpu_verts: 0,
+            perf_gpu_idx: 0,
+            perf_mesh_build_ms: 0.0,
         };
         app
     }

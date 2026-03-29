@@ -42,6 +42,7 @@ pub fn skp_scene_to_ir(skp: &kolibri_skp::SkpScene, source_file: &str) -> Unifie
                     generator: tri.generator.clone(),
                 })
                 .collect(),
+            edges: mesh.edges.clone(),
         });
     }
 

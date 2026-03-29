@@ -243,105 +243,32 @@ fn grass_pattern(pos: vec3<f32>, normal: vec3<f32>, base_col: vec3<f32>) -> vec3
         let offset = u.section_plane.y;
         let flip = u.section_plane.z;
         var coord: f32;
-        if axis < 0.5 {
-            coord = i.world_pos.x;
-        } else if axis < 1.5 {
-            coord = i.world_pos.y;
-        } else {
-            coord = i.world_pos.z;
-        }
-        let beyond = select(coord - offset, offset - coord, flip > 0.5);
-        if beyond > 0.0 {
-            discard;
-        }
+        if axis < 0.5 { coord = i.world_pos.x; }
+        else if axis < 1.5 { coord = i.world_pos.y; }
+        else { coord = i.world_pos.z; }
+        if select(coord - offset, offset - coord, flip > 0.5) > 0.0 { discard; }
     }
 
+    // ── SketchUp-style flat shading（極簡，高效能）──
     let light_dir = normalize(vec3<f32>(0.3, 1.0, 0.5));
     let n = normalize(i.normal);
-    let v = normalize(u.camera_pos.xyz - i.world_pos);
-    let h = normalize(light_dir + v);
     let ndl = max(dot(n, light_dir), 0.0);
-    let ndh = max(dot(n, h), 0.0);
-    let ndv = max(dot(n, v), 0.01);
-
-    // PBR: roughness 從 vertex color alpha 的低位元編碼（0.0-0.9 範圍）
-    // 如果 alpha > 0.9 則為程序紋理 sentinel，使用預設 roughness
-    let raw_alpha = i.color.a;
-    let roughness = select(clamp(raw_alpha * 1.1, 0.05, 1.0), 0.5, raw_alpha > 0.9);
-    let metallic = select(0.0, 0.8, raw_alpha > 0.925 && raw_alpha < 0.935); // metal pattern
-
-    // GGX distribution
-    let a = roughness * roughness;
-    let a2 = a * a;
-    let denom = ndh * ndh * (a2 - 1.0) + 1.0;
-    let D = a2 / (3.14159 * denom * denom + 0.0001);
-
-    // Schlick Fresnel
-    let f0 = mix(vec3<f32>(0.04), i.color.rgb, metallic);
-    let F = f0 + (1.0 - f0) * pow(1.0 - max(dot(h, v), 0.0), 5.0);
-
-    // Smith geometry (simplified)
-    let k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
-    let G1_v = ndv / (ndv * (1.0 - k) + k);
-    let G1_l = ndl / (ndl * (1.0 - k) + k);
-    let G = G1_v * G1_l;
-
-    let specular = D * F * G / (4.0 * ndv * ndl + 0.001);
-    // Clay-style ambient: bright, soft, minimal harsh shadows
-    let hemisphere = 0.5 + 0.5 * dot(n, vec3<f32>(0.0, 1.0, 0.0));
-    let ambient = 0.45 + 0.15 * hemisphere;
 
     var base_color = i.color.rgb;
 
-    // Back-face tinting: SketchUp-style blue-grey for reversed faces
+    // Back-face tinting（SketchUp 風格藍灰背面）
     if !is_front {
         base_color = mix(base_color, vec3<f32>(0.5, 0.55, 0.7), 0.4);
     }
 
-    let alpha = i.color.a;
+    // Hemisphere ambient（柔和天光）
+    let hemisphere = 0.5 + 0.5 * dot(n, vec3<f32>(0.0, 1.0, 0.0));
+    let ambient = 0.42 + 0.18 * hemisphere;
 
-    // Procedural textures keyed by sentinel alpha values
-    if alpha > 0.905 && alpha < 0.915 {
-        base_color = brick_pattern(i.world_pos, n);
-    } else if alpha > 0.915 && alpha < 0.925 {
-        base_color = wood_pattern(i.world_pos, n);
-    } else if alpha > 0.925 && alpha < 0.935 {
-        base_color = metal_pattern(i.world_pos, n);
-    } else if alpha > 0.935 && alpha < 0.945 {
-        base_color = concrete_pattern(i.world_pos, n);
-    } else if alpha > 0.945 && alpha < 0.955 {
-        base_color = marble_pattern(i.world_pos, n, base_color);
-    } else if alpha > 0.955 && alpha < 0.965 {
-        base_color = tile_pattern(i.world_pos, n, base_color);
-    } else if alpha > 0.965 && alpha < 0.975 {
-        base_color = asphalt_pattern(i.world_pos, n, base_color);
-    } else if alpha > 0.975 && alpha < 0.985 {
-        base_color = grass_pattern(i.world_pos, n, base_color);
-    }
+    // 簡單 diffuse（無 specular、無 shadow map sampling）
+    let lit = base_color * (ambient + 0.5 * ndl);
 
-    // Resolve final alpha: sentinel values (>0.9) become opaque
-    let final_alpha = select(alpha, 1.0, alpha > 0.9);
-
-    // Shadow mapping
-    let light_clip = u.light_vp * vec4<f32>(i.world_pos, 1.0);
-    var shadow = 1.0;
-    if light_clip.w > 0.0 {
-        let light_ndc = light_clip.xyz / light_clip.w;
-        let shadow_uv = vec2<f32>(light_ndc.x * 0.5 + 0.5, -light_ndc.y * 0.5 + 0.5);
-        let shadow_depth = light_ndc.z;
-        if shadow_uv.x >= 0.0 && shadow_uv.x <= 1.0 && shadow_uv.y >= 0.0 && shadow_uv.y <= 1.0 {
-            shadow = textureSampleCompare(shadow_tex, shadow_sampler, shadow_uv, shadow_depth - 0.002);
-            shadow = mix(0.6, 1.0, shadow); // Clay: 陰影更柔和
-        }
-    }
-
-    // Clay-style 合成：明亮 diffuse + 柔和 specular + 輕陰影
-    let kd = (1.0 - metallic) * base_color;
-    let diffuse_term = kd * (ambient + 0.45 * ndl * shadow);
-    let spec_term = specular * ndl * shadow * 0.3; // 降低高光強度
-    var col = vec4<f32>(diffuse_term + spec_term, final_alpha);
-
-    return col;
+    return vec4<f32>(lit, i.color.a);
 }
 "#;
 

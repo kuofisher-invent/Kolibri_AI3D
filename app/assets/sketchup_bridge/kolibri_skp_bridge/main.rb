@@ -196,7 +196,8 @@ module Kolibri
         bucket = (buckets[bucket_key] ||= {
           'material_id' => material_id,
           'vertices' => [],
-          'indices' => []
+          'indices' => [],
+          'edges' => []
         })
 
         mesh = face.mesh 7
@@ -217,6 +218,17 @@ module Kolibri
             bucket['indices'] << base + fan + 1
           end
         end
+
+        # 收集面的可見邊線（過濾 soft/smooth/hidden，跟 SketchUp 顯示邏輯一致）
+        face.edges.each do |edge|
+          next if edge.soft? || edge.smooth? || edge.hidden?
+          p1 = edge.start.position
+          p2 = edge.end.position
+          bucket['edges'] << [
+            [p1.x.to_f, p1.y.to_f, p1.z.to_f],
+            [p2.x.to_f, p2.y.to_f, p2.z.to_f]
+          ]
+        end
       end
 
       mesh_ids = []
@@ -226,13 +238,16 @@ module Kolibri
         mesh_id = "#{prefix}_mesh_#{index}"
         unless state[:mesh_index].key?(mesh_id)
           state[:mesh_index][mesh_id] = true
+          # 邊線去重（同一條邊可能被多個面引用）
+          unique_edges = bucket['edges'].uniq { |e| [e.flatten.map { |v| (v * 100).round }].sort }
           state[:meshes] << {
             'id' => mesh_id,
             'name' => sanitize_text("#{name_base}_#{material_key}"),
             'vertices' => bucket['vertices'],
             'normals' => [],
             'indices' => bucket['indices'],
-            'material_id' => bucket['material_id']
+            'material_id' => bucket['material_id'],
+            'edges' => unique_edges
           }
         end
         mesh_ids << mesh_id

@@ -145,6 +145,9 @@ struct BridgeMesh {
     normals: Vec<[f32; 3]>,
     indices: Vec<u32>,
     material_id: Option<String>,
+    /// 可見邊線（過濾 soft/smooth/hidden 後）
+    #[serde(default)]
+    edges: Vec<([f32; 3], [f32; 3])>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -257,15 +260,19 @@ fn bridge_export_to_ir(export: BridgeExport, source_file: PathBuf) -> UnifiedIR 
     ir.meshes = export
         .meshes
         .into_iter()
-        .map(|m| IrMesh {
-            id: m.id,
-            name: m.name,
-            vertices: convert_vertices_to_mm(&ir.units, m.vertices),
-            normals: m.normals,
-            indices: m.indices,
-            material_id: m.material_id,
-            source_vertex_labels: vec![],
-            source_triangle_debug: vec![],
+        .map(|m| {
+            let edges = convert_edges_to_mm(&ir.units, m.edges);
+            IrMesh {
+                id: m.id,
+                name: m.name,
+                vertices: convert_vertices_to_mm(&ir.units, m.vertices),
+                normals: m.normals,
+                indices: m.indices,
+                material_id: m.material_id,
+                source_vertex_labels: vec![],
+                source_triangle_debug: vec![],
+                edges,
+            }
         })
         .collect();
 
@@ -373,6 +380,17 @@ fn convert_vertices_to_mm(units: &str, vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]>
     vertices
         .into_iter()
         .map(|v| [v[0] * scale, v[1] * scale, v[2] * scale])
+        .collect()
+}
+
+fn convert_edges_to_mm(units: &str, edges: Vec<([f32; 3], [f32; 3])>) -> Vec<([f32; 3], [f32; 3])> {
+    let scale = unit_scale_to_mm(units);
+    edges
+        .into_iter()
+        .map(|(a, b)| (
+            [a[0] * scale, a[1] * scale, a[2] * scale],
+            [b[0] * scale, b[1] * scale, b[2] * scale],
+        ))
         .collect()
 }
 

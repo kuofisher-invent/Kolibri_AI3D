@@ -117,6 +117,9 @@ pub fn parse_pdf(path: &str) -> Result<UnifiedIR, String> {
             normals: vec![[0.0, 1.0, 0.0]; 8],
             indices: vec![0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6],
             material_id: None,
+            source_vertex_labels: vec![],
+            source_triangle_debug: vec![],
+            edges: vec![],
         });
 
         // Create line segments from extracted paths

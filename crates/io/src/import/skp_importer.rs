@@ -84,6 +84,9 @@ fn import_skp_zip(archive: &mut zip::ZipArchive<std::fs::File>, path: &str) -> R
             normals: vec![[0.0, 1.0, 0.0]; 8],
             indices: vec![0,1,2, 0,2,3, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 2,3,7, 2,7,6, 0,3,7, 0,7,4, 1,2,6, 1,6,5],
             material_id: None,
+            source_vertex_labels: Vec::new(),
+            source_triangle_debug: Vec::new(),
+            edges: Vec::new(),
         });
 
         // Update stats even for fallback
@@ -145,9 +148,12 @@ fn try_parse_skp_binary(data: &[u8], _name: &str) -> Option<IrMesh> {
         id: format!("skp_mesh_{}", vertices.len()),
         name: "SKP Geometry".into(),
         vertices,
-        normals: Vec::new(), // will be computed later
+        normals: Vec::new(),
         indices,
         material_id: None,
+        source_vertex_labels: Vec::new(),
+        source_triangle_debug: Vec::new(),
+        edges: Vec::new(),
     })
 }
 
@@ -250,6 +256,9 @@ pub fn import_obj_to_ir(path: &str) -> Result<UnifiedIR, String> {
         normals,
         indices,
         material_id: None,
+        source_vertex_labels: Vec::new(),
+        source_triangle_debug: Vec::new(),
+        edges: Vec::new(),
     };
 
     // Create groups from OBJ groups
@@ -258,6 +267,7 @@ pub fn import_obj_to_ir(path: &str) -> Result<UnifiedIR, String> {
             id: format!("grp_{}", name),
             name: name.clone(),
             children: Vec::new(),
+            parent_id: None,
         });
     }
 

@@ -59,19 +59,7 @@ impl KolibriApp {
                         "啟動 MCP Server + Dashboard".to_string()
                     };
                     if ui.add(mcp_btn).on_hover_text(mcp_tip).clicked() {
-                        if !self.mcp_http_running {
-                            let port = self.mcp_http_port;
-                            std::thread::spawn(move || {
-                                let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-                                rt.block_on(kolibri_mcp::transport_http::run_http(port));
-                            });
-                            self.mcp_http_running = true;
-                            self.file_message = Some((
-                                format!("MCP Server 已啟動 http://localhost:{}", port),
-                                std::time::Instant::now(),
-                            ));
-                        }
-                        // 開啟瀏覽器
+                        // MCP 已由 auto-start 啟動，按鈕只開 Dashboard
                         let url = format!("http://localhost:{}", self.mcp_http_port);
                         let _ = std::process::Command::new("cmd").args(["/C", "start", &url]).spawn();
                     }
@@ -179,7 +167,7 @@ impl KolibriApp {
 
         // ── Right panel ──
         egui::SidePanel::right("right_panel")
-            .default_width(260.0).min_width(200.0).resizable(true)
+            .exact_width(240.0).resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame::none()
                 .fill(egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220))
@@ -265,6 +253,38 @@ impl KolibriApp {
                     ui.label(egui::RichText::new("尺寸:").size(11.0).strong().color(egui::Color32::from_rgb(76, 139, 245)));
                     ui.separator();
                     ui.label(egui::RichText::new(format!("物件: {}", self.scene.objects.len())).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                    ui.separator();
+                    // ── Performance monitor ──
+                    {
+                        let fps = if self.perf_frame_times.is_empty() { 0.0 } else {
+                            let avg_ms: f32 = self.perf_frame_times.iter().sum::<f32>() / self.perf_frame_times.len() as f32;
+                            if avg_ms > 0.01 { 1000.0 / avg_ms } else { 0.0 }
+                        };
+                        let fps_color = if fps >= 30.0 {
+                            egui::Color32::from_rgb(20, 174, 92) // green
+                        } else if fps >= 15.0 {
+                            egui::Color32::from_rgb(230, 160, 30) // yellow
+                        } else {
+                            egui::Color32::from_rgb(220, 50, 50) // red
+                        };
+                        ui.label(egui::RichText::new(format!("{:.0} FPS", fps)).size(11.0).strong().color(fps_color));
+                        ui.separator();
+                        ui.label(egui::RichText::new(format!("RAM {:.0} MB", self.perf_ram_mb)).size(11.0).color(
+                            if self.perf_ram_mb > 2000.0 { egui::Color32::from_rgb(220, 50, 50) }
+                            else if self.perf_ram_mb > 1000.0 { egui::Color32::from_rgb(230, 160, 30) }
+                            else { egui::Color32::from_rgb(110, 118, 135) }
+                        ));
+                        ui.separator();
+                        let vk = self.perf_gpu_verts as f32 / 1000.0;
+                        ui.label(egui::RichText::new(format!("GPU {:.0}K verts", vk)).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        if self.perf_mesh_build_ms > 1.0 {
+                            ui.separator();
+                            ui.label(egui::RichText::new(format!("mesh {:.0}ms", self.perf_mesh_build_ms)).size(11.0).color(
+                                if self.perf_mesh_build_ms > 50.0 { egui::Color32::from_rgb(220, 50, 50) }
+                                else { egui::Color32::from_rgb(110, 118, 135) }
+                            ));
+                        }
+                    }
                     ui.separator();
                     let console_label = if self.viewer.show_console { "\u{25bc} Console" } else { "\u{25b2} Console" };
                     if ui.small_button(egui::RichText::new(console_label).size(10.0)).on_hover_text("F12").clicked() {

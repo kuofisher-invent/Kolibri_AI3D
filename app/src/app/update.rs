@@ -18,23 +18,51 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let _frame_start = std::time::Instant::now();
+        // ── Performance tracking ──
+        {
+            let now = std::time::Instant::now();
+            let dt = now.duration_since(self.perf_last_frame).as_secs_f32() * 1000.0;
+            self.perf_last_frame = now;
+            if self.perf_frame_times.len() >= 120 { self.perf_frame_times.pop_front(); }
+            self.perf_frame_times.push_back(dt);
+            // 每 2 秒輸出詳細 timing（診斷用）
+            if now.duration_since(self.perf_ram_update).as_secs() >= 2 {
+                self.perf_ram_update = now;
+                self.perf_ram_mb = get_process_memory_mb();
+                if self.scene.objects.len() > 100 {
+                    eprintln!("[PERF] objs={} avg_frame={:.0}ms fps={:.0} ram={:.0}MB gpu_verts={} mesh_build={:.0}ms",
+                        self.scene.objects.len(),
+                        dt, if dt > 0.01 { 1000.0 / dt } else { 0.0 },
+                        self.perf_ram_mb,
+                        self.perf_gpu_verts,
+                        self.perf_mesh_build_ms,
+                    );
+                }
+            }
+        }
         // Keep a light heartbeat so deferred startup work and file-based automation
         // still progress when the scene is otherwise idle.
-        ctx.request_repaint_after(std::time::Duration::from_millis(100));
-        // Auto-start MCP HTTP bridge（操作 APP 的 GUI 場景）
-        if !self.mcp_http_running && !self.editor.recovery_checked {
-            let auto_mcp = std::env::args().any(|a| a == "--auto-mcp")
-                || std::env::var("KOLIBRI_AUTO_MCP").is_ok();
-            if auto_mcp {
-                let port = self.mcp_http_port;
-                let bridge = crate::mcp_http_bridge::create_bridge_and_start_http(port);
-                self.mcp_bridge = Some(bridge);
-                self.mcp_http_running = true;
-            }
+        // 大場景下用較長間隔避免無意義的 repaint
+        let heartbeat_ms = if self.scene.objects.len() > 500 { 500 } else { 100 };
+        ctx.request_repaint_after(std::time::Duration::from_millis(heartbeat_ms));
+        // Auto-start MCP HTTP bridge（永遠啟動，讓 Claude Code 能操控 APP）
+        if !self.mcp_http_running {
+            let port = self.mcp_http_port;
+            let bridge = crate::mcp_http_bridge::create_bridge_and_start_http(port);
+            self.mcp_bridge = Some(bridge);
+            self.mcp_http_running = true;
+            eprintln!("[kolibri-mcp] HTTP server on http://localhost:{}", port);
         }
         self.poll_background_task();
         if self.background_task_active() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+        if self.scene.objects.len() > 100 {
+            let _t_pre = _frame_start.elapsed();
+            if _t_pre.as_millis() > 10 {
+                eprintln!("[PERF-DETAIL] pre_ui={:.0}ms", _t_pre.as_secs_f32() * 1000.0);
+            }
         }
         // ── Camera smooth transition animation ──
         if self.viewer.tick_camera_anim() {
@@ -49,20 +77,12 @@ impl eframe::App for KolibriApp {
         {
             ctx.request_repaint_after(std::time::Duration::from_millis(16));
         }
-        // ── Crash recovery: 啟動時檢查 autosave ──
+        // ── 啟動時清理 autosave（每次啟動都是乾淨的，除非用 --startup-scene 指定） ──
         if !self.editor.recovery_checked {
             self.editor.recovery_checked = true;
             let auto_path = "autosave.k3d";
-            if self.startup_scene_path.is_none()
-                && self.scene.objects.is_empty()
-                && std::path::Path::new(auto_path).exists()
-            {
-                if let Ok(n) = self.scene.load_from_file(auto_path) {
-                    if n > 0 {
-                        self.toasts.push((format!("已從自動儲存恢復 {} 個物件", n), std::time::Instant::now()));
-                        self.file_message = Some((format!("已恢復自動儲存 ({} 物件)", n), std::time::Instant::now()));
-                    }
-                }
+            if std::path::Path::new(auto_path).exists() {
+                let _ = std::fs::remove_file(auto_path);
             }
         }
 
@@ -193,12 +213,19 @@ impl eframe::App for KolibriApp {
         }
 
         // ── UI panels (top bar, left toolbar, right panel, console, status bar) ──
+        let _t0 = std::time::Instant::now();
         self.draw_panels(ctx);
+        let _t_panels = _t0.elapsed();
+        if self.scene.objects.len() > 100 {
+            let panels_ms = _t_panels.as_secs_f32() * 1000.0;
+            if panels_ms > 2.0 { eprintln!("[PERF-DETAIL] draw_panels={:.0}ms", panels_ms); }
+        }
 
         // Handle drag-and-drop files
         self.handle_dropped_files(ctx);
 
         // Viewport
+        let _t_viewport_start = std::time::Instant::now();
         egui::CentralPanel::default()
             .frame(egui::Frame::none()
                 .fill(egui::Color32::from_rgb(245, 246, 250))
@@ -254,7 +281,15 @@ impl eframe::App for KolibriApp {
                 } else {
                     [0.0, 0.0, 0.0, 0.0]
                 };
+                let render_start = std::time::Instant::now();
                 self.viewport.render(&self.device, &self.queue, vp, &self.scene, &self.editor.selected_ids, self.editor.hovered_id.as_deref(), self.editor.editing_group_id.as_deref(), self.editor.editing_component_def_id.as_deref(), &preview, self.viewer.render_mode.as_u32(), self.viewer.sky_color, self.viewer.ground_color, hf, sf, self.viewer.edge_thickness, self.viewer.show_colors, &self.texture_manager, self.viewer.show_grid, effective_grid_spacing, section_plane);
+                let render_ms = render_start.elapsed().as_secs_f32() * 1000.0;
+                self.perf_mesh_build_ms = render_ms;
+                if self.scene.objects.len() > 100 && render_ms > 50.0 {
+                    eprintln!("[PERF-DETAIL] viewport_render={:.0}ms", render_ms);
+                }
+                self.perf_gpu_verts = self.viewport.cached_vert_count();
+                self.perf_gpu_idx = self.viewport.cached_idx_count();
 
                 if let Some(tex_id) = self.viewport.texture_id {
                     ui.painter().image(tex_id, rect, egui::Rect::from_min_max(egui::pos2(0.0,0.0), egui::pos2(1.0,1.0)), egui::Color32::WHITE);
@@ -569,7 +604,12 @@ impl eframe::App for KolibriApp {
                     }
                 }
 
+                let _t_ov = std::time::Instant::now();
                 self.draw_viewport_overlays(ui, vp, rect, &response);
+                if self.scene.objects.len() > 100 {
+                    let ov_ms = _t_ov.elapsed().as_secs_f32() * 1000.0;
+                    if ov_ms > 10.0 { eprintln!("[PERF-DETAIL] draw_overlays={:.0}ms", ov_ms); }
+                }
 
 
                 // ── Help overlay ──
@@ -859,6 +899,11 @@ impl eframe::App for KolibriApp {
             });
         }
 
+        if self.scene.objects.len() > 100 {
+            let vp_ms = _t_viewport_start.elapsed().as_secs_f32() * 1000.0;
+            if vp_ms > 5.0 { eprintln!("[PERF-DETAIL] central_panel={:.0}ms", vp_ms); }
+        }
+
         // ── Cursor feedback based on active tool ──
         ctx.output_mut(|o| {
             o.cursor_icon = match self.editor.tool {
@@ -886,6 +931,55 @@ impl eframe::App for KolibriApp {
         self.poll_test_bridge();
         self.maybe_capture_startup_screenshot(ctx);
 
+        if self.scene.objects.len() > 100 {
+            let total = _frame_start.elapsed();
+            if total.as_millis() > 100 {
+                eprintln!("[PERF-DETAIL] total_update={:.0}ms", total.as_secs_f32() * 1000.0);
+            }
+        }
         ctx.request_repaint();
     }
+}
+
+/// 取得目前進程的記憶體用量（MB）
+fn get_process_memory_mb() -> f32 {
+    #[cfg(target_os = "windows")]
+    {
+        use std::mem::MaybeUninit;
+        #[repr(C)]
+        struct ProcessMemoryCounters {
+            cb: u32,
+            page_fault_count: u32,
+            peak_working_set_size: usize,
+            working_set_size: usize,
+            quota_peak_paged_pool_usage: usize,
+            quota_paged_pool_usage: usize,
+            quota_peak_non_paged_pool_usage: usize,
+            quota_non_paged_pool_usage: usize,
+            pagefile_usage: usize,
+            peak_pagefile_usage: usize,
+        }
+        #[link(name = "psapi")]
+        extern "system" {
+            fn GetProcessMemoryInfo(
+                process: *mut std::ffi::c_void,
+                pmc: *mut ProcessMemoryCounters,
+                cb: u32,
+            ) -> i32;
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetCurrentProcess() -> *mut std::ffi::c_void;
+        }
+        unsafe {
+            let mut pmc = MaybeUninit::<ProcessMemoryCounters>::zeroed().assume_init();
+            pmc.cb = std::mem::size_of::<ProcessMemoryCounters>() as u32;
+            if GetProcessMemoryInfo(GetCurrentProcess(), &mut pmc, pmc.cb) != 0 {
+                return pmc.working_set_size as f32 / (1024.0 * 1024.0);
+            }
+        }
+        0.0
+    }
+    #[cfg(not(target_os = "windows"))]
+    { 0.0 }
 }

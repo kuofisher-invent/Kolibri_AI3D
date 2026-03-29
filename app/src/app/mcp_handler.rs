@@ -197,6 +197,8 @@ impl KolibriApp {
                                     let build = crate::import::import_manager::build_scene_from_ir(&mut self.scene, &ir);
                                     self.import_object_debug = build.object_debug.clone();
                                     Self::write_import_source_debug(&self.import_object_debug);
+                                    // 匯入後自動 zoom extents
+                                    self.zoom_extents();
                                     Ok(json!({
                                         "imported": stats.instance_count,
                                         "meshes": stats.mesh_count,

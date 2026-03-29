@@ -20,6 +20,7 @@ pub fn convert_model(sdk: &SkpSdk, model: &SkpModel) -> Result<SkpScene, SkpErro
         instance_counter: 0,
         group_counter: 0,
         processed_defs: HashMap::new(),
+        materials: HashMap::new(),
     };
 
     let mut entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
@@ -30,6 +31,9 @@ pub fn convert_model(sdk: &SkpSdk, model: &SkpModel) -> Result<SkpScene, SkpErro
 
     // 根層級用 identity transform
     convert_entities(sdk, entities, None, IDENTITY_TRANSFORM, &mut scene, &mut state, false)?;
+
+    // 收集所有材質到 scene
+    scene.materials = state.materials.values().cloned().collect();
 
     Ok(scene)
 }
@@ -48,6 +52,8 @@ struct ConvertState {
     /// 已處理過的 entities（key=entities ptr）→ local space mesh 快取
     /// 避免重複呼叫 SUMeshHelperCreate 導致 SDK crash
     processed_defs: HashMap<usize, ProcessedDef>,
+    /// 全域材質收集（key=material_id）
+    materials: HashMap<String, SkpMaterial>,
 }
 
 struct ProcessedDef {
@@ -56,6 +62,7 @@ struct ProcessedDef {
     local_normals: Vec<[f64; 3]>,
     indices: Vec<u32>,
     edges: Vec<([f64; 3], [f64; 3])>,  // local space edges
+    material_id: Option<String>,
     def_name: String,
     def_id: String,
 }
@@ -119,7 +126,7 @@ fn convert_entities(
                 scene.meshes.push(SkpMesh {
                     id: mesh_id.clone(), name: format!("Mesh_{}", state.mesh_counter),
                     vertices, normals, indices: cached.indices.clone(),
-                    material_id: None, source_vertex_labels: Vec::new(),
+                    material_id: cached.material_id.clone(), source_vertex_labels: Vec::new(),
                     source_triangle_debug: Vec::new(), edges,
                 });
                 state.instance_counter += 1;
@@ -133,8 +140,8 @@ fn convert_entities(
         // 第一次處理：做 SDK 呼叫並快取 local space 資料
         let faces = get_faces(sdk, entities)?;
         if !faces.is_empty() {
-            // 快取 local space mesh
-            let (local_verts, local_normals, local_indices, local_face_edges) = faces_to_local_mesh(sdk, &faces)?;
+            // 快取 local space mesh（含材質提取）
+            let (local_verts, local_normals, local_indices, local_face_edges, mat_id) = faces_to_local_mesh(sdk, &faces, &mut state.materials)?;
             // 優先使用 SUFaceGetEdges（面輪廓邊），fallback 到 SUEntitiesGetEdges
             let local_edges = if !local_face_edges.is_empty() { local_face_edges } else { get_local_edges(sdk, entities) };
             state.processed_defs.insert(entities_key, ProcessedDef {
@@ -142,40 +149,15 @@ fn convert_entities(
                 local_normals: local_normals.clone(),
                 indices: local_indices.clone(),
                 edges: local_edges.clone(),
+                material_id: mat_id.clone(),
                 def_name: String::new(),
                 def_id: format!("entities_{:#x}", entities_key),
             });
 
             // 用 world_transform 建立 mesh
-            state.mesh_counter += 1;
-            let mesh_id = format!("mesh_{}", state.mesh_counter);
-            let vertices: Vec<[f32; 3]> = local_verts.iter().map(|v| {
-                let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
-                let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
-                let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                [-(wx as f32), wz as f32, wy as f32]
-            }).collect();
-            let normals: Vec<[f32; 3]> = local_normals.iter().map(|n| {
-                let nx = (world_transform[0]*n[0] + world_transform[4]*n[1] + world_transform[8]*n[2]) as f32;
-                let ny = (world_transform[1]*n[0] + world_transform[5]*n[1] + world_transform[9]*n[2]) as f32;
-                let nz = (world_transform[2]*n[0] + world_transform[6]*n[1] + world_transform[10]*n[2]) as f32;
-                [-nx, nz, ny]
-            }).collect();
-            let edges: Vec<([f32; 3], [f32; 3])> = local_edges.iter().map(|(p1, p2)| {
-                let xf = |v: &[f64; 3]| -> [f32; 3] {
-                    let wx = (world_transform[0]*v[0] + world_transform[4]*v[1] + world_transform[8]*v[2] + world_transform[12]) * 25.4;
-                    let wy = (world_transform[1]*v[0] + world_transform[5]*v[1] + world_transform[9]*v[2] + world_transform[13]) * 25.4;
-                    let wz = (world_transform[2]*v[0] + world_transform[6]*v[1] + world_transform[10]*v[2] + world_transform[14]) * 25.4;
-                    [-(wx as f32), wz as f32, wy as f32]
-                };
-                (xf(p1), xf(p2))
-            }).collect();
-            scene.meshes.push(SkpMesh {
-                id: mesh_id.clone(), name: format!("Mesh_{}", state.mesh_counter),
-                vertices, normals, indices: local_indices,
-                material_id: None, source_vertex_labels: Vec::new(),
-                source_triangle_debug: Vec::new(), edges,
-            });
+            let mesh = build_world_mesh(&local_verts, &local_normals, &local_indices, &local_edges, &world_transform, mat_id, state);
+            let mesh_id = mesh.id.clone();
+            scene.meshes.push(mesh);
 
             state.instance_counter += 1;
             let inst = SkpInstance {
@@ -196,7 +178,7 @@ fn convert_entities(
             // 空 entities，也快取（避免下次重新取）
             state.processed_defs.insert(entities_key, ProcessedDef {
                 local_vertices: Vec::new(), local_normals: Vec::new(),
-                indices: Vec::new(), edges: Vec::new(),
+                indices: Vec::new(), edges: Vec::new(), material_id: None,
                 def_name: String::new(), def_id: format!("entities_{:#x}", entities_key),
             });
         }
@@ -241,16 +223,17 @@ fn convert_entities(
         unsafe { (sdk.fn_comp_inst_get_transform)(*inst_ref, &mut local_xf) };
         let inst_world = mul_transform(&world_transform, &local_xf.values);
 
-        // 第一次遇到此 def → 解析 faces/edges 並快取（local space）
+        // 第一次遇到此 def → 遞迴收集所有 faces（含巢狀 group）並快取
         if !state.processed_defs.contains_key(&def_key) {
             let mut def_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
             unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
 
-            let def_faces = get_faces(sdk, def_entities)?;
-            let (local_verts, local_normals, local_indices, local_face_edges) = if !def_faces.is_empty() {
-                faces_to_local_mesh(sdk, &def_faces)?
+            // 收集 def 內所有 faces（含巢狀 group 的 faces）
+            let all_faces = collect_all_faces_recursive(sdk, def_entities)?;
+            let (local_verts, local_normals, local_indices, local_face_edges, mat_id) = if !all_faces.is_empty() {
+                faces_to_local_mesh(sdk, &all_faces, &mut state.materials)?
             } else {
-                (Vec::new(), Vec::new(), Vec::new(), Vec::new())
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new(), None)
             };
             let local_edges = if !local_face_edges.is_empty() { local_face_edges } else { get_local_edges(sdk, def_entities) };
             let def_id = format!("comp_{}", def_key);
@@ -260,50 +243,53 @@ fn convert_entities(
                 local_normals: local_normals,
                 indices: local_indices,
                 edges: local_edges,
+                material_id: mat_id,
                 def_name: def_name.clone(),
                 def_id: def_id.clone(),
             });
 
-            // 遞迴 component 內的子 group/instance（跳過 faces，已處理）
-            convert_entities(sdk, def_entities, parent_group_id, inst_world, scene, state, true)?;
+            // 第一次遇到此 def 時，只處理巢狀 component instances（不處理 groups，因為 faces 已合併）
+            recurse_nested_instances(sdk, def_entities, parent_group_id, inst_world, scene, state)?;
+        } else {
+            // 後續 instance：只處理巢狀 component instances
+            let mut def_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
+            unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
+            recurse_nested_instances(sdk, def_entities, parent_group_id, inst_world, scene, state)?;
         }
 
-        // 從快取建立 mesh（套用 instance 的 world transform）
-        let cached = match state.processed_defs.get(&def_key) {
-            Some(c) => c,
-            None => continue,
+        // Fallback: 如果 def 的面沒有材質，嘗試從 instance 讀取材質
+        let inst_mat_id = {
+            let de = unsafe { (sdk.fn_comp_inst_to_drawing_element)(*inst_ref) };
+            extract_drawing_element_material(sdk, de, &mut state.materials)
         };
-        if cached.local_vertices.is_empty() { continue; }
 
-        state.mesh_counter += 1;
-        let mesh_id = format!("mesh_{}", state.mesh_counter);
-
-        let vertices: Vec<[f32; 3]> = cached.local_vertices.iter().map(|v| {
-            let wx = (inst_world[0]*v[0] + inst_world[4]*v[1] + inst_world[8]*v[2] + inst_world[12]) * 25.4;
-            let wy = (inst_world[1]*v[0] + inst_world[5]*v[1] + inst_world[9]*v[2] + inst_world[13]) * 25.4;
-            let wz = (inst_world[2]*v[0] + inst_world[6]*v[1] + inst_world[10]*v[2] + inst_world[14]) * 25.4;
-            [-(wx as f32), wz as f32, wy as f32]
-        }).collect();
-
-        let normals: Vec<[f32; 3]> = cached.local_normals.iter().map(|n| {
-            let nx = (inst_world[0]*n[0] + inst_world[4]*n[1] + inst_world[8]*n[2]) as f32;
-            let ny = (inst_world[1]*n[0] + inst_world[5]*n[1] + inst_world[9]*n[2]) as f32;
-            let nz = (inst_world[2]*n[0] + inst_world[6]*n[1] + inst_world[10]*n[2]) as f32;
-            [-nx, nz, ny]
-        }).collect();
-
-        let edges: Vec<([f32; 3], [f32; 3])> = cached.edges.iter().map(|(p1, p2)| {
-            let xf = |v: &[f64; 3]| -> [f32; 3] {
-                let wx = (inst_world[0]*v[0] + inst_world[4]*v[1] + inst_world[8]*v[2] + inst_world[12]) * 25.4;
-                let wy = (inst_world[1]*v[0] + inst_world[5]*v[1] + inst_world[9]*v[2] + inst_world[13]) * 25.4;
-                let wz = (inst_world[2]*v[0] + inst_world[6]*v[1] + inst_world[10]*v[2] + inst_world[14]) * 25.4;
-                [-(wx as f32), wz as f32, wy as f32]
+        // 從快取建立 mesh（套用 instance 的 world transform）
+        // 先 clone 快取資料以避免同時借用 state
+        let (c_verts, c_normals, c_indices, c_edges, c_mat_id, def_id, cached_def_name) = {
+            let cached = match state.processed_defs.get(&def_key) {
+                Some(c) => c,
+                None => continue,
             };
-            (xf(p1), xf(p2))
-        }).collect();
+            if cached.local_vertices.is_empty() { continue; }
+            (
+                cached.local_vertices.clone(),
+                cached.local_normals.clone(),
+                cached.indices.clone(),
+                cached.edges.clone(),
+                cached.material_id.clone(),
+                cached.def_id.clone(),
+                cached.def_name.clone(),
+            )
+        };
 
-        let def_id = cached.def_id.clone();
-        let cached_def_name = cached.def_name.clone();
+        // 材質 fallback: face material → instance material
+        let final_mat_id = c_mat_id.or(inst_mat_id);
+
+        let mesh = build_world_mesh(
+            &c_verts, &c_normals, &c_indices,
+            &c_edges, &inst_world, final_mat_id, state,
+        );
+        let mesh_id = mesh.id.clone();
 
         if !scene.component_defs.iter().any(|d| d.id == def_id) {
             scene.component_defs.push(SkpComponentDef {
@@ -317,17 +303,7 @@ fn convert_entities(
             d.instance_count += 1;
         }
 
-        scene.meshes.push(SkpMesh {
-            id: mesh_id.clone(),
-            name: format!("Mesh_{}", state.mesh_counter),
-            vertices,
-            normals,
-            indices: cached.indices.clone(),
-            material_id: None,
-            source_vertex_labels: Vec::new(),
-            source_triangle_debug: Vec::new(),
-            edges,
-        });
+        scene.meshes.push(mesh);
 
         state.instance_counter += 1;
         let inst = SkpInstance {
@@ -347,6 +323,98 @@ fn convert_entities(
     }
 
     Ok(())
+}
+
+/// 遞迴收集 entities 內所有 faces（含巢狀 group，不含 component instances）
+fn collect_all_faces_recursive(sdk: &SkpSdk, entities: SUEntitiesRef) -> Result<Vec<SUFaceRef>, SkpError> {
+    let mut all_faces = get_faces(sdk, entities)?;
+
+    // 收集巢狀 group 的 faces
+    let groups = get_groups(sdk, entities)?;
+    for group_ref in &groups {
+        let mut group_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
+        unsafe { (sdk.fn_group_get_entities)(*group_ref, &mut group_entities) };
+        let sub_faces = collect_all_faces_recursive(sdk, group_entities)?;
+        all_faces.extend(sub_faces);
+    }
+
+    Ok(all_faces)
+}
+
+/// 只遞迴處理 entities 內的巢狀 component instances（不處理 groups）
+fn recurse_nested_instances(
+    sdk: &SkpSdk,
+    entities: SUEntitiesRef,
+    parent_group_id: Option<&str>,
+    world_transform: [f64; 16],
+    scene: &mut SkpScene,
+    state: &mut ConvertState,
+) -> Result<(), SkpError> {
+    let instances = get_component_instances(sdk, entities)?;
+    for inst_ref in &instances {
+        let mut def_ref = SUComponentDefinitionRef { ptr: std::ptr::null_mut() };
+        unsafe { (sdk.fn_comp_inst_get_definition)(*inst_ref, &mut def_ref) };
+        let mut local_xf = SUTransformation { values: [0.0; 16] };
+        unsafe { (sdk.fn_comp_inst_get_transform)(*inst_ref, &mut local_xf) };
+        let child_world = mul_transform(&world_transform, &local_xf.values);
+
+        // 遞迴回主 convert_entities（會處理這個 nested component instance）
+        let mut def_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
+        unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
+
+        // 建立 virtual entity 來觸發 component instance 路徑
+        // 直接用 convert_entities 但設定 skip_faces=true（faces 已由父元件合併）
+        convert_entities(sdk, def_entities, parent_group_id, child_world, scene, state, true)?;
+    }
+    Ok(())
+}
+
+/// 從 local space 快取資料建立 world space mesh
+fn build_world_mesh(
+    local_verts: &[[f64; 3]],
+    local_normals: &[[f64; 3]],
+    local_indices: &[u32],
+    local_edges: &[([f64; 3], [f64; 3])],
+    world_xf: &[f64; 16],
+    material_id: Option<String>,
+    state: &mut ConvertState,
+) -> SkpMesh {
+    state.mesh_counter += 1;
+    let mesh_id = format!("mesh_{}", state.mesh_counter);
+
+    let vertices: Vec<[f32; 3]> = local_verts.iter().map(|v| {
+        let wx = (world_xf[0]*v[0] + world_xf[4]*v[1] + world_xf[8]*v[2] + world_xf[12]) * 25.4;
+        let wy = (world_xf[1]*v[0] + world_xf[5]*v[1] + world_xf[9]*v[2] + world_xf[13]) * 25.4;
+        let wz = (world_xf[2]*v[0] + world_xf[6]*v[1] + world_xf[10]*v[2] + world_xf[14]) * 25.4;
+        [-(wx as f32), wz as f32, wy as f32]
+    }).collect();
+    let normals: Vec<[f32; 3]> = local_normals.iter().map(|n| {
+        let nx = (world_xf[0]*n[0] + world_xf[4]*n[1] + world_xf[8]*n[2]) as f32;
+        let ny = (world_xf[1]*n[0] + world_xf[5]*n[1] + world_xf[9]*n[2]) as f32;
+        let nz = (world_xf[2]*n[0] + world_xf[6]*n[1] + world_xf[10]*n[2]) as f32;
+        [-nx, nz, ny]
+    }).collect();
+    let edges: Vec<([f32; 3], [f32; 3])> = local_edges.iter().map(|(p1, p2)| {
+        let xf = |v: &[f64; 3]| -> [f32; 3] {
+            let wx = (world_xf[0]*v[0] + world_xf[4]*v[1] + world_xf[8]*v[2] + world_xf[12]) * 25.4;
+            let wy = (world_xf[1]*v[0] + world_xf[5]*v[1] + world_xf[9]*v[2] + world_xf[13]) * 25.4;
+            let wz = (world_xf[2]*v[0] + world_xf[6]*v[1] + world_xf[10]*v[2] + world_xf[14]) * 25.4;
+            [-(wx as f32), wz as f32, wy as f32]
+        };
+        (xf(p1), xf(p2))
+    }).collect();
+
+    SkpMesh {
+        id: mesh_id,
+        name: format!("Mesh_{}", state.mesh_counter),
+        vertices,
+        normals,
+        indices: local_indices.to_vec(),
+        material_id,
+        source_vertex_labels: Vec::new(),
+        source_triangle_debug: Vec::new(),
+        edges,
+    }
 }
 
 // ─── 輔助 ──────────────────────────────────────────────────────
@@ -501,15 +569,23 @@ fn faces_to_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], world_xf: &[f64; 16], state:
 }
 
 /// 將 faces 轉為 local space mesh（不套用 transform，用於 component def 快取）
-/// 回傳 (vertices, normals, indices, face_edges)
+/// 回傳 (vertices, normals, indices, face_edges, material_id)
 /// face_edges 是面的真正輪廓邊（SUFaceGetEdges），不含三角化邊
-fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3]>, Vec<[f64; 3]>, Vec<u32>, Vec<([f64; 3], [f64; 3])>), SkpError> {
+fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef], materials: &mut HashMap<String, SkpMaterial>) -> Result<(Vec<[f64; 3]>, Vec<[f64; 3]>, Vec<u32>, Vec<([f64; 3], [f64; 3])>, Option<String>), SkpError> {
     let mut vertices = Vec::new();
     let mut normals = Vec::new();
     let mut indices = Vec::new();
     let mut face_edges = Vec::new();
+    let mut first_material_id: Option<String> = None;
 
     for face in faces {
+        // 讀取材質（取第一個面的材質作為 mesh 的材質）
+        if first_material_id.is_none() {
+            if let Some(mat_id) = extract_face_material(sdk, *face, materials) {
+                first_material_id = Some(mat_id);
+            }
+        }
+
         // 讀取面的輪廓邊（SUFaceGetEdges — 官方範例推薦方式）
         let mut ne = 0usize;
         unsafe { (sdk.fn_face_get_num_edges)(*face, &mut ne) };
@@ -545,6 +621,10 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
                 face_edges.push(([sp.x, sp.y, sp.z], [ep.x, ep.y, ep.z]));
             }
         }
+
+        // 取得面法線（用來驗證 winding order）
+        let mut face_normal = SUVector3D { x: 0.0, y: 0.0, z: 1.0 };
+        unsafe { (sdk.fn_face_get_normal)(*face, &mut face_normal) };
 
         let mut helper = SUMeshHelperRef { ptr: std::ptr::null_mut() };
         let rc = unsafe { (sdk.fn_mesh_helper_create)(&mut helper, *face) };
@@ -582,15 +662,38 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
             let n = if i < actual_normals { &nrms[i] } else { &SUVector3D { x: 0.0, y: 0.0, z: 1.0 } };
             normals.push([n.x, n.y, n.z]);
         }
-        // 翻轉 winding order（因為 negate X 改變了手性）
+        // 逐三角形驗證 winding order（使用面法線 cross product 比對）
+        // negate-X 會反轉手性，所以 dot < 0 表示方向一致（需翻轉）
         let end = actual_idx.min(tri_indices.len());
         for tri in 0..(end / 3) {
             let i0 = tri_indices[tri * 3];
             let i1 = tri_indices[tri * 3 + 1];
             let i2 = tri_indices[tri * 3 + 2];
-            indices.push(base + i0 as u32);
-            indices.push(base + i2 as u32);  // 交換 i1, i2
-            indices.push(base + i1 as u32);
+            let vi0 = base as usize + i0;
+            let vi1 = base as usize + i1;
+            let vi2 = base as usize + i2;
+            if vi0 < vertices.len() && vi1 < vertices.len() && vi2 < vertices.len() {
+                let v0 = vertices[vi0];
+                let v1 = vertices[vi1];
+                let v2 = vertices[vi2];
+                let a = [v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]];
+                let b = [v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]];
+                let cx = a[1]*b[2] - a[2]*b[1];
+                let cy = a[2]*b[0] - a[0]*b[2];
+                let cz = a[0]*b[1] - a[1]*b[0];
+                let dot = cx * face_normal.x + cy * face_normal.y + cz * face_normal.z;
+                if dot >= 0.0 {
+                    // 同向 → negate-X 後需翻轉
+                    indices.push(base + i0 as u32);
+                    indices.push(base + i2 as u32);
+                    indices.push(base + i1 as u32);
+                } else {
+                    // 反向 → negate-X 後保持原序
+                    indices.push(base + i0 as u32);
+                    indices.push(base + i1 as u32);
+                    indices.push(base + i2 as u32);
+                }
+            }
         }
     }
     // 去重 face_edges（相同邊可能被多個面引用）
@@ -609,7 +712,66 @@ fn faces_to_local_mesh(sdk: &SkpSdk, faces: &[SUFaceRef]) -> Result<(Vec<[f64; 3
         || (close(a.0[0], b.1[0]) && close(a.0[1], b.1[1]) && close(a.0[2], b.1[2])
          && close(a.1[0], b.0[0]) && close(a.1[1], b.0[1]) && close(a.1[2], b.0[2]))
     });
-    Ok((vertices, normals, indices, face_edges))
+    Ok((vertices, normals, indices, face_edges, first_material_id))
+}
+
+/// 從 DrawingElement（instance/group）提取材質
+fn extract_drawing_element_material(sdk: &SkpSdk, de: SUDrawingElementRef, materials: &mut HashMap<String, SkpMaterial>) -> Option<String> {
+    if de.ptr.is_null() { return None; }
+    let mut mat_ref = SUMaterialRef { ptr: std::ptr::null_mut() };
+    let rc = unsafe { (sdk.fn_drawing_element_get_material)(de, &mut mat_ref) };
+    if rc != SU_ERROR_NONE || mat_ref.ptr.is_null() { return None; }
+
+    let name = sdk.read_name(|s| unsafe { (sdk.fn_material_get_name)(mat_ref, s) });
+    if name.is_empty() { return None; }
+
+    let mat_id = format!("mat_{}", name.replace(' ', "_"));
+    if !materials.contains_key(&mat_id) {
+        let mut color = SUColor { red: 200, green: 200, blue: 200, alpha: 255 };
+        unsafe { (sdk.fn_material_get_color)(mat_ref, &mut color) };
+        materials.insert(mat_id.clone(), SkpMaterial {
+            id: mat_id.clone(),
+            name: name.clone(),
+            color: [
+                color.red as f32 / 255.0,
+                color.green as f32 / 255.0,
+                color.blue as f32 / 255.0,
+                color.alpha as f32 / 255.0,
+            ],
+            texture_path: None,
+            opacity: color.alpha as f32 / 255.0,
+        });
+    }
+    Some(mat_id)
+}
+
+/// 從 face 提取材質，加入 materials map，回傳 material_id
+fn extract_face_material(sdk: &SkpSdk, face: SUFaceRef, materials: &mut HashMap<String, SkpMaterial>) -> Option<String> {
+    let mut mat_ref = SUMaterialRef { ptr: std::ptr::null_mut() };
+    let rc = unsafe { (sdk.fn_face_get_front_material)(face, &mut mat_ref) };
+    if rc != SU_ERROR_NONE || mat_ref.ptr.is_null() { return None; }
+
+    let name = sdk.read_name(|s| unsafe { (sdk.fn_material_get_name)(mat_ref, s) });
+    if name.is_empty() { return None; }
+
+    let mat_id = format!("mat_{}", name.replace(' ', "_"));
+    if !materials.contains_key(&mat_id) {
+        let mut color = SUColor { red: 200, green: 200, blue: 200, alpha: 255 };
+        unsafe { (sdk.fn_material_get_color)(mat_ref, &mut color) };
+        materials.insert(mat_id.clone(), SkpMaterial {
+            id: mat_id.clone(),
+            name: name.clone(),
+            color: [
+                color.red as f32 / 255.0,
+                color.green as f32 / 255.0,
+                color.blue as f32 / 255.0,
+                color.alpha as f32 / 255.0,
+            ],
+            texture_path: None,
+            opacity: color.alpha as f32 / 255.0,
+        });
+    }
+    Some(mat_id)
 }
 
 /// 讀取 SDK 原始邊線（local space，不套用 transform）

@@ -141,6 +141,9 @@ pub struct SkpSdk {
     pub(crate) fn_edge_get_smooth: unsafe extern "C" fn(SUEdgeRef, *mut bool) -> i32,
     pub(crate) fn_edge_to_drawing_element: unsafe extern "C" fn(SUEdgeRef) -> SUDrawingElementRef,
     pub(crate) fn_drawing_element_get_hidden: unsafe extern "C" fn(SUDrawingElementRef, *mut bool) -> i32,
+    pub(crate) fn_drawing_element_get_material: unsafe extern "C" fn(SUDrawingElementRef, *mut SUMaterialRef) -> i32,
+    pub(crate) fn_comp_inst_to_drawing_element: unsafe extern "C" fn(SUComponentInstanceRef) -> SUDrawingElementRef,
+    pub(crate) fn_group_to_drawing_element: unsafe extern "C" fn(SUGroupRef) -> SUDrawingElementRef,
     // MeshHelper（正確三角化，支援凹多邊形）
     pub(crate) fn_mesh_helper_create: unsafe extern "C" fn(*mut SUMeshHelperRef, SUFaceRef) -> i32,
     pub(crate) fn_mesh_helper_release: unsafe extern "C" fn(*mut SUMeshHelperRef) -> i32,
@@ -170,45 +173,69 @@ const SDK_PATHS: &[&str] = &[
 
 /// 嘗試載入 SDK
 pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
-    // 先搜尋固定路徑，再搜尋執行檔旁邊
     let mut search: Vec<std::path::PathBuf> = Vec::new();
-    // 執行檔所在目錄（子進程 worker 也在同目錄）
     let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf()));
+
+    // 收集所有候選基底目錄（exe 目錄、CWD、exe 的祖先目錄）
+    let mut base_dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(ref dir) = exe_dir {
+        base_dirs.push(dir.clone());
+        // 往上走祖先目錄（exe 在 target/debug/ 或 target/release/ 下，往上找專案根目錄）
+        let mut ancestor = dir.clone();
+        for _ in 0..4 {
+            if let Some(parent) = ancestor.parent() {
+                ancestor = parent.to_path_buf();
+                base_dirs.push(ancestor.clone());
+            } else {
+                break;
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        if !base_dirs.contains(&cwd) {
+            base_dirs.push(cwd);
+        }
+    }
+
     // 將所有搜尋路徑解析為絕對路徑
     for s in SDK_PATHS {
         let p = std::path::PathBuf::from(s);
         if p.is_absolute() {
             search.push(p);
         } else {
-            // 相對路徑：先從 exe 目錄、再從 CWD 解析
-            if let Some(ref dir) = exe_dir {
-                search.push(dir.join(s));
-            }
-            if let Ok(cwd) = std::env::current_dir() {
-                search.push(cwd.join(s));
+            for base in &base_dirs {
+                let candidate = base.join(s);
+                if candidate.exists() {
+                    search.push(candidate);
+                }
             }
         }
     }
-    // 也嘗試 exe 目錄和 CWD 下的裸 SketchUpAPI.dll
-    if let Some(ref dir) = exe_dir {
-        search.push(dir.join("SketchUpAPI.dll"));
+    // 也嘗試各基底目錄下的裸 SketchUpAPI.dll
+    for base in &base_dirs {
+        let candidate = base.join("SketchUpAPI.dll");
+        if candidate.exists() {
+            search.push(candidate);
+        }
     }
-    if let Ok(cwd) = std::env::current_dir() {
-        search.push(cwd.join("SketchUpAPI.dll"));
+
+    if search.is_empty() {
+        return Err(SkpError::SdkNotFound(
+            format!("No SDK DLL found. Searched base dirs: {:?}", base_dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>())
+        ));
     }
 
     let mut last_err = String::new();
     let lib = search.iter()
         .find_map(|p| {
-            // 設定 DLL 搜尋目錄（絕對路徑），讓 SketchUpAPI.dll 能找到同目錄的依賴 DLL
+            // 設定 DLL 搜尋目錄（絕對路徑），讓依賴 DLL 能被找到
             if let Some(dir) = p.parent() {
                 let abs_dir = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
                 if abs_dir.exists() {
-                    let dir_str = abs_dir.to_string_lossy();
                     #[cfg(target_os = "windows")]
                     unsafe {
                         use std::os::windows::ffi::OsStrExt;
-                        let wide: Vec<u16> = std::ffi::OsStr::new(&*dir_str)
+                        let wide: Vec<u16> = std::ffi::OsStr::new(&*abs_dir.to_string_lossy())
                             .encode_wide()
                             .chain(std::iter::once(0))
                             .collect();
@@ -221,8 +248,8 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
                 }
             }
             match unsafe { Library::new(p) } {
-                Ok(lib) => Some(lib),
-                Err(e) => { last_err = format!("{}: {}", p.display(), e); eprintln!("[skp-sdk] FAIL: {}", last_err); None }
+                Ok(lib) => { eprintln!("[skp-sdk] loaded: {}", p.display()); Some(lib) }
+                Err(e) => { last_err = format!("{}: {}", p.display(), e); None }
             }
         })
         .ok_or_else(|| SkpError::SdkNotFound(
@@ -290,6 +317,9 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
         load!(fn_edge_get_smooth, b"SUEdgeGetSmooth");
         load!(fn_edge_to_drawing_element, b"SUEdgeToDrawingElement");
         load!(fn_drawing_element_get_hidden, b"SUDrawingElementGetHidden");
+        load!(fn_drawing_element_get_material, b"SUDrawingElementGetMaterial");
+        load!(fn_comp_inst_to_drawing_element, b"SUComponentInstanceToDrawingElement");
+        load!(fn_group_to_drawing_element, b"SUGroupToDrawingElement");
         load!(fn_mesh_helper_create, b"SUMeshHelperCreate");
         load!(fn_mesh_helper_release, b"SUMeshHelperRelease");
         load!(fn_mesh_helper_get_num_triangles, b"SUMeshHelperGetNumTriangles");
@@ -322,6 +352,7 @@ pub fn try_load_sdk() -> Result<SkpSdk, SkpError> {
             fn_edge_get_start_vertex, fn_edge_get_end_vertex,
             fn_edge_get_soft, fn_edge_get_smooth,
             fn_edge_to_drawing_element, fn_drawing_element_get_hidden,
+            fn_drawing_element_get_material, fn_comp_inst_to_drawing_element, fn_group_to_drawing_element,
             fn_mesh_helper_create, fn_mesh_helper_release,
             fn_mesh_helper_get_num_triangles, fn_mesh_helper_get_num_vertices,
             fn_mesh_helper_get_vertex_indices, fn_mesh_helper_get_vertices, fn_mesh_helper_get_normals,

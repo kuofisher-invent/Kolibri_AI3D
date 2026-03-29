@@ -224,7 +224,8 @@ impl KolibriApp {
                 }
 
                 // ── 匯入來源面高亮（SDK provenance debug）──
-                {
+                // 只在小場景（< 50 物件）且有 debug 資料時才畫（大場景下此 overlay 耗時 600ms+）
+                if self.scene.objects.len() < 50 && !self.import_object_debug.is_empty() {
                     let target_faces = [
                         ("F14", egui::Color32::from_rgba_unmultiplied(255, 0, 0, 120)),
                         ("F35", egui::Color32::from_rgba_unmultiplied(0, 170, 255, 120)),
@@ -332,10 +333,10 @@ impl KolibriApp {
                             }
                         }
                     }
-                }
+                } // end if scene.objects.len() < 50
 
                 // ── 頂點編號除錯（show_vertex_ids）──
-                if self.viewer.show_vertex_ids {
+                if self.viewer.show_vertex_ids && self.scene.objects.len() < 50 {
                     let label_font = egui::FontId::monospace(10.0);
                     let label_color = egui::Color32::from_rgb(255, 80, 80);
                     let bg_color = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 160);

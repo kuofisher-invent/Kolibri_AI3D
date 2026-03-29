@@ -39,8 +39,8 @@ pub trait GeometryKernel: std::fmt::Debug + Clone {
     /// Push/Pull 面
     fn push_pull_face(&mut self, face_id: u32, distance: f32);
 
-    /// 所有邊的線段（用於渲染）
-    fn all_edge_segments(&self) -> Vec<([f32; 3], [f32; 3])>;
+    /// 所有邊的線段（用於渲染）— 回傳 slice 引用避免 clone
+    fn all_edge_segments_vec(&self) -> Vec<([f32; 3], [f32; 3])>;
 }
 
 /// 為 HeMesh 實作 GeometryKernel
@@ -91,7 +91,7 @@ impl GeometryKernel for crate::halfedge::HeMesh {
         self.push_pull_face(face_id, distance)
     }
 
-    fn all_edge_segments(&self) -> Vec<([f32; 3], [f32; 3])> {
-        self.all_edge_segments()
+    fn all_edge_segments_vec(&self) -> Vec<([f32; 3], [f32; 3])> {
+        self.all_edge_segments().to_vec()
     }
 }

@@ -1,4 +1,5 @@
 use eframe::wgpu;
+use eframe::wgpu::util::DeviceExt;
 use eframe::egui;
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
@@ -6,7 +7,7 @@ use crate::scene::{Scene, Shape};
 use crate::texture_manager::TextureManager;
 use super::shaders::*;
 use super::helpers::*;
-use super::mesh_builder::build_scene_mesh;
+use super::mesh_builder::{build_scene_mesh, build_scene_mesh_incremental, ObjMeshCache, SceneMeshResult};
 
 // ─── Viewport Renderer ──────────────────────────────────────────────────────
 
@@ -34,8 +35,14 @@ pub struct ViewportRenderer {
     cached_render_mode: u32,
     cached_selected_ids: Vec<String>,
     cached_editing_component_def_id: Option<String>,
+    /// Separate edge line vertices (LineList topology)
+    cached_edge_verts: Vec<Vertex>,
+    edge_vb: Option<wgpu::Buffer>,
+    edge_vb_capacity: usize,
     /// Per-object mesh cache for incremental rebuild
-    per_object_cache: std::collections::HashMap<String, (u64, Vec<Vertex>, Vec<u32>)>,
+    per_object_cache: std::collections::HashMap<String, ObjMeshCache>,
+    /// Per-object GPU buffers (SketchUp-style: upload once, draw many)
+    gpu_objects: std::collections::HashMap<String, GpuObjectSlot>,
     // ── Performance: shadow caching ──
     cached_shadow_verts: Vec<Vertex>,
     cached_shadow_idx: Vec<u32>,
@@ -58,6 +65,18 @@ pub struct ViewportRenderer {
     shadow_tex_bgl: Option<wgpu::BindGroupLayout>,
     shadow_tex_bind_group: Option<wgpu::BindGroup>,
     shadow_sampler: Option<wgpu::Sampler>,
+}
+
+/// Per-object GPU buffers (SketchUp-style rendering)
+struct GpuObjectSlot {
+    obj_version: u64,
+    face_vb: wgpu::Buffer,
+    face_ib: wgpu::Buffer,
+    face_idx_count: u32,
+    edge_vb: wgpu::Buffer,
+    edge_vert_count: u32,
+    aabb_center: [f32; 3],
+    aabb_extent: f32,  // bounding sphere radius
 }
 
 impl ViewportRenderer {
@@ -163,7 +182,7 @@ impl ViewportRenderer {
                     topology: topo,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None, // 雙面渲染（SketchUp 面是雙面的）
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
@@ -247,6 +266,10 @@ impl ViewportRenderer {
             cached_selected_ids: Vec::new(),
             cached_editing_component_def_id: None,
             per_object_cache: std::collections::HashMap::new(),
+            gpu_objects: std::collections::HashMap::new(),
+            cached_edge_verts: Vec::new(),
+            edge_vb: None,
+            edge_vb_capacity: 0,
             // Pre-allocated GPU buffers (None = not yet created)
             cached_shadow_verts: Vec::new(),
             cached_shadow_idx: Vec::new(),
@@ -270,6 +293,11 @@ impl ViewportRenderer {
             shadow_sampler: None,
         }
     }
+
+    /// 快取的頂點數（用於效能監控）
+    pub fn cached_vert_count(&self) -> usize { self.cached_verts.len() }
+    /// 快取的索引數（用於效能監控）
+    pub fn cached_idx_count(&self) -> usize { self.cached_idx.len() }
 
     pub fn ensure_size(
         &mut self,
@@ -486,7 +514,7 @@ impl ViewportRenderer {
             fragment: None, // depth-only
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None, // 雙面渲染
                 ..Default::default()
             },
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -585,135 +613,264 @@ impl ViewportRenderer {
             self.cached_grid_spacing = grid_spacing;
         }
 
-        // ── Dirty-flag caching: only rebuild scene mesh when scene changes ──
+        // ══════════════════════════════════════════════════════════════════════
+        // SketchUp-style per-object GPU rendering（大場景 > 100 物件）
+        // 每個物件有自己的 GPU VBO，只在物件變更時上傳，渲染用 frustum cull + multi draw call
+        // ══════════════════════════════════════════════════════════════════════
+        let big_scene = scene.objects.len() > 100;
+
+        if big_scene {
+            // ── Step 1: 更新 per-object GPU buffers（只重建變更的物件）──
+            let geometry_changed = scene.version != self.cached_scene_version;
+            if geometry_changed || self.gpu_objects.is_empty() {
+                use super::mesh_builder::build_single_object_mesh_pub;
+                // 移除已刪除物件
+                self.gpu_objects.retain(|id, _| scene.objects.contains_key(id));
+
+                for obj in scene.objects.values() {
+                    if !obj.visible {
+                        self.gpu_objects.remove(&obj.id);
+                        continue;
+                    }
+                    let needs_upload = match self.gpu_objects.get(&obj.id) {
+                        Some(slot) => slot.obj_version != obj.obj_version,
+                        None => true,
+                    };
+                    if !needs_upload { continue; }
+
+                    let mesh_data = build_single_object_mesh_pub(obj, edge_thickness, render_mode, texture_manager, view_proj, scene.objects.len());
+                    if mesh_data.face_verts.is_empty() { continue; }
+
+                    // AABB for frustum culling
+                    let (mut mn, mut mx) = ([f32::MAX; 3], [f32::MIN; 3]);
+                    for v in &mesh_data.face_verts {
+                        for i in 0..3 { mn[i] = mn[i].min(v.position[i]); mx[i] = mx[i].max(v.position[i]); }
+                    }
+                    let center = [(mn[0]+mx[0])*0.5, (mn[1]+mx[1])*0.5, (mn[2]+mx[2])*0.5];
+                    let extent = ((mx[0]-mn[0]).powi(2) + (mx[1]-mn[1]).powi(2) + (mx[2]-mn[2]).powi(2)).sqrt() * 0.5;
+
+                    // Upload face VBO + IBO
+                    let face_vb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None, contents: bytemuck::cast_slice(&mesh_data.face_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    let face_ib = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None, contents: bytemuck::cast_slice(&mesh_data.face_idx),
+                        usage: wgpu::BufferUsages::INDEX,
+                    });
+                    // Upload edge VBO (LineList)
+                    let edge_vb = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: if mesh_data.edge_verts.is_empty() {
+                            &[0u8; 40] // dummy
+                        } else {
+                            bytemuck::cast_slice(&mesh_data.edge_verts)
+                        },
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+
+                    self.gpu_objects.insert(obj.id.clone(), GpuObjectSlot {
+                        obj_version: obj.obj_version,
+                        face_vb, face_ib,
+                        face_idx_count: mesh_data.face_idx.len() as u32,
+                        edge_vb,
+                        edge_vert_count: mesh_data.edge_verts.len() as u32,
+                        aabb_center: center,
+                        aabb_extent: extent,
+                    });
+                }
+                self.cached_scene_version = scene.version;
+            }
+
+            // ── Step 2: Preview geometry（drawing tools 預覽）──
+            let has_preview = !preview.0.is_empty();
+            let mut preview_vb: Option<wgpu::Buffer> = None;
+            let mut preview_ib: Option<wgpu::Buffer> = None;
+            let mut preview_idx_count = 0u32;
+            if has_preview {
+                preview_vb = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None, contents: bytemuck::cast_slice(&preview.0), usage: wgpu::BufferUsages::VERTEX,
+                }));
+                preview_ib = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: None, contents: bytemuck::cast_slice(&preview.1), usage: wgpu::BufferUsages::INDEX,
+                }));
+                preview_idx_count = preview.1.len() as u32;
+            }
+
+            // ── Step 3: Render pass ──
+            let grid_buf = make_buffer(device, queue, &self.grid_verts, wgpu::BufferUsages::VERTEX);
+
+            // ── Pre-build selection outline buffer（在 render pass 之前）──
+            let sel_outline_buf = if !selected_ids.is_empty() {
+                let sel_set: std::collections::HashSet<&str> = selected_ids.iter().map(|s| s.as_str()).collect();
+                let mut sel_lines: Vec<Vertex> = Vec::new();
+                let sel_color = [0.2_f32, 0.6, 1.0, 1.0];
+                let n0 = [0.0_f32, 1.0, 0.0];
+                for sel_id in &sel_set {
+                    if let Some(slot) = self.gpu_objects.get(*sel_id) {
+                        let c = slot.aabb_center;
+                        let r = slot.aabb_extent;
+                        let mn = [c[0]-r, c[1]-r, c[2]-r];
+                        let mx = [c[0]+r, c[1]+r, c[2]+r];
+                        let edges: [([f32;3],[f32;3]);12] = [
+                            (mn, [mx[0],mn[1],mn[2]]), ([mx[0],mn[1],mn[2]], [mx[0],mn[1],mx[2]]),
+                            ([mx[0],mn[1],mx[2]], [mn[0],mn[1],mx[2]]), ([mn[0],mn[1],mx[2]], mn),
+                            ([mn[0],mx[1],mn[2]], [mx[0],mx[1],mn[2]]), ([mx[0],mx[1],mn[2]], [mx[0],mx[1],mx[2]]),
+                            ([mx[0],mx[1],mx[2]], [mn[0],mx[1],mx[2]]), ([mn[0],mx[1],mx[2]], [mn[0],mx[1],mn[2]]),
+                            (mn, [mn[0],mx[1],mn[2]]), ([mx[0],mn[1],mn[2]], [mx[0],mx[1],mn[2]]),
+                            ([mx[0],mn[1],mx[2]], [mx[0],mx[1],mx[2]]), ([mn[0],mn[1],mx[2]], [mn[0],mx[1],mx[2]]),
+                        ];
+                        for (a, b) in &edges {
+                            sel_lines.push(Vertex { position: *a, normal: n0, color: sel_color });
+                            sel_lines.push(Vertex { position: *b, normal: n0, color: sel_color });
+                        }
+                    }
+                }
+                if !sel_lines.is_empty() {
+                    Some((device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None, contents: bytemuck::cast_slice(&sel_lines), usage: wgpu::BufferUsages::VERTEX,
+                    }), sel_lines.len() as u32))
+                } else { None }
+            } else { None };
+
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("viewport_enc"),
+            });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("viewport_pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.msaa_view,
+                        resolve_target: Some(&self.color_view),
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.12, g: 0.12, b: 0.16, a: 1.0 }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.depth_view,
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+
+                pass.set_bind_group(0, &self.bind_group, &[]);
+                if let Some(ref shadow_tex_bg) = self.shadow_tex_bind_group {
+                    pass.set_bind_group(1, shadow_tex_bg, &[]);
+                }
+
+                // Sky
+                if render_mode != 5 {
+                    pass.set_pipeline(&self.sky_pipeline);
+                    pass.draw(0..3, 0..1);
+                }
+
+                // Grid
+                if render_mode != 5 && show_grid {
+                    pass.set_pipeline(&self.line_pipeline);
+                    pass.set_vertex_buffer(0, grid_buf.slice(..));
+                    pass.draw(0..self.grid_verts.len() as u32, 0..1);
+                }
+
+                // ── Per-object draw calls with frustum culling ──
+                let mut drawn_objects = 0u32;
+                let mut drawn_face_verts = 0u32;
+                let mut drawn_edge_verts = 0u32;
+
+                // Face pass (triangles)
+                pass.set_pipeline(&self.tri_pipeline);
+                for slot in self.gpu_objects.values() {
+                    // Frustum cull
+                    let c = glam::Vec3::from(slot.aabb_center);
+                    let clip = view_proj * glam::Vec4::new(c.x, c.y, c.z, 1.0);
+                    if clip.w > 0.0 {
+                        let ndc_x = (clip.x / clip.w).abs();
+                        let ndc_y = (clip.y / clip.w).abs();
+                        let r_ndc = slot.aabb_extent / clip.w;
+                        if ndc_x - r_ndc > 1.5 || ndc_y - r_ndc > 1.5 { continue; }
+                    }
+                    if slot.face_idx_count == 0 { continue; }
+                    pass.set_vertex_buffer(0, slot.face_vb.slice(..));
+                    pass.set_index_buffer(slot.face_ib.slice(..), wgpu::IndexFormat::Uint32);
+                    pass.draw_indexed(0..slot.face_idx_count, 0, 0..1);
+                    drawn_objects += 1;
+                    drawn_face_verts += slot.face_idx_count;
+                }
+
+                // Edge pass (lines)
+                pass.set_pipeline(&self.line_pipeline);
+                for slot in self.gpu_objects.values() {
+                    if slot.edge_vert_count == 0 { continue; }
+                    let c = glam::Vec3::from(slot.aabb_center);
+                    let clip = view_proj * glam::Vec4::new(c.x, c.y, c.z, 1.0);
+                    if clip.w > 0.0 {
+                        let ndc_x = (clip.x / clip.w).abs();
+                        let ndc_y = (clip.y / clip.w).abs();
+                        let r_ndc = slot.aabb_extent / clip.w;
+                        if ndc_x - r_ndc > 1.5 || ndc_y - r_ndc > 1.5 { continue; }
+                    }
+                    pass.set_vertex_buffer(0, slot.edge_vb.slice(..));
+                    pass.draw(0..slot.edge_vert_count, 0..1);
+                    drawn_edge_verts += slot.edge_vert_count;
+                }
+
+                // ── Selection highlight（AABB outline）──
+                if let Some((ref sel_buf, sel_count)) = sel_outline_buf {
+                    pass.set_pipeline(&self.line_pipeline);
+                    pass.set_vertex_buffer(0, sel_buf.slice(..));
+                    pass.draw(0..sel_count, 0..1);
+                }
+
+                // Preview geometry
+                if let (Some(ref pvb), Some(ref pib)) = (&preview_vb, &preview_ib) {
+                    pass.set_pipeline(&self.tri_pipeline);
+                    pass.set_vertex_buffer(0, pvb.slice(..));
+                    pass.set_index_buffer(pib.slice(..), wgpu::IndexFormat::Uint32);
+                    pass.draw_indexed(0..preview_idx_count, 0, 0..1);
+                }
+
+                self.cached_face_vert_count = drawn_face_verts as usize;
+            }
+            queue.submit(std::iter::once(encoder.finish()));
+            return; // 大場景路徑完成，跳過舊路徑
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // 小場景舊路徑（< 100 物件，用 mega-buffer）
+        // ══════════════════════════════════════════════════════════════════════
         let geometry_changed = scene.version != self.cached_scene_version;
         let has_preview = !preview.0.is_empty();
         let style_changed = (self.cached_edge_thickness - edge_thickness).abs() > 0.01
             || self.cached_render_mode != render_mode;
-        let editing_component_changed = self.cached_editing_component_def_id.as_deref() != editing_component_def_id;
-        let selection_changed = selected_ids != self.cached_selected_ids.as_slice();
-        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed || editing_component_changed || selection_changed;
+        let scene_dirty = geometry_changed || has_preview || self.cached_verts.is_empty() || style_changed;
 
         if scene_dirty {
-            let (verts, idx) = build_scene_mesh(
-                scene, selected_ids, hovered_id, editing_group_id, editing_component_def_id,
+            let result = build_scene_mesh_incremental(
+                scene, &mut self.per_object_cache,
+                selected_ids, hovered_id, editing_group_id, editing_component_def_id,
                 hovered_face, selected_face,
                 edge_thickness, render_mode,
                 texture_manager,
                 view_proj,
             );
-            self.cached_verts = verts;
-            self.cached_idx = idx;
+            self.cached_verts = result.face_verts;
+            self.cached_idx = result.face_idx;
+            self.cached_edge_verts = result.edge_verts;
             self.cached_scene_version = scene.version;
             self.cached_edge_thickness = edge_thickness;
             self.cached_render_mode = render_mode;
-            self.cached_editing_component_def_id = editing_component_def_id.map(|s| s.to_string());
-            self.cached_selected_ids = selected_ids.to_vec();
         }
 
-        // Combine cached scene mesh + preview geometry
-        let mut tri_verts = self.cached_verts.clone();
-        let mut tri_idx = self.cached_idx.clone();
+        let mut tri_verts = Vec::with_capacity(self.cached_verts.len() + preview.0.len());
+        tri_verts.extend_from_slice(&self.cached_verts);
         let offset = tri_verts.len() as u32;
         tri_verts.extend_from_slice(&preview.0);
+        let mut tri_idx = Vec::with_capacity(self.cached_idx.len() + preview.1.len());
+        tri_idx.extend_from_slice(&self.cached_idx);
         tri_idx.extend(preview.1.iter().map(|i| i + offset));
 
-        // Apply render mode to vertex colors
-        // Edge line vertices have dark colors (rgb < 0.3) — preserve them in wireframe/sketch modes
-        match render_mode {
-            1 => { // Wireframe: make faces invisible, keep edge lines visible
-                for v in &mut tri_verts {
-                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
-                    let is_selected_edge = v.color[2] > 0.8 && v.color[0] < 0.4; // blue selection edge
-                    if !is_edge && !is_selected_edge {
-                        v.color[3] = 0.0; // hide face completely
-                    }
-                }
-            }
-            2 => { // X-Ray: make faces transparent, keep edges
-                for v in &mut tri_verts {
-                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
-                    if !is_edge {
-                        v.color[3] = 0.15;
-                    }
-                }
-            }
-            3 => { // Hidden Line: white surfaces, keep edges
-                for v in &mut tri_verts {
-                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
-                    if !is_edge {
-                        v.color = [0.95, 0.95, 0.95, 1.0];
-                    }
-                }
-            }
-            4 => { // Monochrome: uniform grey faces, keep edges
-                for v in &mut tri_verts {
-                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
-                    if !is_edge {
-                        v.color = [0.75, 0.75, 0.75, 1.0];
-                    }
-                }
-            }
-            5 => { // Sketch: invisible faces, black edges only
-                for v in &mut tri_verts {
-                    let is_edge = v.color[0] < 0.3 && v.color[1] < 0.3 && v.color[2] < 0.3;
-                    let is_selected_edge = v.color[2] > 0.8 && v.color[0] < 0.4;
-                    if is_edge || is_selected_edge {
-                        v.color = [0.0, 0.0, 0.0, 1.0]; // pure black edges
-                    } else {
-                        v.color[3] = 0.0; // hide faces
-                    }
-                }
-            }
-            _ => {} // Shaded: default
-        }
-
-        // Color removal: replace all vertex colors with light grey (keep alpha)
-        if !show_colors && render_mode != 5 {
-            for v in &mut tri_verts {
-                v.color = [0.85, 0.85, 0.85, v.color[3]];
-            }
-        }
-
-        // GPU buffer 大小保護（wgpu 上限 256MB，reuse_or_grow_buffer 會加 1.5x 餘量）
-        // 必須在 shadow 計算之前截斷
-        {
-            const MAX_BUF: usize = 160 * 1024 * 1024;
-            let max_v = MAX_BUF / std::mem::size_of::<Vertex>();
-            let max_i = MAX_BUF / 4;
-            if tri_verts.len() > max_v {
-                tracing::error!("[Renderer] Scene too large: {} verts (max {}), truncating", tri_verts.len(), max_v);
-                tri_verts.truncate(max_v);
-            }
-            if tri_idx.len() > max_i {
-                tracing::error!("[Renderer] Scene too large: {} idx (max {}), truncating", tri_idx.len(), max_i);
-                tri_idx.truncate(max_i);
-            }
-        }
-
-        // Generate ground shadow vertices (cached — improved directional projection)
-        if scene_dirty {
-            let light_dir = glam::Vec3::new(-0.3, -1.0, -0.5).normalize();
-            self.cached_shadow_verts = tri_verts.iter().map(|v| {
-                let pos = glam::Vec3::from(v.position);
-                let (proj_x, proj_z) = if light_dir.y.abs() > 0.001 {
-                    let t = -pos.y / light_dir.y;
-                    let proj = pos + light_dir * t;
-                    (proj.x, proj.z)
-                } else {
-                    (pos.x, pos.z)
-                };
-                // 高度衰減：物件越高，陰影越淡
-                let height_fade = (1.0 - (pos.y / 10000.0).min(0.8)).max(0.02);
-                let alpha = 0.12 * height_fade;
-                Vertex {
-                    position: [proj_x, 0.5, proj_z],
-                    normal: [0.0, 1.0, 0.0],
-                    color: [0.0, 0.0, 0.0, alpha],
-                }
-            }).collect();
-            self.cached_shadow_idx = tri_idx.clone();
-        }
         let shadow_verts = &self.cached_shadow_verts;
         let shadow_idx = &self.cached_shadow_idx;
 
@@ -733,6 +890,16 @@ impl ViewportRenderer {
             wgpu::BufferUsages::INDEX, "scene_ib",
         );
 
+        // Upload edge VB (LineList)
+        if !self.cached_edge_verts.is_empty() {
+            let edge_bytes = bytemuck::cast_slice::<Vertex, u8>(&self.cached_edge_verts);
+            reuse_or_grow_buffer(
+                device, queue, edge_bytes,
+                &mut self.edge_vb, &mut self.edge_vb_capacity,
+                wgpu::BufferUsages::VERTEX, "edge_vb",
+            );
+        }
+
         let sv_bytes = bytemuck::cast_slice::<Vertex, u8>(&shadow_verts);
         let si_bytes = bytemuck::cast_slice::<u32, u8>(&shadow_idx);
         reuse_or_grow_buffer(
@@ -747,7 +914,9 @@ impl ViewportRenderer {
         );
 
         // ── Shadow pass (depth-only from light's perspective) ──
-        if self.shadow_map_enabled {
+        // 大場景（> 100 萬頂點）自動關閉 shadow pass（GPU 瓶頸）
+        let shadow_enabled = self.shadow_map_enabled && tri_verts.len() < 1_000_000;
+        if shadow_enabled {
             if let (Some(ref shadow_view), Some(ref shadow_pipeline), Some(ref shadow_bg), Some(ref shadow_ubuf)) =
                 (&self.shadow_depth_view, &self.shadow_pipeline, &self.shadow_bind_group, &self.shadow_uniform_buf)
             {
@@ -841,8 +1010,8 @@ impl ViewportRenderer {
                 pass.draw(0..self.grid_verts.len() as u32, 0..1);
             }
 
-            // Ground shadows (drawn before scene so objects render on top) — skip in Sketch mode
-            if render_mode != 5 && !shadow_idx.is_empty() {
+            // Ground shadows (drawn before scene so objects render on top) — skip in Sketch mode and large scenes
+            if render_mode != 5 && !shadow_idx.is_empty() && shadow_enabled {
                 if let (Some(svb), Some(sib)) = (&self.shadow_vb, &self.shadow_ib) {
                     pass.set_pipeline(&self.tri_pipeline);
                     pass.set_vertex_buffer(0, svb.slice(..));
@@ -851,13 +1020,22 @@ impl ViewportRenderer {
                 }
             }
 
-            // Scene triangles
+            // Scene triangles (faces)
             if !tri_idx.is_empty() {
                 if let (Some(vb), Some(ib)) = (&self.scene_vb, &self.scene_ib) {
                     pass.set_pipeline(&self.tri_pipeline);
                     pass.set_vertex_buffer(0, vb.slice(..));
                     pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
                     pass.draw_indexed(0..tri_idx.len() as u32, 0, 0..1);
+                }
+            }
+
+            // Scene edges (LineList — SketchUp style, 2 verts per edge)
+            if !self.cached_edge_verts.is_empty() {
+                if let Some(ref evb) = self.edge_vb {
+                    pass.set_pipeline(&self.line_pipeline);
+                    pass.set_vertex_buffer(0, evb.slice(..));
+                    pass.draw(0..self.cached_edge_verts.len() as u32, 0..1);
                 }
             }
         }

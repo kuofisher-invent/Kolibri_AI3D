@@ -18,6 +18,12 @@ pub struct HeMesh {
     next_fid: FId,
     /// SDK 原始邊線（匯入時填入，優先用於渲染）
     pub sdk_edge_segments: Vec<([f32; 3], [f32; 3])>,
+    /// O(1) edge lookup: (origin, dest) → EId
+    edge_map: HashMap<(VId, VId), EId>,
+    /// 快取的邊線段（避免每幀重算）
+    cached_edge_segs: Option<Vec<([f32; 3], [f32; 3])>>,
+    /// 快取的 face vertices（避免每幀重算）
+    cached_face_verts: Option<HashMap<FId, Vec<[f32; 3]>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,14 +99,27 @@ impl<'de> Deserialize<'de> for HeMesh {
         D: Deserializer<'de>,
     {
         let helper = HeMeshSerde::deserialize(deserializer)?;
+        let edges: HashMap<EId, HeEdge> = helper.edges.into_iter().collect();
+        // 重建 edge_map
+        let mut edge_map = HashMap::with_capacity(edges.len());
+        for (&eid, edge) in &edges {
+            if let Some(twin_id) = edge.twin {
+                if let Some(twin) = edges.get(&twin_id) {
+                    edge_map.insert((edge.origin, twin.origin), eid);
+                }
+            }
+        }
         Ok(Self {
             vertices: helper.vertices.into_iter().collect(),
-            edges: helper.edges.into_iter().collect(),
+            edges,
             faces: helper.faces.into_iter().collect(),
             next_vid: helper.next_vid,
             next_eid: helper.next_eid,
             next_fid: helper.next_fid,
             sdk_edge_segments: helper.sdk_edge_segments,
+            edge_map,
+            cached_edge_segs: None,
+            cached_face_verts: None,
         })
     }
 }
@@ -115,7 +134,16 @@ impl HeMesh {
             next_eid: 1,
             next_fid: 1,
             sdk_edge_segments: Vec::new(),
+            edge_map: HashMap::new(),
+            cached_edge_segs: None,
+            cached_face_verts: None,
         }
+    }
+
+    /// 拓撲變更時清除快取
+    pub fn invalidate_cache(&mut self) {
+        self.cached_edge_segs = None;
+        self.cached_face_verts = None;
     }
 
     /// Get next face ID and increment counter (for direct face insertion)
@@ -130,6 +158,7 @@ impl HeMesh {
         let id = self.next_vid;
         self.next_vid += 1;
         self.vertices.insert(id, HeVertex { pos, edge: None });
+        self.invalidate_cache();
         id
     }
 
@@ -149,8 +178,8 @@ impl HeMesh {
     /// Add an edge between two vertices. Creates a pair of half-edges.
     /// Returns (edge_id, twin_id)
     pub fn add_edge_between(&mut self, v1: VId, v2: VId) -> (EId, EId) {
-        // Check if edge already exists
-        if let Some(eid) = self.find_edge(v1, v2) {
+        // Check if edge already exists — O(1)
+        if let Some(eid) = self.edge_map.get(&(v1, v2)).copied() {
             let twin = self.edges[&eid].twin.unwrap_or(eid);
             return (eid, twin);
         }
@@ -164,6 +193,8 @@ impl HeMesh {
         self.edges.insert(e2, HeEdge {
             origin: v2, twin: Some(e1), next: None, prev: None, face: None,
         });
+        self.edge_map.insert((v1, v2), e1);
+        self.edge_map.insert((v2, v1), e2);
 
         // Set vertex outgoing edges
         if let Some(v) = self.vertices.get_mut(&v1) {
@@ -173,6 +204,7 @@ impl HeMesh {
             if v.edge.is_none() { v.edge = Some(e2); }
         }
 
+        self.invalidate_cache();
         (e1, e2)
     }
 
@@ -235,20 +267,12 @@ impl HeMesh {
             vert_ids: Some(vertex_ids.to_vec()),
             source_face_label,
         });
+        self.invalidate_cache();
     }
 
-    /// Find half-edge from v1 to v2
+    /// Find half-edge from v1 to v2 — O(1) via edge_map
     pub fn find_edge(&self, v1: VId, v2: VId) -> Option<EId> {
-        for (&id, e) in &self.edges {
-            if e.origin == v1 {
-                if let Some(twin) = e.twin {
-                    if self.edges.get(&twin).map(|t| t.origin) == Some(v2) {
-                        return Some(id);
-                    }
-                }
-            }
-        }
-        None
+        self.edge_map.get(&(v1, v2)).copied()
     }
 
     /// Try to detect and create faces from closed edge loops.
@@ -416,8 +440,18 @@ impl HeMesh {
         [nx/len, ny/len, nz/len]
     }
 
-    /// Get all face vertex positions (for rendering)
+    /// Get all face vertex positions (for rendering) — 使用快取
     pub fn face_vertices(&self, fid: FId) -> Vec<[f32; 3]> {
+        // 快取命中
+        if let Some(ref cache) = self.cached_face_verts {
+            if let Some(verts) = cache.get(&fid) {
+                return verts.clone();
+            }
+        }
+        self.compute_face_vertices(fid)
+    }
+
+    fn compute_face_vertices(&self, fid: FId) -> Vec<[f32; 3]> {
         let face = match self.faces.get(&fid) {
             Some(f) => f,
             None => return vec![],
@@ -429,7 +463,7 @@ impl HeMesh {
                 .collect();
         }
         // 標準路徑：走 edge loop
-        let mut verts = Vec::new();
+        let mut verts = Vec::with_capacity(4);
         let start = face.edge;
         let mut current = start;
         for _ in 0..100 {
@@ -448,16 +482,40 @@ impl HeMesh {
         verts
     }
 
-    /// Get all edge segments for rendering
-    pub fn all_edge_segments(&self) -> Vec<([f32; 3], [f32; 3])> {
-        // 優先使用 SDK 原始邊線（無三角化產物）
-        if !self.sdk_edge_segments.is_empty() {
-            return self.sdk_edge_segments.clone();
+    /// 建立所有 face vertices 快取
+    pub fn ensure_face_cache(&mut self) {
+        if self.cached_face_verts.is_some() { return; }
+        let mut cache = HashMap::with_capacity(self.faces.len());
+        for &fid in self.faces.keys() {
+            cache.insert(fid, self.compute_face_vertices(fid));
         }
-        // 如果有半邊拓撲，用原來的方式
+        self.cached_face_verts = Some(cache);
+    }
+
+    /// Get all edge segments for rendering — 使用快取，避免每幀重算
+    pub fn all_edge_segments(&self) -> &[([f32; 3], [f32; 3])] {
+        if let Some(ref segs) = self.cached_edge_segs {
+            return segs;
+        }
+        // 快取未建立，回傳 sdk_edge_segments 或空
+        if !self.sdk_edge_segments.is_empty() {
+            return &self.sdk_edge_segments;
+        }
+        &[]
+    }
+
+    /// 建立 edge segments 快取（首次渲染前呼叫）
+    pub fn ensure_edge_cache(&mut self) {
+        if self.cached_edge_segs.is_some() { return; }
+        // 優先使用 SDK 原始邊線
+        if !self.sdk_edge_segments.is_empty() {
+            // SDK 邊已存在，直接用（all_edge_segments 直接引用）
+            return;
+        }
+        // 如果有半邊拓撲
         if !self.edges.is_empty() {
-            let mut segments = Vec::new();
-            let mut seen = std::collections::HashSet::new();
+            let mut segments = Vec::with_capacity(self.edges.len() / 2);
+            let mut seen = std::collections::HashSet::with_capacity(self.edges.len());
             for (&eid, edge) in &self.edges {
                 if seen.contains(&eid) { continue; }
                 if let Some(twin) = edge.twin { seen.insert(twin); }
@@ -470,10 +528,10 @@ impl HeMesh {
                     .unwrap_or([0.0; 3]);
                 segments.push((p1, p2));
             }
-            return segments;
+            self.cached_edge_segs = Some(segments);
+            return;
         }
-        // 快速路徑：從 face.vert_ids 生成邊
-        // 記錄每條邊的相鄰面法線，共面邊（三角化對角線）不顯示
+        // Fallback：從 face.vert_ids 生成邊
         let mut edge_faces: std::collections::HashMap<(u32, u32), Vec<[f32; 3]>> = std::collections::HashMap::new();
         for face in self.faces.values() {
             if let Some(ref ids) = face.vert_ids {
@@ -486,17 +544,15 @@ impl HeMesh {
                 }
             }
         }
-        let mut segments = Vec::new();
+        let mut segments = Vec::with_capacity(edge_faces.len());
         for ((a, b), normals) in &edge_faces {
-            // 邊界邊（只有 1 個面）→ 一定顯示
-            // 內部邊（2 個面）→ 法線夾角 > 閾值才顯示（非共面）
             let show = if normals.len() == 1 {
                 true
             } else if normals.len() >= 2 {
                 let n0 = &normals[0];
                 let n1 = &normals[1];
                 let dot = n0[0]*n1[0] + n0[1]*n1[1] + n0[2]*n1[2];
-                dot.abs() < 0.9998 // 法線夾角 > ~1° → 顯示（過濾三角化邊）
+                dot.abs() < 0.999
             } else {
                 true
             };
@@ -506,7 +562,7 @@ impl HeMesh {
                 segments.push((p1, p2));
             }
         }
-        segments
+        self.cached_edge_segs = Some(segments);
     }
 
     /// Get number of edges (unique, not counting twins)

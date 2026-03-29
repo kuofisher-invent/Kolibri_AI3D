@@ -92,10 +92,24 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
                         })),
                         "notifications/initialized" => JsonRpcResponse::ok(id, json!({})),
                         "tools/list" => {
-                            // 回傳 APP 支援的工具列表
-                            JsonRpcResponse::ok(id, json!({
-                                "tools": kolibri_mcp::adapter::KolibriAdapter::new().tool_definitions()
-                            }))
+                            // 合併 MCP adapter 工具 + APP 專屬工具
+                            let mut tools = kolibri_mcp::adapter::KolibriAdapter::new().tool_definitions();
+                            tools.push(kolibri_mcp::protocol::ToolDef {
+                                name: "screenshot".into(),
+                                description: "截取目前 3D 視窗畫面並存為 PNG".into(),
+                                input_schema: json!({
+                                    "type": "object",
+                                    "properties": {
+                                        "path": { "type": "string", "description": "PNG 儲存路徑（預設 screenshot.png）" }
+                                    }
+                                }),
+                            });
+                            tools.push(kolibri_mcp::protocol::ToolDef {
+                                name: "shutdown".into(),
+                                description: "關閉 APP".into(),
+                                input_schema: json!({ "type": "object", "properties": {} }),
+                            });
+                            JsonRpcResponse::ok(id, json!({ "tools": tools }))
                         }
                         "tools/call" => {
                             let params = req.params.unwrap_or(json!({}));

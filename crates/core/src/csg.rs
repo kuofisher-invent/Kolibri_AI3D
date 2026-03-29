@@ -143,6 +143,7 @@ fn make_box(name: &str, min: [f32; 3], max: [f32; 3], material: MaterialKind) ->
         parent_id: None,
         component_def_id: None,
         locked: false,
+        obj_version: 0,
     }
 }
 
