@@ -98,6 +98,9 @@ pub struct KolibriApp {
     pub(crate) spatial_index: Option<rstar::RTree<SpatialEntry>>,
     pub(crate) spatial_index_version: u64,
 
+    // ── Damage-based redraw ──
+    pub(crate) cached_repaint_version: u64,
+
     // ── Performance monitor ──
     pub(crate) perf_frame_times: std::collections::VecDeque<f32>, // 最近 120 幀的時間（ms）
     pub(crate) perf_last_frame: std::time::Instant,
@@ -390,6 +393,7 @@ impl KolibriApp {
             texture_manager: crate::texture_manager::TextureManager::new(),
             spatial_index: None,
             spatial_index_version: u64::MAX,
+            cached_repaint_version: u64::MAX,
             // Performance monitor
             perf_frame_times: std::collections::VecDeque::with_capacity(120),
             perf_last_frame: std::time::Instant::now(),

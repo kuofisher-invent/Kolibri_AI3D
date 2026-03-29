@@ -41,11 +41,7 @@ impl eframe::App for KolibriApp {
                 }
             }
         }
-        // Keep a light heartbeat so deferred startup work and file-based automation
-        // still progress when the scene is otherwise idle.
-        // 大場景下用較長間隔避免無意義的 repaint
-        let heartbeat_ms = if self.scene.objects.len() > 500 { 500 } else { 100 };
-        ctx.request_repaint_after(std::time::Duration::from_millis(heartbeat_ms));
+        // Heartbeat 由結尾的 damage-based redraw 控制，不在這裡設
         // Auto-start MCP HTTP bridge（永遠啟動，讓 Claude Code 能操控 APP）
         if !self.mcp_http_running {
             let port = self.mcp_http_port;
@@ -937,7 +933,25 @@ impl eframe::App for KolibriApp {
                 eprintln!("[PERF-DETAIL] total_update={:.0}ms", total.as_secs_f32() * 1000.0);
             }
         }
-        ctx.request_repaint();
+
+        // ── Damage-based redraw（SketchUp 風格：靜止時不重繪）──
+        // 只在需要時觸發下一幀重繪
+        let needs_repaint = ctx.input(|i| {
+            i.pointer.is_moving()
+            || i.pointer.any_pressed()
+            || i.pointer.any_released()
+            || i.smooth_scroll_delta != egui::Vec2::ZERO
+            || !i.events.is_empty()
+        });
+        let scene_active = self.scene.version != self.cached_repaint_version
+            || self.background_task_active();
+        if needs_repaint || scene_active {
+            self.cached_repaint_version = self.scene.version;
+            ctx.request_repaint();
+        } else {
+            // 靜止時低頻 heartbeat（MCP 輪詢 + autosave 等背景工作）
+            ctx.request_repaint_after(std::time::Duration::from_millis(200));
+        }
     }
 }
 
