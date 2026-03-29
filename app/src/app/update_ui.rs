@@ -154,7 +154,7 @@ impl KolibriApp {
 
         // ── Left panel (toolbar only) ──
         egui::SidePanel::left("left_panel")
-            .default_width(116.0).min_width(116.0).max_width(116.0).resizable(false)
+            .exact_width(124.0).resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame::none()
                 .fill(egui::Color32::from_rgb(245, 246, 250))

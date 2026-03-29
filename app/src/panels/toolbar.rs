@@ -6,7 +6,8 @@ use crate::scene::{MaterialKind, Shape};
 
 impl KolibriApp {
     pub(crate) fn toolbar_ui(&mut self, ui: &mut egui::Ui) {
-        let bsz = egui::vec2(48.0, 48.0);
+        // SketchUp-style compact buttons（32x32 vs 原本 48x48）
+        let bsz = egui::vec2(36.0, 36.0);
 
         // ── Mode switch: 建模 / 鋼構 / 出圖 (compact row) ──
         ui.horizontal(|ui| {
@@ -63,95 +64,83 @@ impl KolibriApp {
 
         match self.editor.work_mode {
             WorkMode::Modeling => {
-                // ── Select & Transform ──
+                // ── SketchUp-style tool layout: compact 2-column ──
+
+                // Select & Transform
+                ui.label(egui::RichText::new("選取").size(9.0).color(egui::Color32::from_gray(140)));
                 self.tool_row(ui, bsz, &[
-                    (Tool::Select,  "選取\n點擊選取物件，拖曳旋轉視角 (Space)"),
-                    (Tool::Move,    "移動\n選取物件後拖曳移動位置 (M)"),
+                    (Tool::Select,  "選取 (Space)"),
+                    (Tool::Move,    "移動 (M)"),
+                    (Tool::Rotate,  "旋轉 (Q)"),
                 ]);
                 self.tool_row(ui, bsz, &[
-                    (Tool::Rotate,  "旋轉\n點擊物件旋轉90度 (Q)"),
-                    (Tool::Scale,   "縮放\n點擊物件後上下拖曳等比縮放 (S)"),
+                    (Tool::Scale,   "縮放 (S)"),
+                    (Tool::Eraser,  "刪除 (E)"),
+                    (Tool::PaintBucket, "油漆桶"),
                 ]);
 
-                ui.separator();
+                ui.add_space(2.0);
 
-                // ── Draw 2D ──
-                // 弧線按鈕：顯示當前模式的圖標（Ctrl+A 循環切換）
+                // Draw
+                ui.label(egui::RichText::new("繪圖").size(9.0).color(egui::Color32::from_gray(140)));
                 let arc_tool = match self.editor.tool {
                     Tool::Arc3Point => Tool::Arc3Point,
                     Tool::Pie => Tool::Pie,
                     _ => Tool::Arc,
                 };
-                let arc_tip = match arc_tool {
-                    Tool::Arc3Point => "三點弧\nCtrl+A 切換模式 (A)",
-                    Tool::Pie       => "扇形\nCtrl+A 切換模式 (A)",
-                    _               => "兩點弧\nCtrl+A 切換模式 (A)",
-                };
                 self.tool_row(ui, bsz, &[
-                    (Tool::Line,  "線段\n連續點擊繪製線段，ESC結束 (L)"),
-                    (arc_tool,    arc_tip),
+                    (Tool::Line,      "線段 (L)"),
+                    (arc_tool,        "弧線 (A)"),
+                    (Tool::Rectangle, "矩形 (R)"),
                 ]);
                 self.tool_row(ui, bsz, &[
-                    (Tool::Rectangle, "矩形\n點擊兩角定義底面，再拉高度 (R)"),
-                    (Tool::Circle,    "圓形\n點擊圓心，拖出半徑，再拉高度 (C)"),
-                ]);
-
-                ui.separator();
-
-                // ── Draw 3D ──
-                self.tool_row(ui, bsz, &[
-                    (Tool::CreateBox,      "方塊\n點擊兩角定義底面，再拉出高度 (B)"),
-                    (Tool::CreateCylinder, "圓柱\n點擊圓心→拖出半徑→拉出高度"),
+                    (Tool::Circle,    "圓形 (C)"),
+                    (Tool::CreateBox, "方塊 (B)"),
+                    (Tool::CreateCylinder, "圓柱"),
                 ]);
                 self.tool_row(ui, bsz, &[
-                    (Tool::CreateSphere,   "球體\n點擊圓心→拖出半徑"),
-                    (Tool::PushPull,       "推拉\n點擊物件面後拖曳拉伸 (P)"),
+                    (Tool::CreateSphere, "球體"),
+                    (Tool::PushPull,     "推拉 (P)"),
+                    (Tool::Offset,       "偏移 (F)"),
                 ]);
 
-                ui.separator();
+                ui.add_space(2.0);
 
-                // ── Modify ──
+                // Modify
+                ui.label(egui::RichText::new("修改").size(9.0).color(egui::Color32::from_gray(140)));
                 self.tool_row(ui, bsz, &[
-                    (Tool::Offset,   "偏移\n點擊方塊面，拖曳產生內縮邊框 (F)"),
-                    (Tool::FollowMe, "跟隨複製\n點擊物件，自動複製並切換移動工具"),
+                    (Tool::FollowMe,  "跟隨"),
+                    (Tool::Group,     "群組 (G)"),
+                    (Tool::Component, "元件"),
                 ]);
 
-                ui.separator();
+                ui.add_space(2.0);
 
-                // ── Group & Component ──
+                // Measure
+                ui.label(egui::RichText::new("量測").size(9.0).color(egui::Color32::from_gray(140)));
                 self.tool_row(ui, bsz, &[
-                    (Tool::Group,     "群組\n將選取的多個物件合併為群組 (G)"),
-                    (Tool::Component, "元件\n將選取物件存為可重複使用的元件"),
+                    (Tool::TapeMeasure, "捲尺 (T)"),
+                    (Tool::Dimension,   "標註 (D)"),
+                    (Tool::Text,        "文字"),
                 ]);
 
-                ui.separator();
+                ui.add_space(2.0);
 
-                // ── Measure & Paint ──
+                // Camera
+                ui.label(egui::RichText::new("相機").size(9.0).color(egui::Color32::from_gray(140)));
                 self.tool_row(ui, bsz, &[
-                    (Tool::TapeMeasure,  "捲尺\n量測兩點之間的距離 (T)"),
-                    (Tool::Dimension,    "標註\n兩點標註距離 (D)"),
-                ]);
-                self.tool_row(ui, bsz, &[
-                    (Tool::Text,         "文字\n點擊放置文字標籤"),
-                    (Tool::PaintBucket,  "油漆桶\n點擊物件套用目前選擇的材質"),
+                    (Tool::Orbit,       "環繞 (O)"),
+                    (Tool::Pan,         "平移 (H)"),
+                    (Tool::ZoomExtents, "全部顯示 (Z)"),
                 ]);
 
-                ui.separator();
+                ui.add_space(2.0);
 
-                // ── Camera ──
+                // Architecture
+                ui.label(egui::RichText::new("建築").size(9.0).color(egui::Color32::from_gray(140)));
                 self.tool_row(ui, bsz, &[
-                    (Tool::Orbit, "環繞\n左鍵拖曳旋轉3D視角 (O)"),
-                    (Tool::Pan,   "平移\n左鍵拖曳平移視角 (H)"),
-                ]);
-                self.tool_row(ui, bsz, &[
-                    (Tool::ZoomExtents, "全部顯示\n自動縮放至顯示所有物件 (Z)"),
-                    (Tool::Eraser,      "橡皮擦\n點擊物件直接刪除 (E)"),
-                ]);
-                ui.separator();
-                ui.label(egui::RichText::new("建築").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
-                self.tool_row(ui, bsz, &[
-                    (Tool::Wall, "牆\n兩點畫牆（W）"),
-                    (Tool::Slab, "板\n兩角畫板"),
+                    (Tool::Wall, "牆 (W)"),
+                    (Tool::Slab, "板"),
                 ]);
                 // 牆/板參數（啟用時顯示）
                 if matches!(self.editor.tool, Tool::Wall | Tool::Slab) {
@@ -285,7 +274,7 @@ impl KolibriApp {
                 } else {
                     egui::Color32::from_rgb(110, 118, 135) // muted
                 };
-                let icon_rect = rect.shrink(8.0);
+                let icon_rect = rect.shrink(6.0);
                 crate::icons::draw_tool_icon(ui.painter(), icon_rect, tool, icon_color);
 
                 // Shortcut key label (bottom-right corner)
