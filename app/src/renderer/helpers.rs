@@ -20,10 +20,10 @@ pub(crate) fn create_textures(
     });
     let color_view = color.create_view(&Default::default());
 
-    // MSAA color texture (4x multisampled render target)
+    // MSAA=1: 不需要獨立 MSAA texture，用 color texture 直接渲染
     let msaa = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("vp_msaa"), size,
-        mip_level_count: 1, sample_count: 4,
+        mip_level_count: 1, sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format: COLOR_FMT,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -31,10 +31,10 @@ pub(crate) fn create_textures(
     });
     let msaa_view = msaa.create_view(&Default::default());
 
-    // Depth texture (4x multisampled to match MSAA color)
+    // Depth texture（sample_count 1 匹配 MSAA）
     let depth = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("vp_depth"), size,
-        mip_level_count: 1, sample_count: 4,
+        mip_level_count: 1, sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format: DEPTH_FMT,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,

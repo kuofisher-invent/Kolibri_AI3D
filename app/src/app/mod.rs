@@ -239,6 +239,8 @@ impl KolibriApp {
         }
 
         let rs = cc.wgpu_render_state.as_ref().expect("需要 wgpu 後端");
+        // Log GPU adapter info
+        eprintln!("[GPU] Adapter: {:?}", rs.adapter.get_info());
 
         let mut app = Self {
             device: rs.device.clone(),

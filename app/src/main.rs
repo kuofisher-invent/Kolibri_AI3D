@@ -42,6 +42,7 @@ mod tools;
 mod viewer;   // ViewerState, RenderMode
 
 use eframe::egui;
+use eframe::wgpu;
 use serde::Serialize;
 
 fn main() -> eframe::Result<()> {
@@ -89,6 +90,12 @@ fn main() -> eframe::Result<()> {
 
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+            power_preference: wgpu::PowerPreference::HighPerformance, // 強制使用獨顯（RTX 4060）
+            present_mode: wgpu::PresentMode::AutoNoVsync,  // 關閉 VSync（消除 300ms+ 的 present blocking）
+            desired_maximum_frame_latency: Some(1),         // 最低延遲
+            ..Default::default()
+        },
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1400.0, 800.0])
             .with_title("Kolibri_Ai3D")

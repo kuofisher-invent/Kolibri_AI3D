@@ -66,37 +66,40 @@ impl KolibriApp {
             }
 
             // Compute smart snap
+            // 大場景（> 500 物件）跳過 snap 計算（遍歷所有物件太慢）
+            let skip_snap = self.scene.objects.len() > 500;
             // For Line/Arc tools, try face snap first
-            let is_draw_tool = matches!(self.editor.tool, Tool::Line | Tool::Arc | Tool::Arc3Point | Tool::Pie);
-            if is_draw_tool {
-                if let Some(face_pt) = self.snap_to_face(local.x, local.y, response.rect.width(), response.rect.height()) {
-                    self.editor.mouse_ground = Some(face_pt);
-                    self.editor.snap_result = Some(crate::app::SnapResult {
-                        position: face_pt,
-                        snap_type: crate::app::SnapType::OnFace,
-                        from_point: self.get_drawing_origin(),
-                    });
-                } else if let Some(raw) = self.editor.mouse_ground {
+            if !skip_snap {
+                let is_draw_tool = matches!(self.editor.tool, Tool::Line | Tool::Arc | Tool::Arc3Point | Tool::Pie);
+                if is_draw_tool {
+                    if let Some(face_pt) = self.snap_to_face(local.x, local.y, response.rect.width(), response.rect.height()) {
+                        self.editor.mouse_ground = Some(face_pt);
+                        self.editor.snap_result = Some(crate::app::SnapResult {
+                            position: face_pt,
+                            snap_type: crate::app::SnapType::OnFace,
+                            from_point: self.get_drawing_origin(),
+                        });
+                    } else if let Some(raw) = self.editor.mouse_ground {
+                        let from = self.get_drawing_origin();
+                        let result = self.smart_snap(raw, from);
+                        self.editor.mouse_ground = Some(result.position);
+                        self.editor.snap_result = Some(result);
+                    } else {
+                        self.editor.snap_result = None;
+                    }
+                } else {
+                    let raw = self.editor.mouse_ground.unwrap_or([0.0, 0.0, 0.0]);
                     let from = self.get_drawing_origin();
                     let result = self.smart_snap(raw, from);
-                    self.editor.mouse_ground = Some(result.position);
+                    if result.snap_type != crate::app::SnapType::None {
+                        self.editor.mouse_ground = Some(result.position);
+                    }
                     self.editor.snap_result = Some(result);
-                } else {
-                    self.editor.snap_result = None;
                 }
-            } else {
-                // Run snap for ALL tools (not just drawing) — use ground point or fallback
-                let raw = self.editor.mouse_ground.unwrap_or([0.0, 0.0, 0.0]);
-                let from = self.get_drawing_origin();
-                let result = self.smart_snap(raw, from);
-                if result.snap_type != crate::app::SnapType::None {
-                    self.editor.mouse_ground = Some(result.position);
-                }
-                self.editor.snap_result = Some(result);
             }
 
-            // Hover pick — highlight objects/faces for all interactive tools
-            let interactive = matches!(self.editor.tool,
+            // Hover pick — 大場景跳過（遍歷所有物件 raycasting 太慢）
+            let interactive = !skip_snap && matches!(self.editor.tool,
                 Tool::Select | Tool::PushPull | Tool::Move | Tool::Rotate |
                 Tool::Scale | Tool::Eraser | Tool::PaintBucket | Tool::Offset |
                 Tool::FollowMe

@@ -26,16 +26,30 @@ impl eframe::App for KolibriApp {
             self.perf_last_frame = now;
             if self.perf_frame_times.len() >= 120 { self.perf_frame_times.pop_front(); }
             self.perf_frame_times.push_back(dt);
+            // 掉幀警告：單幀超過 50ms 立即輸出
+            if dt > 50.0 && self.scene.objects.len() > 100 {
+                eprintln!("[PERF-DROP] frame={:.0}ms fps={:.0}", dt, if dt > 0.01 { 1000.0 / dt } else { 0.0 });
+            }
             // 每 2 秒輸出詳細 timing（診斷用）
             if now.duration_since(self.perf_ram_update).as_secs() >= 2 {
                 self.perf_ram_update = now;
                 self.perf_ram_mb = get_process_memory_mb();
                 if self.scene.objects.len() > 100 {
-                    eprintln!("[PERF] objs={} avg_frame={:.0}ms fps={:.0} ram={:.0}MB gpu_verts={} mesh_build={:.0}ms",
+                    // 計算最近 120 幀的 min/max FPS
+                    let (min_ms, max_ms) = if self.perf_frame_times.is_empty() {
+                        (0.0, 0.0)
+                    } else {
+                        let mn = self.perf_frame_times.iter().cloned().fold(f32::MAX, f32::min);
+                        let mx = self.perf_frame_times.iter().cloned().fold(0.0_f32, f32::max);
+                        (mn, mx)
+                    };
+                    let min_fps = if max_ms > 0.01 { 1000.0 / max_ms } else { 0.0 };
+                    let max_fps = if min_ms > 0.01 { 1000.0 / min_ms } else { 0.0 };
+                    eprintln!("[PERF] objs={} avg_frame={:.0}ms fps={:.0} min_fps={:.0} max_fps={:.0} ram={:.0}MB mesh_build={:.0}ms",
                         self.scene.objects.len(),
                         dt, if dt > 0.01 { 1000.0 / dt } else { 0.0 },
+                        min_fps, max_fps,
                         self.perf_ram_mb,
-                        self.perf_gpu_verts,
                         self.perf_mesh_build_ms,
                     );
                 }
@@ -241,17 +255,24 @@ impl eframe::App for KolibriApp {
 
                 { let mut r = self.egui_renderer.write(); self.viewport.ensure_size(&self.device, &mut r, w, h); }
 
-                // Sync layer visibility from hidden_tags
+                // Sync layer visibility from hidden_tags（只在 tags 變更時）
                 for obj in self.scene.objects.values_mut() {
                     obj.visible = !self.viewer.hidden_tags.contains(&obj.tag);
                 }
 
-                // 先分配區域取得 response，再處理互動，最後渲染
-                // 這確保點擊/材質變更在渲染前生效（同幀即時反映）
                 let (rect, response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
-                self.handle_viewport(&response, ui);
 
+                let _t_input = std::time::Instant::now();
+                self.handle_viewport(&response, ui);
+                let input_ms = _t_input.elapsed().as_secs_f32() * 1000.0;
+
+                let _t_preview = std::time::Instant::now();
                 let preview = self.build_preview();
+                let preview_ms = _t_preview.elapsed().as_secs_f32() * 1000.0;
+
+                if self.scene.objects.len() > 100 && (input_ms > 10.0 || preview_ms > 10.0) {
+                    eprintln!("[PERF-INNER] input={:.0}ms preview={:.0}ms", input_ms, preview_ms);
+                }
                 let aspect = w as f32 / h.max(1) as f32;
                 let vp = if self.viewer.use_ortho {
                     self.viewer.camera.proj_ortho(aspect) * self.viewer.camera.view()
@@ -897,7 +918,13 @@ impl eframe::App for KolibriApp {
 
         if self.scene.objects.len() > 100 {
             let vp_ms = _t_viewport_start.elapsed().as_secs_f32() * 1000.0;
-            if vp_ms > 5.0 { eprintln!("[PERF-DETAIL] central_panel={:.0}ms", vp_ms); }
+            let total_ms = _frame_start.elapsed().as_secs_f32() * 1000.0;
+            let panels_ms = _t_panels.as_secs_f32() * 1000.0;
+            if total_ms > 50.0 {
+                eprintln!("[PERF-DETAIL] total={:.0}ms panels={:.0}ms central={:.0}ms render={:.0}ms other={:.0}ms",
+                    total_ms, panels_ms, vp_ms, self.perf_mesh_build_ms,
+                    total_ms - panels_ms - vp_ms);
+            }
         }
 
         // ── Cursor feedback based on active tool ──

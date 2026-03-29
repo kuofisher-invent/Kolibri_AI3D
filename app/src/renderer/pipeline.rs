@@ -43,6 +43,13 @@ pub struct ViewportRenderer {
     per_object_cache: std::collections::HashMap<String, ObjMeshCache>,
     /// Per-object GPU buffers (SketchUp-style: upload once, draw many)
     gpu_objects: std::collections::HashMap<String, GpuObjectSlot>,
+    /// Combined mega buffers（1 draw call，從 per-object slots 合併）
+    combined_face_vb: Option<wgpu::Buffer>,
+    combined_face_ib: Option<wgpu::Buffer>,
+    combined_face_idx_count: u32,
+    combined_edge_vb: Option<wgpu::Buffer>,
+    combined_edge_vert_count: u32,
+    combined_version: u64,
     // ── Performance: shadow caching ──
     cached_shadow_verts: Vec<Vertex>,
     cached_shadow_idx: Vec<u32>,
@@ -67,7 +74,7 @@ pub struct ViewportRenderer {
     shadow_sampler: Option<wgpu::Sampler>,
 }
 
-/// Per-object GPU buffers (SketchUp-style rendering)
+/// Per-object GPU buffers + CPU-side cache for fast combine
 struct GpuObjectSlot {
     obj_version: u64,
     face_vb: wgpu::Buffer,
@@ -76,7 +83,11 @@ struct GpuObjectSlot {
     edge_vb: wgpu::Buffer,
     edge_vert_count: u32,
     aabb_center: [f32; 3],
-    aabb_extent: f32,  // bounding sphere radius
+    aabb_extent: f32,
+    // CPU-side cache for fast mega-buffer combine
+    cpu_face_verts: Vec<Vertex>,
+    cpu_face_idx: Vec<u32>,
+    cpu_edge_verts: Vec<Vertex>,
 }
 
 impl ViewportRenderer {
@@ -182,7 +193,7 @@ impl ViewportRenderer {
                     topology: topo,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None, // 雙面渲染（SketchUp 面是雙面的）
+                    cull_mode: Some(wgpu::Face::Back), // Backface culling 砍 50% fragment
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,
@@ -195,7 +206,7 @@ impl ViewportRenderer {
                     bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
-                    count: 4,
+                    count: 1, // 降低 MSAA（4→1）大幅提升大場景 GPU 效能
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
@@ -238,7 +249,7 @@ impl ViewportRenderer {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 4,
+                count: 1,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
@@ -267,6 +278,12 @@ impl ViewportRenderer {
             cached_editing_component_def_id: None,
             per_object_cache: std::collections::HashMap::new(),
             gpu_objects: std::collections::HashMap::new(),
+            combined_face_vb: None,
+            combined_face_ib: None,
+            combined_face_idx_count: 0,
+            combined_edge_vb: None,
+            combined_edge_vert_count: 0,
+            combined_version: u64::MAX,
             cached_edge_verts: Vec::new(),
             edge_vb: None,
             edge_vb_capacity: 0,
@@ -677,9 +694,55 @@ impl ViewportRenderer {
                         edge_vert_count: mesh_data.edge_verts.len() as u32,
                         aabb_center: center,
                         aabb_extent: extent,
+                        cpu_face_verts: mesh_data.face_verts,
+                        cpu_face_idx: mesh_data.face_idx,
+                        cpu_edge_verts: mesh_data.edge_verts,
                     });
                 }
                 self.cached_scene_version = scene.version;
+            }
+
+            // ── Step 1.5: 合併 per-object CPU cache 為 1 個 mega GPU buffer（1 draw call）──
+            if self.combined_version != scene.version {
+                // 預估總大小
+                let total_fv: usize = self.gpu_objects.values().map(|s| s.cpu_face_verts.len()).sum();
+                let total_fi: usize = self.gpu_objects.values().map(|s| s.cpu_face_idx.len()).sum();
+                let total_ev: usize = self.gpu_objects.values().map(|s| s.cpu_edge_verts.len()).sum();
+
+                let mut all_face_verts: Vec<Vertex> = Vec::with_capacity(total_fv);
+                let mut all_face_idx: Vec<u32> = Vec::with_capacity(total_fi);
+                let mut all_edge_verts: Vec<Vertex> = Vec::with_capacity(total_ev);
+
+                for slot in self.gpu_objects.values() {
+                    if slot.cpu_face_verts.is_empty() { continue; }
+                    let base = all_face_verts.len() as u32;
+                    all_face_verts.extend_from_slice(&slot.cpu_face_verts);
+                    all_face_idx.extend(slot.cpu_face_idx.iter().map(|i| i + base));
+                    all_edge_verts.extend_from_slice(&slot.cpu_edge_verts);
+                }
+
+                if !all_face_verts.is_empty() {
+                    self.combined_face_vb = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("combined_face_vb"),
+                        contents: bytemuck::cast_slice(&all_face_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }));
+                    self.combined_face_ib = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("combined_face_ib"),
+                        contents: bytemuck::cast_slice(&all_face_idx),
+                        usage: wgpu::BufferUsages::INDEX,
+                    }));
+                    self.combined_face_idx_count = all_face_idx.len() as u32;
+                }
+                if !all_edge_verts.is_empty() {
+                    self.combined_edge_vb = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("combined_edge_vb"),
+                        contents: bytemuck::cast_slice(&all_edge_verts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }));
+                    self.combined_edge_vert_count = all_edge_verts.len() as u32;
+                }
+                self.combined_version = scene.version;
             }
 
             // ── Step 2: Preview geometry（drawing tools 預覽）──
@@ -740,8 +803,8 @@ impl ViewportRenderer {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("viewport_pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &self.msaa_view,
-                        resolve_target: Some(&self.color_view),
+                        view: &self.color_view,
+                        resolve_target: None, // MSAA=1, 直接寫入 color texture
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.12, g: 0.12, b: 0.16, a: 1.0 }),
                             store: wgpu::StoreOp::Store,
@@ -774,46 +837,25 @@ impl ViewportRenderer {
                     pass.draw(0..self.grid_verts.len() as u32, 0..1);
                 }
 
-                // ── Per-object draw calls with frustum culling ──
-                let mut drawn_objects = 0u32;
-                let mut drawn_face_verts = 0u32;
-                let mut drawn_edge_verts = 0u32;
-
-                // Face pass (triangles)
-                pass.set_pipeline(&self.tri_pipeline);
-                for slot in self.gpu_objects.values() {
-                    // Frustum cull
-                    let c = glam::Vec3::from(slot.aabb_center);
-                    let clip = view_proj * glam::Vec4::new(c.x, c.y, c.z, 1.0);
-                    if clip.w > 0.0 {
-                        let ndc_x = (clip.x / clip.w).abs();
-                        let ndc_y = (clip.y / clip.w).abs();
-                        let r_ndc = slot.aabb_extent / clip.w;
-                        if ndc_x - r_ndc > 1.5 || ndc_y - r_ndc > 1.5 { continue; }
+                // ── 1 draw call（用預合併的 mega buffer）──
+                if let (Some(ref vb), Some(ref ib)) = (&self.combined_face_vb, &self.combined_face_ib) {
+                    if self.combined_face_idx_count > 0 {
+                        pass.set_pipeline(&self.tri_pipeline);
+                        pass.set_vertex_buffer(0, vb.slice(..));
+                        pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
+                        pass.draw_indexed(0..self.combined_face_idx_count, 0, 0..1);
                     }
-                    if slot.face_idx_count == 0 { continue; }
-                    pass.set_vertex_buffer(0, slot.face_vb.slice(..));
-                    pass.set_index_buffer(slot.face_ib.slice(..), wgpu::IndexFormat::Uint32);
-                    pass.draw_indexed(0..slot.face_idx_count, 0, 0..1);
-                    drawn_objects += 1;
-                    drawn_face_verts += slot.face_idx_count;
                 }
-
-                // Edge pass (lines)
-                pass.set_pipeline(&self.line_pipeline);
-                for slot in self.gpu_objects.values() {
-                    if slot.edge_vert_count == 0 { continue; }
-                    let c = glam::Vec3::from(slot.aabb_center);
-                    let clip = view_proj * glam::Vec4::new(c.x, c.y, c.z, 1.0);
-                    if clip.w > 0.0 {
-                        let ndc_x = (clip.x / clip.w).abs();
-                        let ndc_y = (clip.y / clip.w).abs();
-                        let r_ndc = slot.aabb_extent / clip.w;
-                        if ndc_x - r_ndc > 1.5 || ndc_y - r_ndc > 1.5 { continue; }
+                // 邊線：大場景（> 1000 物件）省略邊線渲染以維持流暢度
+                // 效果類似 SU 的 Styles → Edge → 取消勾選
+                if scene.objects.len() < 1000 {
+                    if let Some(ref evb) = self.combined_edge_vb {
+                        if self.combined_edge_vert_count > 0 {
+                            pass.set_pipeline(&self.line_pipeline);
+                            pass.set_vertex_buffer(0, evb.slice(..));
+                            pass.draw(0..self.combined_edge_vert_count, 0..1);
+                        }
                     }
-                    pass.set_vertex_buffer(0, slot.edge_vb.slice(..));
-                    pass.draw(0..slot.edge_vert_count, 0..1);
-                    drawn_edge_verts += slot.edge_vert_count;
                 }
 
                 // ── Selection highlight（AABB outline）──
@@ -831,9 +873,14 @@ impl ViewportRenderer {
                     pass.draw_indexed(0..preview_idx_count, 0, 0..1);
                 }
 
-                self.cached_face_vert_count = drawn_face_verts as usize;
+                self.cached_face_vert_count = self.combined_face_idx_count as usize;
             }
+            let t_submit = std::time::Instant::now();
             queue.submit(std::iter::once(encoder.finish()));
+            let submit_ms = t_submit.elapsed().as_secs_f32() * 1000.0;
+            if submit_ms > 5.0 {
+                eprintln!("[PERF-GPU] submit={:.0}ms face_idx={} edge_verts={}", submit_ms, self.combined_face_idx_count, self.combined_edge_vert_count);
+            }
             return; // 大場景路徑完成，跳過舊路徑
         }
 
@@ -968,8 +1015,8 @@ impl ViewportRenderer {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("viewport_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.msaa_view,
-                    resolve_target: Some(&self.color_view),
+                    view: &self.color_view,
+                    resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(if render_mode == 5 {
                             wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
