@@ -223,15 +223,15 @@ fn convert_entities(
         unsafe { (sdk.fn_comp_inst_get_transform)(*inst_ref, &mut local_xf) };
         let inst_world = mul_transform(&world_transform, &local_xf.values);
 
-        // 第一次遇到此 def → 遞迴收集所有 faces（含巢狀 group）並快取
+        // 第一次遇到此 def → 只快取 def 的直接 faces（不合併 group faces）
         if !state.processed_defs.contains_key(&def_key) {
             let mut def_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
             unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
 
-            // 收集 def 內所有 faces（含巢狀 group 的 faces）
-            let all_faces = collect_all_faces_recursive(sdk, def_entities)?;
-            let (local_verts, local_normals, local_indices, local_face_edges, mat_id) = if !all_faces.is_empty() {
-                faces_to_local_mesh(sdk, &all_faces, &mut state.materials)?
+            // 只取 def 的直接 faces（不遞迴 group）
+            let def_faces = get_faces(sdk, def_entities)?;
+            let (local_verts, local_normals, local_indices, local_face_edges, mat_id) = if !def_faces.is_empty() {
+                faces_to_local_mesh(sdk, &def_faces, &mut state.materials)?
             } else {
                 (Vec::new(), Vec::new(), Vec::new(), Vec::new(), None)
             };
@@ -247,14 +247,13 @@ fn convert_entities(
                 def_name: def_name.clone(),
                 def_id: def_id.clone(),
             });
+        }
 
-            // 第一次遇到此 def 時，只處理巢狀 component instances（不處理 groups，因為 faces 已合併）
-            recurse_nested_instances(sdk, def_entities, parent_group_id, inst_world, scene, state)?;
-        } else {
-            // 後續 instance：只處理巢狀 component instances
+        // 每個 instance 都遞迴處理子 group/instance（用自己的 world transform）
+        {
             let mut def_entities = SUEntitiesRef { ptr: std::ptr::null_mut() };
             unsafe { (sdk.fn_comp_def_get_entities)(def_ref, &mut def_entities) };
-            recurse_nested_instances(sdk, def_entities, parent_group_id, inst_world, scene, state)?;
+            convert_entities(sdk, def_entities, parent_group_id, inst_world, scene, state, true)?;
         }
 
         // Fallback: 如果 def 的面沒有材質，嘗試從 instance 讀取材質
