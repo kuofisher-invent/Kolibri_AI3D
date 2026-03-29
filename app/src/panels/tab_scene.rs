@@ -310,30 +310,154 @@ impl KolibriApp {
         });
         ui.separator();
 
-        // Layer/tag filter section
+        // ── TAGS / LAYERS（SketchUp 風格：色彩標示 + 眼睛切換）──
+        section_header(ui, "TAGS");
         {
-            let tags: Vec<String> = {
-                let mut set = std::collections::BTreeSet::new();
+            let tags: Vec<(String, usize)> = {
+                let mut map = std::collections::BTreeMap::new();
                 for o in self.scene.objects.values() {
-                    set.insert(o.tag.clone());
+                    *map.entry(o.tag.clone()).or_insert(0usize) += 1;
                 }
-                set.into_iter().collect()
+                map.into_iter().collect()
             };
             if !tags.is_empty() {
-                ui.group(|ui| {
-                    ui.label(egui::RichText::new("圖層").strong());
-                    for tag in &tags {
+                // SU-style tag color palette
+                let tag_colors = [
+                    egui::Color32::from_rgb(76, 139, 245),   // blue
+                    egui::Color32::from_rgb(220, 80, 60),    // red
+                    egui::Color32::from_rgb(60, 180, 90),    // green
+                    egui::Color32::from_rgb(245, 180, 40),   // yellow
+                    egui::Color32::from_rgb(160, 90, 200),   // purple
+                    egui::Color32::from_rgb(80, 200, 200),   // cyan
+                    egui::Color32::from_rgb(200, 120, 60),   // orange
+                    egui::Color32::from_rgb(140, 140, 140),  // grey
+                ];
+                figma_group(ui, |ui| {
+                    for (i, (tag, count)) in tags.iter().enumerate() {
                         let visible = !self.viewer.hidden_tags.contains(tag);
-                        let label = if visible { format!("\u{1f441} {}", tag) } else { format!("   {}", tag) };
-                        if ui.selectable_label(visible, &label).clicked() {
-                            if visible { self.viewer.hidden_tags.insert(tag.clone()); }
-                            else { self.viewer.hidden_tags.remove(tag); }
-                        }
+                        let color = tag_colors[i % tag_colors.len()];
+                        ui.horizontal(|ui| {
+                            // 色彩圓點
+                            let (dot_rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
+                            ui.painter().circle_filled(dot_rect.center(), 4.0, if visible { color } else { egui::Color32::from_gray(180) });
+
+                            // 眼睛圖示 + 名稱
+                            let eye = if visible { "\u{1f441}" } else { "—" };
+                            let label_text = format!("{} {} ({})", eye, tag, count);
+                            let resp = ui.selectable_label(visible, egui::RichText::new(&label_text).size(11.0));
+                            if resp.clicked() {
+                                if visible { self.viewer.hidden_tags.insert(tag.clone()); }
+                                else { self.viewer.hidden_tags.remove(tag); }
+                            }
+                        });
                     }
                 });
-                ui.separator();
+                ui.add_space(4.0);
             }
         }
+
+        // ── STYLES（SketchUp 風格：預設樣式切換）──
+        section_header(ui, "STYLES");
+        figma_group(ui, |ui| {
+            let styles = [
+                ("著色", 0u32, "標準著色模式"),
+                ("線框", 1, "只顯示邊線"),
+                ("X 光", 2, "透明面 + 邊線"),
+                ("隱藏線", 3, "白色面 + 邊線"),
+                ("單色", 4, "灰色面 + 邊線"),
+                ("草稿", 5, "純黑邊線（無面）"),
+            ];
+            ui.columns(3, |cols| {
+                for (i, (name, mode, tooltip)) in styles.iter().enumerate() {
+                    let col = &mut cols[i % 3];
+                    let is_current = self.viewer.render_mode.as_u32() == *mode;
+                    let btn = egui::Button::new(
+                        egui::RichText::new(*name).size(10.0).strong()
+                            .color(if is_current { egui::Color32::WHITE } else { egui::Color32::from_rgb(60, 65, 80) })
+                    )
+                    .fill(if is_current { egui::Color32::from_rgb(76, 139, 245) } else { egui::Color32::from_gray(235) })
+                    .rounding(6.0);
+                    if col.add(btn).on_hover_text(*tooltip).clicked() {
+                        self.viewer.render_mode = match mode {
+                            0 => crate::viewer::RenderMode::Shaded,
+                            1 => crate::viewer::RenderMode::Wireframe,
+                            2 => crate::viewer::RenderMode::XRay,
+                            3 => crate::viewer::RenderMode::HiddenLine,
+                            4 => crate::viewer::RenderMode::Monochrome,
+                            _ => crate::viewer::RenderMode::Sketch,
+                        };
+                    }
+                }
+            });
+            ui.add_space(4.0);
+            // Edge thickness
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("邊線").size(10.0));
+                ui.add(egui::Slider::new(&mut self.viewer.edge_thickness, 0.5..=8.0).step_by(0.5).suffix("px"));
+            });
+            // Show/hide toggles
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.viewer.show_colors, egui::RichText::new("色彩").size(10.0));
+                ui.checkbox(&mut self.viewer.show_grid, egui::RichText::new("格線").size(10.0));
+            });
+        });
+
+        ui.add_space(4.0);
+
+        // ── SCENES / CAMERAS（SketchUp 風格場景快照）──
+        if !self.viewer.saved_cameras.is_empty() {
+            section_header(ui, "SCENES");
+            figma_group(ui, |ui| {
+                let mut restore_idx = None;
+                let mut delete_idx = None;
+                for (i, (name, _cam)) in self.viewer.saved_cameras.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        let btn_text = format!("{}  {}", i + 1, name);
+                        if ui.button(egui::RichText::new(&btn_text).size(11.0)).clicked() {
+                            restore_idx = Some(i);
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.small_button("✕").clicked() {
+                                delete_idx = Some(i);
+                            }
+                        });
+                    });
+                }
+                if let Some(i) = restore_idx {
+                    if let Some((_, cam)) = self.viewer.saved_cameras.get(i) {
+                        self.viewer.camera = cam.clone();
+                    }
+                }
+                if let Some(i) = delete_idx {
+                    self.viewer.saved_cameras.remove(i);
+                }
+                if ui.button(egui::RichText::new("+ 儲存目前視角").size(10.0)).clicked() {
+                    let name = format!("Scene {}", self.viewer.saved_cameras.len() + 1);
+                    self.viewer.saved_cameras.push((name, self.viewer.camera.clone()));
+                }
+            });
+            ui.add_space(4.0);
+        }
+
+        // ── SHADOW（陰影設定）──
+        section_header(ui, "SHADOW");
+        figma_group(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.viewer.section_plane_enabled, egui::RichText::new("剖面平面").size(10.0));
+            });
+            if self.viewer.section_plane_enabled {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("軸向").size(10.0));
+                    if ui.selectable_label(self.viewer.section_plane_axis == 0, "X").clicked() { self.viewer.section_plane_axis = 0; }
+                    if ui.selectable_label(self.viewer.section_plane_axis == 1, "Y").clicked() { self.viewer.section_plane_axis = 1; }
+                    if ui.selectable_label(self.viewer.section_plane_axis == 2, "Z").clicked() { self.viewer.section_plane_axis = 2; }
+                    ui.checkbox(&mut self.viewer.section_plane_flip, "翻轉");
+                });
+                ui.add(egui::Slider::new(&mut self.viewer.section_plane_offset, -20000.0..=20000.0).text("偏移"));
+            }
+        });
+
+        ui.add_space(4.0);
 
         // Groups
         if !self.scene.groups.is_empty() {
@@ -360,20 +484,37 @@ impl KolibriApp {
             ui.separator();
         }
 
-        // Component definitions
+        // ── COMPONENTS（元件瀏覽器）──
         if !self.scene.component_defs.is_empty() {
-            ui.label(egui::RichText::new("元件定義").strong());
-            let defs: Vec<_> = self.scene.component_defs.values().cloned().collect();
-            for def in &defs {
-                ui.horizontal(|ui| {
+            section_header(ui, "COMPONENTS");
+            figma_group(ui, |ui| {
+                let mut defs: Vec<_> = self.scene.component_defs.values().cloned().collect();
+                defs.sort_by(|a, b| a.name.cmp(&b.name));
+                for def in &defs {
                     let instance_count = self.scene.objects.values()
-                        .filter(|o| o.tag == format!("元件:{}", def.id))
+                        .filter(|o| o.component_def_id.as_deref() == Some(&def.id))
                         .count();
-                    let label = format!("\u{1f537} {} ({} 個實例)", def.name, instance_count);
-                    ui.label(&label);
-                });
-            }
-            ui.separator();
+                    ui.horizontal(|ui| {
+                        // 元件圖示
+                        let (icon_rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                        ui.painter().rect_filled(icon_rect, 3.0, egui::Color32::from_rgb(76, 139, 245));
+                        ui.painter().text(icon_rect.center(), egui::Align2::CENTER_CENTER,
+                            "C", egui::FontId::proportional(8.0), egui::Color32::WHITE);
+                        // 名稱 + 實例數
+                        let name_display = if def.name.len() > 20 { format!("{}…", &def.name[..18]) } else { def.name.clone() };
+                        let resp = ui.selectable_label(false,
+                            egui::RichText::new(format!("{} ×{}", name_display, instance_count)).size(10.5));
+                        if resp.clicked() {
+                            // 選取此元件的所有實例
+                            self.editor.selected_ids = self.scene.objects.values()
+                                .filter(|o| o.component_def_id.as_deref() == Some(&def.id))
+                                .map(|o| o.id.clone())
+                                .collect();
+                        }
+                    });
+                }
+            });
+            ui.add_space(4.0);
         }
 
         if self.scene.objects.is_empty() {
