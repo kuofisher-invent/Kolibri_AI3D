@@ -644,11 +644,7 @@ impl KolibriApp {
 
         let base_text = format!("{}{}", base, snap_info);
 
-        // Append cursor world coordinates
-        if let Some(p) = self.editor.mouse_ground {
-            format!("{}{} | X:{:.0} Y:{:.0} Z:{:.0}", base_text, coord, p[0], p[1], p[2])
-        } else {
-            base_text
-        }
+        // 座標已在 viewport chips 顯示，不重複
+        base_text
     }
 }
