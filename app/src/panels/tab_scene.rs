@@ -228,78 +228,29 @@ impl KolibriApp {
     }
 
     pub(crate) fn tab_scene(&mut self, ui: &mut egui::Ui) {
-        // ── PAGES / SCENES ──
-        section_header(ui, "PAGES / SCENES");
-        figma_group(ui, |ui| {
+        // ── Scene summary（緊湊的場景摘要列）──
+        {
             let scene_name = self.current_file.as_ref()
                 .and_then(|p| p.rsplit(['\\', '/']).next())
                 .unwrap_or("Scene 1");
-            let obj_count = self.scene.objects.len();
-
             ui.horizontal(|ui| {
-                let (thumb_rect, _) = ui.allocate_exact_size(egui::vec2(48.0, 36.0), egui::Sense::hover());
-                ui.painter().rect_filled(thumb_rect, 8.0, egui::Color32::from_rgb(230, 233, 240));
-                ui.painter().text(thumb_rect.center(), egui::Align2::CENTER_CENTER,
-                    "\u{1f3d7}", egui::FontId::proportional(16.0),
-                    egui::Color32::from_rgb(110, 118, 135));
-
-                ui.vertical(|ui| {
-                    ui.label(egui::RichText::new(scene_name).strong().size(12.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                    ui.label(egui::RichText::new(format!("{} objects", obj_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                ui.label(egui::RichText::new(scene_name).strong().size(11.0));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(format!("{} 物件", self.scene.objects.len())).size(10.0).color(egui::Color32::from_gray(140)));
                 });
             });
-        });
-
-        ui.add_space(8.0);
-
-        // ── QUICK ACTIONS ──
-        section_header(ui, "QUICK ACTIONS");
-        figma_group(ui, |ui| {
-            ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("+ 新場景").size(11.0)).clicked() {
-                    self.handle_menu_action(crate::menu::MenuAction::NewScene);
-                }
-                if cols[1].button(egui::RichText::new("\u{1f4c2} 開啟").size(11.0)).clicked() {
-                    self.handle_menu_action(crate::menu::MenuAction::OpenScene);
-                }
+            // Quick action row（一列按鈕）
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 3.0;
+                ui.spacing_mut().button_padding = egui::vec2(6.0, 2.0);
+                if ui.small_button("新建").clicked() { self.handle_menu_action(crate::menu::MenuAction::NewScene); }
+                if ui.small_button("開啟").clicked() { self.handle_menu_action(crate::menu::MenuAction::OpenScene); }
+                if ui.small_button("匯入").clicked() { self.handle_menu_action(crate::menu::MenuAction::ImportObj); }
+                if ui.small_button("匯出").clicked() { self.handle_menu_action(crate::menu::MenuAction::ExportObj); }
+                if ui.small_button("全顯").clicked() { self.zoom_extents(); }
             });
-            ui.add_space(2.0);
-            ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("\u{1f4e5} 匯入 OBJ").size(11.0)).clicked() {
-                    self.handle_menu_action(crate::menu::MenuAction::ImportObj);
-                }
-                if cols[1].button(egui::RichText::new("\u{1f4e4} 匯出").size(11.0)).clicked() {
-                    self.handle_menu_action(crate::menu::MenuAction::ExportObj);
-                }
-            });
-            ui.add_space(2.0);
-            ui.columns(2, |cols| {
-                if cols[0].button(egui::RichText::new("\u{1f4e6} 群組").size(11.0)).clicked() {
-                    self.editor.tool = Tool::Group;
-                }
-                if cols[1].button(egui::RichText::new("\u{1f50d} 全部顯示").size(11.0)).clicked() {
-                    self.zoom_extents();
-                }
-            });
-        });
-
-        ui.add_space(8.0);
-
-        // ── SNAP ──
-        section_header(ui, "SNAP");
-        figma_group(ui, |ui| {
-            ui.columns(3, |cols| {
-                cols[0].label(egui::RichText::new("● 端點").size(10.0));
-                cols[1].label(egui::RichText::new("○ 中點").size(10.0));
-                cols[2].label(egui::RichText::new("✖ 交點").size(10.0));
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("靈敏度").size(10.0));
-                ui.add(egui::Slider::new(&mut self.editor.snap_threshold, 5.0..=40.0).step_by(1.0).suffix("px"));
-            });
-        });
-
-        ui.add_space(8.0);
+        }
+        ui.separator();
 
         // ── LAYERS / OBJECTS ──
         ui.horizontal(|ui| {
@@ -310,9 +261,15 @@ impl KolibriApp {
         });
         ui.separator();
 
-        // ── TAGS / LAYERS（SketchUp 風格：色彩標示 + 眼睛切換）──
-        section_header(ui, "TAGS");
-        {
+        // ── TAGS / LAYERS（可折疊）──
+        let tag_count = {
+            let mut set = std::collections::BTreeSet::new();
+            for o in self.scene.objects.values() { set.insert(o.tag.clone()); }
+            set.len()
+        };
+        egui::CollapsingHeader::new(egui::RichText::new(format!("Tags ({})", tag_count)).size(11.0).strong())
+            .default_open(true)
+            .show(ui, |ui| {
             let tags: Vec<(String, usize)> = {
                 let mut map = std::collections::BTreeMap::new();
                 for o in self.scene.objects.values() {
@@ -354,11 +311,12 @@ impl KolibriApp {
                 });
                 ui.add_space(4.0);
             }
-        }
+        });  // end Tags collapsing header
 
-        // ── STYLES（SketchUp 風格：預設樣式切換）──
-        section_header(ui, "STYLES");
-        figma_group(ui, |ui| {
+        // ── STYLES（可折疊）──
+        egui::CollapsingHeader::new(egui::RichText::new("Styles").size(11.0).strong())
+            .default_open(true)
+            .show(ui, |ui| {
             let styles = [
                 ("著色", 0u32, "標準著色模式"),
                 ("線框", 1, "只顯示邊線"),
@@ -400,14 +358,13 @@ impl KolibriApp {
                 ui.checkbox(&mut self.viewer.show_colors, egui::RichText::new("色彩").size(10.0));
                 ui.checkbox(&mut self.viewer.show_grid, egui::RichText::new("格線").size(10.0));
             });
-        });
+        });  // end Styles collapsing header
 
-        ui.add_space(4.0);
-
-        // ── SCENES / CAMERAS（SketchUp 風格場景快照）──
+        // ── SCENES（可折疊）──
         if !self.viewer.saved_cameras.is_empty() {
-            section_header(ui, "SCENES");
-            figma_group(ui, |ui| {
+            egui::CollapsingHeader::new(egui::RichText::new(format!("Scenes ({})", self.viewer.saved_cameras.len())).size(11.0).strong())
+                .default_open(false)
+                .show(ui, |ui| {
                 let mut restore_idx = None;
                 let mut delete_idx = None;
                 for (i, (name, _cam)) in self.viewer.saved_cameras.iter().enumerate() {
@@ -435,13 +392,13 @@ impl KolibriApp {
                     let name = format!("Scene {}", self.viewer.saved_cameras.len() + 1);
                     self.viewer.saved_cameras.push((name, self.viewer.camera.clone()));
                 }
-            });
-            ui.add_space(4.0);
+            });  // end Scenes collapsing header
         }
 
-        // ── SHADOW（陰影設定）──
-        section_header(ui, "SHADOW");
-        figma_group(ui, |ui| {
+        // ── SECTION PLANE（可折疊，預設關閉）──
+        egui::CollapsingHeader::new(egui::RichText::new("Section Plane").size(11.0).strong())
+            .default_open(false)
+            .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.viewer.section_plane_enabled, egui::RichText::new("剖面平面").size(10.0));
             });
@@ -455,13 +412,14 @@ impl KolibriApp {
                 });
                 ui.add(egui::Slider::new(&mut self.viewer.section_plane_offset, -20000.0..=20000.0).text("偏移"));
             }
-        });
+        });  // end Section Plane
 
-        ui.add_space(4.0);
-
-        // Groups
+        // Groups（可折疊）
         if !self.scene.groups.is_empty() {
-            ui.label(egui::RichText::new("群組").strong());
+            let group_count = self.scene.groups.len();
+            egui::CollapsingHeader::new(egui::RichText::new(format!("Groups ({})", group_count)).size(11.0).strong())
+                .default_open(false)
+                .show(ui, |ui| {
             let groups: Vec<_> = self.scene.groups.values().cloned().collect();
             let mut dissolve_id = None;
             for g in &groups {
@@ -481,13 +439,15 @@ impl KolibriApp {
             if let Some(gid) = dissolve_id {
                 self.scene.dissolve_group(&gid);
             }
-            ui.separator();
+            });  // end Groups collapsing header
         }
 
-        // ── COMPONENTS（元件瀏覽器）──
+        // ── COMPONENTS（可折疊）──
         if !self.scene.component_defs.is_empty() {
-            section_header(ui, "COMPONENTS");
-            figma_group(ui, |ui| {
+            let comp_count = self.scene.component_defs.len();
+            egui::CollapsingHeader::new(egui::RichText::new(format!("Components ({})", comp_count)).size(11.0).strong())
+                .default_open(false)
+                .show(ui, |ui| {
                 let mut defs: Vec<_> = self.scene.component_defs.values().cloned().collect();
                 defs.sort_by(|a, b| a.name.cmp(&b.name));
                 for def in &defs {
@@ -513,8 +473,7 @@ impl KolibriApp {
                         }
                     });
                 }
-            });
-            ui.add_space(4.0);
+            });  // end Components collapsing header
         }
 
         if self.scene.objects.is_empty() {
@@ -524,12 +483,17 @@ impl KolibriApp {
             });
             return;
         }
-        self.render_scene_hierarchy(ui);
+        // Outliner（可折疊）
+        egui::CollapsingHeader::new(egui::RichText::new("Outliner").size(11.0).strong())
+            .default_open(false)
+            .show(ui, |ui| {
+                self.render_scene_hierarchy(ui);
+            });
 
-        // ── Undo History ──
-        ui.separator();
-        section_header(ui, "UNDO HISTORY");
-        figma_group(ui, |ui| {
+        // ── Undo History（可折疊）──
+        egui::CollapsingHeader::new(egui::RichText::new(format!("Undo ({})", self.scene.undo_count())).size(11.0).strong())
+            .default_open(false)
+            .show(ui, |ui| {
             let undo_count = self.scene.undo_count();
             let redo_count = self.scene.redo_count();
             ui.horizontal(|ui| {
@@ -555,10 +519,10 @@ impl KolibriApp {
                 };
                 ui.label(egui::RichText::new(label).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
             }
-        });
+        });  // end Undo collapsing header
 
-        ui.separator();
-        if ui.button("🧹 清空").clicked() { self.scene.clear(); self.editor.selected_ids.clear(); }
+        ui.add_space(4.0);
+        if ui.small_button("🧹 清空場景").clicked() { self.scene.clear(); self.editor.selected_ids.clear(); }
     }
 
     pub(crate) fn status_text(&self) -> String {
@@ -572,10 +536,8 @@ impl KolibriApp {
         } else {
             String::new()
         };
-        // 滑鼠座標
-        let coord = if let Some(p) = self.editor.mouse_ground {
-            format!("  X:{:.0} Y:{:.0} Z:{:.0}", p[0], p[1], p[2])
-        } else { String::new() };
+        // 滑鼠座標已在 viewport 內的 coordinate chips 顯示，不重複
+        let coord = String::new();
 
         let base = match &self.editor.draw_state {
             DrawState::Idle => match self.editor.tool {
