@@ -367,42 +367,7 @@ impl KolibriApp {
                     }
                 }
 
-                // ── Tool cursor icon (small tool icon follows mouse) ──
-                if response.hovered() {
-                    let mx = rect.min.x + self.editor.mouse_screen[0];
-                    let my = rect.min.y + self.editor.mouse_screen[1];
-
-                    // Draw mini tool icon (20x20) at cursor offset
-                    let icon_size = 20.0;
-                    let icon_rect = egui::Rect::from_min_size(
-                        egui::pos2(mx + 14.0, my + 14.0),  // bottom-right of cursor
-                        egui::vec2(icon_size, icon_size),
-                    );
-
-                    // Semi-transparent background circle per tool category
-                    let bg_color = match self.editor.tool {
-                        Tool::Select => egui::Color32::from_rgba_unmultiplied(76, 139, 245, 180),
-                        Tool::Move => egui::Color32::from_rgba_unmultiplied(245, 166, 35, 180),
-                        Tool::Rotate => egui::Color32::from_rgba_unmultiplied(180, 80, 220, 180),
-                        Tool::Scale => egui::Color32::from_rgba_unmultiplied(80, 200, 120, 180),
-                        Tool::Line | Tool::Arc | Tool::Rectangle | Tool::Circle => egui::Color32::from_rgba_unmultiplied(60, 60, 60, 180),
-                        Tool::CreateBox | Tool::CreateCylinder | Tool::CreateSphere => egui::Color32::from_rgba_unmultiplied(76, 139, 245, 180),
-                        Tool::PushPull => egui::Color32::from_rgba_unmultiplied(245, 100, 60, 180),
-                        Tool::PaintBucket => egui::Color32::from_rgba_unmultiplied(220, 80, 160, 180),
-                        Tool::Eraser => egui::Color32::from_rgba_unmultiplied(220, 50, 50, 180),
-                        Tool::TapeMeasure | Tool::Dimension => egui::Color32::from_rgba_unmultiplied(100, 180, 100, 180),
-                        Tool::Text => egui::Color32::from_rgba_unmultiplied(180, 140, 60, 180),
-                        _ => egui::Color32::from_rgba_unmultiplied(100, 100, 100, 160),
-                    };
-
-                    // Draw circular background
-                    let center = icon_rect.center();
-                    ui.painter().circle_filled(center, icon_size * 0.55, bg_color);
-
-                    // Draw the tool icon inside (shrunk)
-                    let inner_rect = icon_rect.shrink(3.0);
-                    crate::icons::draw_tool_icon(ui.painter(), inner_rect, self.editor.tool, egui::Color32::WHITE);
-                }
+                // Tool cursor icon 已移除（干擾操作，SU 也沒有）
 
     }
 }
