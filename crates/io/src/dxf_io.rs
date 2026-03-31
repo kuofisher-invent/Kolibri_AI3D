@@ -364,7 +364,98 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
     Ok(count)
 }
 
-// ─── 2D DraftDocument DXF Import/Export ──────────────────────────────────────
+// ─── 2D DraftDocument DWG/DXF Import/Export ─────────────────────────────────
+
+/// 從 DWG 檔案匯入到 DraftDocument（透過 GeometryIR 轉換）
+#[cfg(feature = "drafting")]
+pub fn import_dwg_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
+    use crate::cad_import::dxf_importer::*;
+
+    // 解析 DWG → GeometryIr
+    let ir = crate::dwg_parser::parse_dwg(path)
+        .map_err(|e| format!("DWG 解析失敗: {:?}", e))?;
+    let mut count = 0;
+
+    // 曲線（Line/Circle/Arc/Polyline）
+    for curve in &ir.curves {
+        match curve {
+            CurveIr::Line(line) => {
+                doc.add(kolibri_drafting::DraftEntity::Line {
+                    start: [line.start[0] as f64, line.start[1] as f64],
+                    end: [line.end[0] as f64, line.end[1] as f64],
+                });
+                count += 1;
+            }
+            CurveIr::Circle(circle) => {
+                doc.add(kolibri_drafting::DraftEntity::Circle {
+                    center: [circle.center[0] as f64, circle.center[1] as f64],
+                    radius: circle.radius as f64,
+                });
+                count += 1;
+            }
+            CurveIr::Arc(arc) => {
+                doc.add(kolibri_drafting::DraftEntity::Arc {
+                    center: [arc.center[0] as f64, arc.center[1] as f64],
+                    radius: arc.radius as f64,
+                    start_angle: (arc.start_angle_deg as f64).to_radians(),
+                    end_angle: (arc.end_angle_deg as f64).to_radians(),
+                });
+                count += 1;
+            }
+            CurveIr::Polyline(poly) => {
+                let points: Vec<[f64; 2]> = poly.points.iter()
+                    .map(|p| [p[0] as f64, p[1] as f64])
+                    .collect();
+                if points.len() >= 2 {
+                    doc.add(kolibri_drafting::DraftEntity::Polyline {
+                        points, closed: poly.is_closed,
+                    });
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    // 文字
+    for text in &ir.texts {
+        doc.add(kolibri_drafting::DraftEntity::Text {
+            position: [text.position[0] as f64, text.position[1] as f64],
+            content: text.value.clone(),
+            height: text.height as f64,
+            rotation: (text.rotation_deg as f64).to_radians(),
+        });
+        count += 1;
+    }
+
+    // 標註
+    for dim in &ir.dimensions {
+        if dim.definition_points.len() >= 2 {
+            let p1 = dim.definition_points[0];
+            let p2 = dim.definition_points[1];
+            doc.add(kolibri_drafting::DraftEntity::DimLinear {
+                p1: [p1[0] as f64, p1[1] as f64],
+                p2: [p2[0] as f64, p2[1] as f64],
+                offset: 8.0,
+                text_override: dim.value_text.clone(),
+            });
+            count += 1;
+        }
+    }
+
+    if count == 0 { return Err("DWG 中沒有找到 2D 圖元（建議存為 DXF 後匯入）".into()); }
+    Ok(count)
+}
+
+/// 智慧匯入 DXF 或 DWG 到 2D DraftDocument（依副檔名自動選擇）
+#[cfg(feature = "drafting")]
+pub fn import_cad_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
+    let lower = path.to_lowercase();
+    if lower.ends_with(".dwg") {
+        import_dwg_to_draft(doc, path)
+    } else {
+        import_dxf_to_draft(doc, path)
+    }
+}
 
 /// 將累積的 DXF entity 資料 flush 到 DraftDocument
 #[cfg(feature = "drafting")]

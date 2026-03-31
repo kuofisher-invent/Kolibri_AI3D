@@ -429,14 +429,17 @@ impl KolibriApp {
                 let file = rfd::FileDialog::new()
                     .set_title("匯入 DXF/DWG → 2D CAD")
                     .add_filter("CAD 圖面", &["dxf", "DXF", "dwg", "DWG"])
+                    .add_filter("DXF", &["dxf", "DXF"])
+                    .add_filter("DWG", &["dwg", "DWG"])
                     .pick_file();
                 if let Some(p) = file {
                     let ps = p.to_string_lossy().to_string();
+                    self.console_push("INFO", format!("[2D] 正在匯入: {}...", ps));
                     // 切換到 2D 模式
                     self.enter_layout_mode();
-                    match crate::dxf_io::import_dxf_to_draft(&mut self.editor.draft_doc, &ps) {
+                    match crate::dxf_io::import_cad_to_draft(&mut self.editor.draft_doc, &ps) {
                         Ok(count) => {
-                            self.console_push("ACTION", format!("[2D] 匯入 {} 個圖元: {}", count, ps));
+                            self.console_push("ACTION", format!("[2D] 匯入完成: {} 個圖元", count));
                             self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
                         }
                         Err(e) => {

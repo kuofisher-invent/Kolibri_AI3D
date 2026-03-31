@@ -46,3 +46,6 @@ default = ["steel", "piping", "drafting"]
 steel = []
 piping = ["dep:kolibri-piping"]
 drafting = ["dep:kolibri-drafting", "dep:resvg", "kolibri-io/drafting"]
+
+[build-dependencies]
+winres = "0.1"

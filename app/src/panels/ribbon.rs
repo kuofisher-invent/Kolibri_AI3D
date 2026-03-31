@@ -33,20 +33,24 @@ const ACTIVE_BG: egui::Color32 = egui::Color32::from_rgb(0, 122, 204);
 /// Active 文字
 const ACTIVE_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-/// Ribbon 內容區高度（ZWCAD ~96px）
-const RIBBON_CONTENT_H: f32 = 105.0;
+/// Ribbon 內容區高度
+const RIBBON_CONTENT_H: f32 = 120.0;
 /// Tab 列高度
-const TAB_BAR_H: f32 = 28.0;
+const TAB_BAR_H: f32 = 30.0;
 /// Group 底部標籤高度
-const GROUP_LABEL_H: f32 = 16.0;
-/// Icon 大小（大按鈕 — ZWCAD ~32px）
+const GROUP_LABEL_H: f32 = 20.0;
+/// Icon 大小（大按鈕）
 const ICON_SIZE: f32 = 36.0;
 /// 小 icon 大小
 const ICON_SM: f32 = 18.0;
 /// 大按鈕寬度
-const BIG_BTN_W: f32 = 52.0;
-/// 小按鈕寬度（緊湊，ZWCAD 約 60px）
-const SMALL_BTN_W: f32 = 62.0;
+const BIG_BTN_W: f32 = 58.0;
+/// 小按鈕寬度
+const SMALL_BTN_W: f32 = 72.0;
+/// 字體大小（統一跟 Tab 列一致）
+const FONT_BIG: f32 = 14.0;
+const FONT_SM: f32 = 13.0;
+const FONT_LABEL: f32 = 13.0;
 
 /// Tab 定義
 const TABS: &[(&str, RibbonTab)] = &[
@@ -313,7 +317,7 @@ impl KolibriApp {
             egui::vec2(group_w, GROUP_LABEL_H));
         p.rect_filled(label_rect, 0.0, GROUP_LABEL_BG);
         p.text(label_rect.center(), egui::Align2::CENTER_CENTER, title,
-            egui::FontId::proportional(10.0), TEXT_DIM);
+            egui::FontId::proportional(FONT_LABEL), TEXT_DIM);
 
         // ── 大按鈕（前 n_big 個 — icon 大，text 在下）──
         for bi in 0..n_big {
@@ -333,9 +337,9 @@ impl KolibriApp {
                     egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
                     egui::Color32::WHITE);
             }
-            p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.73),
+            p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.75),
                 egui::Align2::CENTER_TOP, tools[bi].label,
-                egui::FontId::proportional(10.0), tc);
+                egui::FontId::proportional(FONT_BIG), tc);
             if resp.on_hover_text(tools[bi].tooltip).clicked() {
                 self.editor.tool = tools[bi].tool;
             }
@@ -367,9 +371,9 @@ impl KolibriApp {
                     egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
                     egui::Color32::WHITE);
             }
-            p.text(egui::pos2(btn_rect.left() + 24.0, btn_rect.center().y),
+            p.text(egui::pos2(btn_rect.left() + 26.0, btn_rect.center().y),
                 egui::Align2::LEFT_CENTER, btn_def.label,
-                egui::FontId::proportional(10.0), tc);
+                egui::FontId::proportional(FONT_SM), tc);
 
             if resp.on_hover_text(btn_def.tooltip).clicked() {
                 self.editor.tool = btn_def.tool;
