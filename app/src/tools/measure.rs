@@ -8,6 +8,36 @@ use crate::scene::{MaterialKind, Shape};
 
 impl KolibriApp {
     pub(crate) fn apply_measure(&mut self) {
+        // ── Drafting: Fillet radius / Chamfer distance ──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            let input = self.editor.measure_input.trim().to_string();
+            if let Ok(val) = input.parse::<f64>() {
+                if val > 0.0 {
+                    match self.editor.tool {
+                        Tool::DraftFillet => {
+                            self.editor.draft_fillet_radius = val;
+                            self.file_message = Some((format!("圓角半徑: {:.1}mm", val), std::time::Instant::now()));
+                            self.editor.measure_input.clear();
+                            return;
+                        }
+                        Tool::DraftChamfer => {
+                            self.editor.draft_chamfer_dist = val;
+                            self.file_message = Some((format!("倒角距離: {:.1}mm", val), std::time::Instant::now()));
+                            self.editor.measure_input.clear();
+                            return;
+                        }
+                        Tool::DraftOffset => {
+                            // 用於偏移距離
+                            self.file_message = Some((format!("偏移距離: {:.1}mm", val), std::time::Instant::now()));
+                            self.editor.measure_input.clear();
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
         // Array creation: "3x" or "5X" after Ctrl+Move copy
         // Uses persisted last_move_delta / last_move_was_copy (B8) since
         // move_is_copy and move_origin are cleared when drag stops.

@@ -40,7 +40,7 @@ impl SvgIconCache {
         Self {
             textures: HashMap::new(),
             icon_dir,
-            size: 32, // 32x32 渲染尺寸（+30%）
+            size: 64, // 64x64 渲染尺寸（高解析度）
         }
     }
 

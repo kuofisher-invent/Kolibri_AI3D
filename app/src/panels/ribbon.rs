@@ -33,17 +33,20 @@ const ACTIVE_BG: egui::Color32 = egui::Color32::from_rgb(0, 122, 204);
 /// Active 文字
 const ACTIVE_TEXT: egui::Color32 = egui::Color32::WHITE;
 
-/// Ribbon 內容區高度（+30%）
-const RIBBON_CONTENT_H: f32 = 104.0;
+/// Ribbon 內容區高度（ZWCAD ~96px）
+const RIBBON_CONTENT_H: f32 = 105.0;
 /// Tab 列高度
 const TAB_BAR_H: f32 = 28.0;
 /// Group 底部標籤高度
-const GROUP_LABEL_H: f32 = 18.0;
-/// Icon 大小（+30%）
-const ICON_SIZE: f32 = 30.0;
-/// 小工具按鈕（+30%）
-const BTN_W: f32 = 62.0;
-const BTN_H: f32 = 70.0;
+const GROUP_LABEL_H: f32 = 16.0;
+/// Icon 大小（大按鈕 — ZWCAD ~32px）
+const ICON_SIZE: f32 = 36.0;
+/// 小 icon 大小
+const ICON_SM: f32 = 18.0;
+/// 大按鈕寬度
+const BIG_BTN_W: f32 = 52.0;
+/// 小按鈕寬度（緊湊，ZWCAD 約 60px）
+const SMALL_BTN_W: f32 = 62.0;
 
 /// Tab 定義
 const TABS: &[(&str, RibbonTab)] = &[
@@ -81,7 +84,7 @@ impl KolibriApp {
                         let fill = if active { TAB_CONTENT_BG } else { egui::Color32::TRANSPARENT };
 
                         let btn = egui::Button::new(
-                            egui::RichText::new(label).size(11.0).color(text_color)
+                            egui::RichText::new(label).size(15.0).color(text_color)
                         )
                         .fill(fill)
                         .stroke(egui::Stroke::NONE)
@@ -92,17 +95,22 @@ impl KolibriApp {
                         }
                     }
 
-                    // 右側：返回建模
+                    // 右側：3D 切換 + 圖元計數
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(egui::Button::new(
-                            egui::RichText::new("← 建模").size(10.0).color(egui::Color32::WHITE)
-                        ).fill(egui::Color32::from_rgb(0, 122, 204)).rounding(4.0))
-                        .on_hover_text("返回 3D 建模 (F6)").clicked() {
-                            self.viewer.layout_mode = false;
+                        // ⇆ 3D 切換按鈕
+                        let switch_btn = egui::Button::new(
+                            egui::RichText::new("⇆ 3D 建模").size(12.0).strong().color(egui::Color32::WHITE)
+                        )
+                        .fill(egui::Color32::from_rgb(0, 122, 204))
+                        .rounding(4.0)
+                        .stroke(egui::Stroke::NONE);
+                        if ui.add(switch_btn).on_hover_text("切回 3D 建模模式 (F6)").clicked() {
+                            self.exit_layout_mode();
                         }
+                        ui.add_space(8.0);
                         ui.label(egui::RichText::new(
                             format!("{} | {} 圖元", self.viewer.layout.name, self.editor.draft_doc.objects.len())
-                        ).size(10.0).color(TEXT_DIM));
+                        ).size(12.0).color(TEXT_DIM));
                     });
                 });
             });
@@ -154,52 +162,63 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn ribbon_home(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-            self.ribbon_group(ui, "繪圖", &[
+            // ── 繪圖：直線/聚合線/圓/弧 = 4大, 其餘 = 小 ──
+            self.ribbon_group_n(ui, "繪圖", &[
                 ToolBtn { tool: Tool::DraftLine, label: "直線", tooltip: "直線 (L)" },
                 ToolBtn { tool: Tool::DraftPolyline, label: "聚合線", tooltip: "聚合線 (PL)" },
-                ToolBtn { tool: Tool::DraftArc, label: "弧", tooltip: "弧 (A)" },
                 ToolBtn { tool: Tool::DraftCircle, label: "圓", tooltip: "圓 (C)" },
+                ToolBtn { tool: Tool::DraftArc, label: "弧", tooltip: "弧 (A)" },
                 ToolBtn { tool: Tool::DraftRectangle, label: "矩形", tooltip: "矩形 (REC)" },
                 ToolBtn { tool: Tool::DraftEllipse, label: "橢圓", tooltip: "橢圓 (EL)" },
                 ToolBtn { tool: Tool::DraftPolygon, label: "多邊形", tooltip: "正多邊形 (POL)" },
                 ToolBtn { tool: Tool::DraftSpline, label: "雲形線", tooltip: "雲形線 (SPL)" },
+                ToolBtn { tool: Tool::DraftCircle2P, label: "圓2P", tooltip: "兩點圓" },
+                ToolBtn { tool: Tool::DraftCircle3P, label: "圓3P", tooltip: "三點圓" },
+                ToolBtn { tool: Tool::DraftArc3P, label: "弧3P", tooltip: "三點弧" },
+                ToolBtn { tool: Tool::DraftArcSCE, label: "弧SCE", tooltip: "起點-圓心-終點弧" },
                 ToolBtn { tool: Tool::DraftXline, label: "建構線", tooltip: "建構線 (XL)" },
                 ToolBtn { tool: Tool::DraftPoint, label: "點", tooltip: "點 (PO)" },
-            ]);
+                ToolBtn { tool: Tool::DraftRevcloud, label: "雲形", tooltip: "修訂雲形 (REVCLOUD)" },
+            ], 4);
             self.ribbon_vsep(ui);
-            self.ribbon_group(ui, "修改", &[
+            // ── 修改：移動/旋轉/鏡射/偏移 = 4大 ──
+            self.ribbon_group_n(ui, "修改", &[
                 ToolBtn { tool: Tool::DraftMove, label: "移動", tooltip: "移動 (M)" },
-                ToolBtn { tool: Tool::DraftCopy, label: "複製", tooltip: "複製 (CO)" },
                 ToolBtn { tool: Tool::DraftRotate, label: "旋轉", tooltip: "旋轉 (RO)" },
                 ToolBtn { tool: Tool::DraftMirror, label: "鏡射", tooltip: "鏡射 (MI)" },
+                ToolBtn { tool: Tool::DraftOffset, label: "偏移", tooltip: "偏移 (O)" },
+                ToolBtn { tool: Tool::DraftCopy, label: "複製", tooltip: "複製 (CO)" },
                 ToolBtn { tool: Tool::DraftScale, label: "比例", tooltip: "比例 (SC)" },
                 ToolBtn { tool: Tool::DraftStretch, label: "拉伸", tooltip: "拉伸 (S)" },
-                ToolBtn { tool: Tool::DraftOffset, label: "偏移", tooltip: "偏移 (O)" },
                 ToolBtn { tool: Tool::DraftArray, label: "陣列", tooltip: "陣列 (AR)" },
                 ToolBtn { tool: Tool::DraftTrim, label: "修剪", tooltip: "修剪 (TR)" },
                 ToolBtn { tool: Tool::DraftExtend, label: "延伸", tooltip: "延伸 (EX)" },
                 ToolBtn { tool: Tool::DraftFillet, label: "圓角", tooltip: "圓角 (F)" },
                 ToolBtn { tool: Tool::DraftChamfer, label: "倒角", tooltip: "倒角 (CHA)" },
                 ToolBtn { tool: Tool::DraftExplode, label: "分解", tooltip: "分解 (X)" },
-            ]);
+                ToolBtn { tool: Tool::DraftErase, label: "刪除", tooltip: "刪除 (E)" },
+                ToolBtn { tool: Tool::DraftBreak, label: "打斷", tooltip: "打斷 (BR)" },
+                ToolBtn { tool: Tool::DraftJoin, label: "接合", tooltip: "接合 (J)" },
+            ], 4);
             self.ribbon_vsep(ui);
-            self.ribbon_group(ui, "註解", &[
+            // ── 註解：多行文字/標註 = 2大 ──
+            self.ribbon_group_n(ui, "註解", &[
                 ToolBtn { tool: Tool::DraftText, label: "多行文字", tooltip: "多行文字 (MT)" },
                 ToolBtn { tool: Tool::DraftDimLinear, label: "標註", tooltip: "線性標註 (DLI)" },
                 ToolBtn { tool: Tool::DraftLeader, label: "引線", tooltip: "引線 (LE)" },
                 ToolBtn { tool: Tool::DraftDimContinue, label: "連續", tooltip: "連續標註 (DCO)" },
                 ToolBtn { tool: Tool::DraftHatch, label: "填充", tooltip: "填充 (H)" },
-            ]);
+                ToolBtn { tool: Tool::DraftTable, label: "表格", tooltip: "表格 (TABLE)" },
+            ], 2);
             self.ribbon_vsep(ui);
             self.ribbon_layer_group(ui);
             self.ribbon_vsep(ui);
-            // 圖塊 group
-            self.ribbon_group(ui, "圖塊", &[
+            // ── 圖塊：2大 ──
+            self.ribbon_group_n(ui, "圖塊", &[
                 ToolBtn { tool: Tool::DraftBlock, label: "建立", tooltip: "建立圖塊 (B)" },
                 ToolBtn { tool: Tool::DraftInsert, label: "插入", tooltip: "插入圖塊 (I)" },
-            ]);
+            ], 2);
             self.ribbon_vsep(ui);
-            // 特性 group（顏色/線型/線寬 下拉）
             self.ribbon_properties_group(ui);
         });
     }
@@ -207,13 +226,15 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn ribbon_annotate(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-        self.ribbon_group(ui, "尺寸", &[
+        self.ribbon_group_n(ui, "尺寸", &[
             ToolBtn { tool: Tool::DraftDimLinear, label: "線性", tooltip: "線性標註 (DLI)" },
             ToolBtn { tool: Tool::DraftDimAligned, label: "對齊", tooltip: "對齊標註 (DAL)" },
             ToolBtn { tool: Tool::DraftDimAngle, label: "角度", tooltip: "角度標註 (DAN)" },
             ToolBtn { tool: Tool::DraftDimRadius, label: "半徑", tooltip: "半徑標註 (DRA)" },
             ToolBtn { tool: Tool::DraftDimDiameter, label: "直徑", tooltip: "直徑標註 (DDI)" },
-        ]);
+            ToolBtn { tool: Tool::DraftDimContinue, label: "連續", tooltip: "連續標註 (DCO)" },
+            ToolBtn { tool: Tool::DraftDimBaseline, label: "基線", tooltip: "基線標註 (DBA)" },
+        ], 2);
         self.ribbon_vsep(ui);
         self.ribbon_group(ui, "文字", &[
             ToolBtn { tool: Tool::DraftText, label: "文字", tooltip: "多行文字 (T)" },
@@ -263,26 +284,26 @@ impl KolibriApp {
         });  // close horizontal_top for output
     }
 
-    // ─── Group 繪製（ZWCAD 風格：icon 上方 + text 下方 + 底部標籤條）──────
+    // ─── Group 繪製（ZWCAD 風格：前 N 個=大按鈕, 其餘=3行小按鈕）──────
 
     #[cfg(feature = "drafting")]
-    fn ribbon_group(&mut self, ui: &mut egui::Ui, title: &str, tools: &[ToolBtn]) {
-        // 先收集所有 icon texture ids
+    fn ribbon_group_n(&mut self, ui: &mut egui::Ui, title: &str, tools: &[ToolBtn], n_large: usize) {
+        if tools.is_empty() { return; }
         let icon_ids: Vec<Option<egui::TextureId>> = tools.iter().map(|btn_def| {
             crate::svg_icons::tool_icon_name(btn_def.tool)
                 .and_then(|name| self.svg_icons.get(ui.ctx(), name))
         }).collect();
 
-        let use_big = tools.len() <= 4;
-        let half = if use_big { tools.len() } else { (tools.len() + 1) / 2 };
-        let cols = if use_big { tools.len() } else { half };
-        let group_w = cols as f32 * BTN_W + 4.0;
-
-        // 整個 group 用 allocate_exact_size 手動佈局
         let total_h = RIBBON_CONTENT_H;
+        let btn_area_h = total_h - GROUP_LABEL_H;
+        let small_btn_h: f32 = btn_area_h / 3.0;
+        let n_big = n_large.min(tools.len());
+        let small_count = tools.len().saturating_sub(n_big);
+        let small_cols = (small_count + 2) / 3;
+        let group_w = n_big as f32 * BIG_BTN_W + small_cols as f32 * SMALL_BTN_W + 4.0;
+
         let (group_rect, _) = ui.allocate_exact_size(
             egui::vec2(group_w, total_h), egui::Sense::hover());
-
         if !ui.is_rect_visible(group_rect) { return; }
         let p = ui.painter();
 
@@ -292,64 +313,74 @@ impl KolibriApp {
             egui::vec2(group_w, GROUP_LABEL_H));
         p.rect_filled(label_rect, 0.0, GROUP_LABEL_BG);
         p.text(label_rect.center(), egui::Align2::CENTER_CENTER, title,
-            egui::FontId::proportional(9.5), TEXT_DIM);
+            egui::FontId::proportional(10.0), TEXT_DIM);
 
-        // 按鈕區域
-        let btn_area_h = total_h - GROUP_LABEL_H;
-
-        for (i, btn_def) in tools.iter().enumerate() {
-            let (col, row, row_h) = if use_big {
-                (i, 0, btn_area_h)
-            } else {
-                (i % half, i / half, btn_area_h / 2.0)
-            };
-
+        // ── 大按鈕（前 n_big 個 — icon 大，text 在下）──
+        for bi in 0..n_big {
             let btn_rect = egui::Rect::from_min_size(
-                egui::pos2(
-                    group_rect.left() + 2.0 + col as f32 * BTN_W,
-                    group_rect.top() + row as f32 * row_h),
-                egui::vec2(BTN_W, row_h));
-
-            let resp = ui.interact(btn_rect,
-                ui.id().with(("rb", title, i)), egui::Sense::click());
-            let active = self.editor.tool == btn_def.tool;
-
+                egui::pos2(group_rect.left() + 2.0 + bi as f32 * BIG_BTN_W, group_rect.top()),
+                egui::vec2(BIG_BTN_W, btn_area_h));
+            let resp = ui.interact(btn_rect, ui.id().with(("rb", title, bi)), egui::Sense::click());
+            let active = self.editor.tool == tools[bi].tool;
             if active { p.rect_filled(btn_rect, 2.0, ACTIVE_BG); }
             else if resp.hovered() { p.rect_filled(btn_rect, 2.0, HOVER_BG); }
             let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
-
-            if use_big {
-                // icon 上 + text 下
-                if let Some(tex_id) = icon_ids[i] {
-                    let ir = egui::Rect::from_center_size(
-                        egui::pos2(btn_rect.center().x, btn_rect.top() + 20.0),
-                        egui::vec2(ICON_SIZE, ICON_SIZE));
-                    p.image(tex_id, ir,
-                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                        egui::Color32::WHITE);
-                }
-                p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + 48.0),
-                    egui::Align2::CENTER_TOP, btn_def.label,
-                    egui::FontId::proportional(11.5), tc);
-            } else {
-                // icon 左 + text 右
-                if let Some(tex_id) = icon_ids[i] {
-                    let ir = egui::Rect::from_center_size(
-                        egui::pos2(btn_rect.left() + 14.0, btn_rect.center().y),
-                        egui::vec2(22.0, 22.0));
-                    p.image(tex_id, ir,
-                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                        egui::Color32::WHITE);
-                }
-                p.text(egui::pos2(btn_rect.left() + 30.0, btn_rect.center().y),
-                    egui::Align2::LEFT_CENTER, btn_def.label,
-                    egui::FontId::proportional(11.5), tc);
+            if let Some(tex_id) = icon_ids[bi] {
+                let ir = egui::Rect::from_center_size(
+                    egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.33),
+                    egui::vec2(ICON_SIZE, ICON_SIZE));
+                p.image(tex_id, ir,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE);
             }
+            p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.73),
+                egui::Align2::CENTER_TOP, tools[bi].label,
+                egui::FontId::proportional(10.0), tc);
+            if resp.on_hover_text(tools[bi].tooltip).clicked() {
+                self.editor.tool = tools[bi].tool;
+            }
+        }
+
+        // ── 小按鈕（3 行排列）──
+        let small_x = group_rect.left() + 2.0 + n_big as f32 * BIG_BTN_W;
+        for (si, btn_def) in tools[n_big..].iter().enumerate() {
+            let col = si / 3;
+            let row = si % 3;
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(small_x + col as f32 * SMALL_BTN_W,
+                           group_rect.top() + row as f32 * small_btn_h),
+                egui::vec2(SMALL_BTN_W, small_btn_h));
+
+            let resp = ui.interact(btn_rect,
+                ui.id().with(("rb", title, si + n_big)), egui::Sense::click());
+            let active = self.editor.tool == btn_def.tool;
+            if active { p.rect_filled(btn_rect, 1.0, ACTIVE_BG); }
+            else if resp.hovered() { p.rect_filled(btn_rect, 1.0, HOVER_BG); }
+            let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
+
+            let icon_i = si + n_big;
+            if let Some(tex_id) = icon_ids.get(icon_i).and_then(|x| *x) {
+                let ir = egui::Rect::from_center_size(
+                    egui::pos2(btn_rect.left() + 12.0, btn_rect.center().y),
+                    egui::vec2(ICON_SM, ICON_SM));
+                p.image(tex_id, ir,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE);
+            }
+            p.text(egui::pos2(btn_rect.left() + 24.0, btn_rect.center().y),
+                egui::Align2::LEFT_CENTER, btn_def.label,
+                egui::FontId::proportional(10.0), tc);
 
             if resp.on_hover_text(btn_def.tooltip).clicked() {
                 self.editor.tool = btn_def.tool;
             }
         }
+    }
+
+    /// 便捷版：所有工具只有第 1 個大
+    #[cfg(feature = "drafting")]
+    fn ribbon_group(&mut self, ui: &mut egui::Ui, title: &str, tools: &[ToolBtn]) {
+        self.ribbon_group_n(ui, title, tools, 1);
     }
 
     /// ZWCAD 風格垂直分隔線
@@ -400,7 +431,7 @@ impl KolibriApp {
 
             // 底部標籤（用 painter 在剩餘空間底部畫）
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new("圖層").size(9.5).color(TEXT_DIM));
+                ui.label(egui::RichText::new("圖層").size(14.0).color(TEXT_DIM));
             });
         });
     }
@@ -408,50 +439,117 @@ impl KolibriApp {
     /// 特性 Group（ZWCAD 風格：顏色/線型/線寬 3 排下拉）
     #[cfg(feature = "drafting")]
     fn ribbon_properties_group(&mut self, ui: &mut egui::Ui) {
-        let group_w = 130.0;
+        let group_w = 150.0;
         ui.vertical(|ui| {
             ui.set_min_size(egui::vec2(group_w, RIBBON_CONTENT_H));
             ui.add_space(4.0);
 
+            // 色彩預設
+            const COLORS: &[(&str, [u8; 3])] = &[
+                ("隨圖層", [0, 0, 0]),
+                ("紅", [255, 0, 0]), ("黃", [255, 255, 0]),
+                ("綠", [0, 255, 0]), ("青", [0, 255, 255]),
+                ("藍", [0, 0, 255]), ("洋紅", [255, 0, 255]),
+                ("白", [255, 255, 255]),
+            ];
+
             // 顏色下拉
+            let current_layer_color = self.editor.draft_layers.current_layer()
+                .map(|l| l.color).unwrap_or([255, 255, 255]);
+            let active_color = if self.editor.draft_prop_color_idx == 0 {
+                current_layer_color
+            } else {
+                COLORS.get(self.editor.draft_prop_color_idx).map(|c| c.1).unwrap_or(current_layer_color)
+            };
+
             ui.horizontal(|ui| {
-                // 色塊
-                let current_layer = self.editor.draft_layers.current_layer()
-                    .map(|l| l.color).unwrap_or([255, 255, 255]);
                 let (cr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                let display_c = if active_color == [0, 0, 0] { current_layer_color } else { active_color };
                 ui.painter().rect_filled(cr, 2.0,
-                    egui::Color32::from_rgb(current_layer[0], current_layer[1], current_layer[2]));
-                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+                    egui::Color32::from_rgb(display_c[0], display_c[1], display_c[2]));
+                let color_label = COLORS.get(self.editor.draft_prop_color_idx).map(|c| c.0).unwrap_or("隨圖層");
+                egui::ComboBox::from_id_source("prop_color")
+                    .width(group_w - 40.0)
+                    .selected_text(egui::RichText::new(color_label).size(10.0).color(TEXT_COLOR))
+                    .show_ui(ui, |ui| {
+                        for (i, &(name, _rgb)) in COLORS.iter().enumerate() {
+                            if ui.selectable_label(i == self.editor.draft_prop_color_idx, name).clicked() {
+                                self.editor.draft_prop_color_idx = i;
+                            }
+                        }
+                    });
             });
 
             ui.add_space(2.0);
 
             // 線型下拉
+            const LINETYPES: &[&str] = &["Continuous", "Dashed", "DashDot", "Center", "Hidden", "Phantom"];
             ui.horizontal(|ui| {
-                // 線型示意
                 let (lr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
                 let p = ui.painter();
-                p.line_segment(
-                    [egui::pos2(lr.left() + 1.0, lr.center().y), egui::pos2(lr.right() - 1.0, lr.center().y)],
-                    egui::Stroke::new(1.5, TEXT_COLOR));
-                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+                let lt_idx = self.editor.draft_prop_linetype_idx;
+                // 繪製線型示意
+                match lt_idx {
+                    1 => { // Dashed
+                        for seg in 0..2 {
+                            let x0 = lr.left() + 1.0 + seg as f32 * 7.0;
+                            p.line_segment([egui::pos2(x0, lr.center().y), egui::pos2(x0 + 4.0, lr.center().y)],
+                                egui::Stroke::new(1.5, TEXT_COLOR));
+                        }
+                    }
+                    2 => { // DashDot
+                        p.line_segment([egui::pos2(lr.left()+1.0, lr.center().y), egui::pos2(lr.left()+5.0, lr.center().y)],
+                            egui::Stroke::new(1.5, TEXT_COLOR));
+                        p.circle_filled(egui::pos2(lr.left()+8.0, lr.center().y), 1.0, TEXT_COLOR);
+                        p.line_segment([egui::pos2(lr.left()+10.0, lr.center().y), egui::pos2(lr.right()-1.0, lr.center().y)],
+                            egui::Stroke::new(1.5, TEXT_COLOR));
+                    }
+                    _ => {
+                        p.line_segment([egui::pos2(lr.left()+1.0, lr.center().y), egui::pos2(lr.right()-1.0, lr.center().y)],
+                            egui::Stroke::new(1.5, TEXT_COLOR));
+                    }
+                }
+                egui::ComboBox::from_id_source("prop_linetype")
+                    .width(group_w - 40.0)
+                    .selected_text(egui::RichText::new(LINETYPES[lt_idx]).size(10.0).color(TEXT_COLOR))
+                    .show_ui(ui, |ui| {
+                        for (i, &name) in LINETYPES.iter().enumerate() {
+                            if ui.selectable_label(i == lt_idx, name).clicked() {
+                                self.editor.draft_prop_linetype_idx = i;
+                            }
+                        }
+                    });
             });
 
             ui.add_space(2.0);
 
             // 線寬下拉
+            const LINEWEIGHTS: &[(&str, f64)] = &[
+                ("隨圖層", 0.0), ("0.13", 0.13), ("0.18", 0.18), ("0.25", 0.25),
+                ("0.35", 0.35), ("0.50", 0.50), ("0.70", 0.70), ("1.00", 1.00),
+            ];
+            let lw_idx = self.editor.draft_prop_lineweight_idx;
             ui.horizontal(|ui| {
                 let (wr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
-                let p = ui.painter();
-                p.line_segment(
-                    [egui::pos2(wr.left() + 1.0, wr.center().y), egui::pos2(wr.right() - 1.0, wr.center().y)],
-                    egui::Stroke::new(2.5, TEXT_COLOR));
-                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+                let thickness = if lw_idx == 0 { 1.5 } else { (LINEWEIGHTS[lw_idx].1 as f32 * 3.0).max(0.5) };
+                ui.painter().line_segment(
+                    [egui::pos2(wr.left()+1.0, wr.center().y), egui::pos2(wr.right()-1.0, wr.center().y)],
+                    egui::Stroke::new(thickness, TEXT_COLOR));
+                egui::ComboBox::from_id_source("prop_lineweight")
+                    .width(group_w - 40.0)
+                    .selected_text(egui::RichText::new(LINEWEIGHTS[lw_idx].0).size(10.0).color(TEXT_COLOR))
+                    .show_ui(ui, |ui| {
+                        for (i, &(name, _)) in LINEWEIGHTS.iter().enumerate() {
+                            if ui.selectable_label(i == lw_idx, name).clicked() {
+                                self.editor.draft_prop_lineweight_idx = i;
+                            }
+                        }
+                    });
             });
 
             // 底部標籤
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
-                ui.label(egui::RichText::new("特性").size(9.5).color(TEXT_DIM));
+                ui.label(egui::RichText::new("特性").size(14.0).color(TEXT_DIM));
             });
         });
     }

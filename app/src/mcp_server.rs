@@ -60,6 +60,7 @@ pub enum McpCommand {
     ImportFile { path: String },
     Screenshot { path: String },
     ExportScene { path: String },
+    SetLayoutMode { enabled: bool },
 }
 
 /// MCP result sent back from GUI thread to MCP thread

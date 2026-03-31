@@ -61,7 +61,52 @@ impl KolibriApp {
                     });
                 }
 
-                ui.add_space(16.0);
+                ui.add_space(12.0);
+
+                // ── 3D / 2D 切換 Toggle（始終可見）──
+                #[cfg(feature = "drafting")]
+                {
+                    let is_2d = self.viewer.layout_mode;
+                    let brand = egui::Color32::from_rgb(76, 139, 245);
+                    let active_bg = brand;
+                    let inactive_bg = if is_2d {
+                        egui::Color32::from_rgb(60, 60, 64)
+                    } else {
+                        egui::Color32::from_rgba_unmultiplied(76, 139, 245, 25)
+                    };
+                    let active_text = egui::Color32::WHITE;
+                    let inactive_text = if is_2d {
+                        egui::Color32::from_rgb(160, 160, 165)
+                    } else {
+                        egui::Color32::from_rgb(100, 110, 130)
+                    };
+
+                    // 3D 按鈕（左半圓角）
+                    let btn_3d = egui::Button::new(
+                        egui::RichText::new("3D").size(13.0).strong()
+                            .color(if !is_2d { active_text } else { inactive_text })
+                    )
+                    .fill(if !is_2d { active_bg } else { inactive_bg })
+                    .rounding(egui::Rounding { nw: 6.0, sw: 6.0, ne: 0.0, se: 0.0 })
+                    .stroke(egui::Stroke::new(1.0, if is_2d { egui::Color32::from_rgb(80, 80, 85) } else { brand }));
+                    if ui.add_sized([42.0, 28.0], btn_3d).on_hover_text("3D 建模 (F6)").clicked() && is_2d {
+                        self.exit_layout_mode();
+                    }
+
+                    // 2D 按鈕（右半圓角）
+                    let btn_2d = egui::Button::new(
+                        egui::RichText::new("2D").size(13.0).strong()
+                            .color(if is_2d { active_text } else { inactive_text })
+                    )
+                    .fill(if is_2d { active_bg } else { inactive_bg })
+                    .rounding(egui::Rounding { nw: 0.0, sw: 0.0, ne: 6.0, se: 6.0 })
+                    .stroke(egui::Stroke::new(1.0, if !is_2d { egui::Color32::from_rgb(200, 205, 215) } else { brand }));
+                    if ui.add_sized([42.0, 28.0], btn_2d).on_hover_text("2D 出圖 CAD (F6)").clicked() && !is_2d {
+                        self.enter_layout_mode();
+                    }
+
+                    ui.add_space(6.0);
+                }
 
                 // Center: Menu bar (functional)
                 let has_sel = !self.editor.selected_ids.is_empty();
@@ -216,6 +261,12 @@ impl KolibriApp {
         #[cfg(feature = "drafting")]
         if self.viewer.layout_mode {
             self.draw_ribbon(ctx);
+        }
+
+        // ── 文字編輯器對話框 ──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            self.draw_text_editor(ctx);
         }
 
         // ── 圖層管理員對話框 ──
@@ -374,7 +425,7 @@ impl KolibriApp {
         #[cfg(feature = "drafting")]
         if self.viewer.layout_mode {
             egui::TopBottomPanel::bottom("draft_tabs")
-                .exact_height(26.0)
+                .exact_height(32.0)
                 .show_separator_line(false)
                 .frame(egui::Frame::none()
                     .fill(egui::Color32::from_rgb(50, 50, 54))
@@ -385,19 +436,19 @@ impl KolibriApp {
                     let tab_active_text = egui::Color32::WHITE;
                     let tab_text = egui::Color32::from_rgb(180, 180, 185);
                     ui.horizontal_centered(|ui| {
-                        ui.label(egui::RichText::new("≡").size(14.0).color(tab_text));
+                        ui.label(egui::RichText::new("≡").size(18.0).color(tab_text));
                         ui.add_space(4.0);
 
-                        if ui.add(egui::Button::new(egui::RichText::new("模型").size(12.0).color(tab_active_text))
+                        if ui.add(egui::Button::new(egui::RichText::new("模型").size(16.0).color(tab_active_text))
                             .fill(tab_active_bg).rounding(0.0).stroke(egui::Stroke::NONE))
                             .on_hover_text("模型空間").clicked() {
-                            self.viewer.layout_mode = false;
+                            self.exit_layout_mode();
                         }
-                        ui.add(egui::Button::new(egui::RichText::new("配置1").size(12.0).color(tab_text))
+                        ui.add(egui::Button::new(egui::RichText::new("配置1").size(16.0).color(tab_text))
                             .fill(egui::Color32::TRANSPARENT).rounding(0.0).stroke(egui::Stroke::NONE));
-                        ui.add(egui::Button::new(egui::RichText::new("配置2").size(12.0).color(tab_text))
+                        ui.add(egui::Button::new(egui::RichText::new("配置2").size(16.0).color(tab_text))
                             .fill(egui::Color32::TRANSPARENT).rounding(0.0).stroke(egui::Stroke::NONE));
-                        ui.label(egui::RichText::new("+").size(13.0).color(tab_text));
+                        ui.label(egui::RichText::new("+").size(17.0).color(tab_text));
                     });
                 });
         }
@@ -423,25 +474,53 @@ impl KolibriApp {
                         ui.label(egui::RichText::new("Z:0").size(11.0).color(dim).monospace());
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            // 右側功能 toggles（稍小字）
+                            // 右側功能 toggles（全部可點擊 + F-key 提示）
                             ui.label(egui::RichText::new(format!("{} 圖元", self.editor.draft_doc.objects.len())).size(10.0).color(dim));
                             ui.separator();
                             ui.label(egui::RichText::new("Units:mm").size(10.0).color(dim));
                             ui.separator();
-                            ui.label(egui::RichText::new("線寬").size(10.0).color(dim));
+                            // DYN (F12)
+                            let dyn_c = if self.editor.draft_dyn_input { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("DYN").size(10.0).color(dyn_c)).sense(egui::Sense::click()))
+                                .on_hover_text("動態輸入 (F12)").clicked() {
+                                self.editor.draft_dyn_input = !self.editor.draft_dyn_input;
+                            }
                             ui.separator();
-                            ui.label(egui::RichText::new("極座標").size(10.0).color(on_color));
+                            // 線寬
+                            ui.label(egui::RichText::new("LWT").size(10.0).color(dim));
                             ui.separator();
-                            ui.label(egui::RichText::new("物件鎖點").size(10.0).color(on_color));
+                            // POLAR (F10)
+                            let polar_c = if self.editor.draft_polar { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("POLAR").size(10.0).color(polar_c)).sense(egui::Sense::click()))
+                                .on_hover_text("極座標追蹤 (F10)").clicked() {
+                                self.editor.draft_polar = !self.editor.draft_polar;
+                                if self.editor.draft_polar { self.editor.draft_ortho = false; }
+                            }
                             ui.separator();
-                            let grid_color = if self.viewer.show_grid { on_color } else { dim };
-                            if ui.add(egui::Label::new(egui::RichText::new("格線").size(10.0).color(grid_color)).sense(egui::Sense::click())).clicked() {
+                            // OSNAP (F3)
+                            let osnap_c = if self.editor.draft_osnap { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("OSNAP").size(10.0).color(osnap_c)).sense(egui::Sense::click()))
+                                .on_hover_text("物件鎖點 (F3)").clicked() {
+                                self.editor.draft_osnap = !self.editor.draft_osnap;
+                            }
+                            ui.separator();
+                            // GRID (F7)
+                            let grid_c = if self.viewer.show_grid { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("GRID").size(10.0).color(grid_c)).sense(egui::Sense::click()))
+                                .on_hover_text("格線 (F7)").clicked() {
                                 self.viewer.show_grid = !self.viewer.show_grid;
                             }
                             ui.separator();
-                            ui.label(egui::RichText::new("Snap:ON").size(10.0).color(on_color));
+                            // SNAP (grid snap)
+                            ui.label(egui::RichText::new("SNAP").size(10.0).color(dim));
                             ui.separator();
-                            ui.label(egui::RichText::new("正交").size(10.0).color(dim));
+                            // ORTHO (F8)
+                            let ortho_c = if self.editor.draft_ortho { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("ORTHO").size(10.0).color(ortho_c)).sense(egui::Sense::click()))
+                                .on_hover_text("正交 (F8)").clicked() {
+                                self.editor.draft_ortho = !self.editor.draft_ortho;
+                                if self.editor.draft_ortho { self.editor.draft_polar = false; }
+                            }
                         });
                     });
                 });

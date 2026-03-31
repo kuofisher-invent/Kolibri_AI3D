@@ -3,8 +3,13 @@ name = "kolibri-io"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+drafting = ["dep:kolibri-drafting"]
+
 [dependencies]
 kolibri-core = { path = "../core" }
+kolibri-drafting = { path = "../drafting", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"

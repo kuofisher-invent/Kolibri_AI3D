@@ -13,8 +13,13 @@ use crate::app::{KolibriApp, Tool, WorkMode, DrawState, ScaleHandle, PullFace, S
 
 impl eframe::App for KolibriApp {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        // Match panel fill so no dark gap shows between panels
-        [245.0 / 255.0, 246.0 / 255.0, 250.0 / 255.0, 1.0]
+        if self.viewer.layout_mode {
+            // 出圖模式：深色背景，消除 panel 間的白色間隙
+            [45.0 / 255.0, 45.0 / 255.0, 48.0 / 255.0, 1.0]
+        } else {
+            // 3D 模式：淺色背景
+            [245.0 / 255.0, 246.0 / 255.0, 250.0 / 255.0, 1.0]
+        }
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -897,7 +902,7 @@ impl eframe::App for KolibriApp {
 
         // ── F6 = toggle 出圖模式 ──
         if ctx.input(|i| i.key_pressed(egui::Key::F6)) {
-            self.viewer.layout_mode = !self.viewer.layout_mode;
+            self.toggle_layout_mode();
         }
 
         // ── F12 = toggle console panel ──

@@ -423,6 +423,50 @@ impl KolibriApp {
                     self.start_import_task(ps.clone());
                 }
             }
+            // ── 2D CAD DXF Import/Export ──
+            #[cfg(feature = "drafting")]
+            MenuAction::ImportDxfToDraft => {
+                let file = rfd::FileDialog::new()
+                    .set_title("匯入 DXF/DWG → 2D CAD")
+                    .add_filter("CAD 圖面", &["dxf", "DXF", "dwg", "DWG"])
+                    .pick_file();
+                if let Some(p) = file {
+                    let ps = p.to_string_lossy().to_string();
+                    // 切換到 2D 模式
+                    self.enter_layout_mode();
+                    match crate::dxf_io::import_dxf_to_draft(&mut self.editor.draft_doc, &ps) {
+                        Ok(count) => {
+                            self.console_push("ACTION", format!("[2D] 匯入 {} 個圖元: {}", count, ps));
+                            self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                        }
+                        Err(e) => {
+                            self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                            self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                        }
+                    }
+                }
+            }
+            #[cfg(feature = "drafting")]
+            MenuAction::ExportDraftDxf => {
+                let file = rfd::FileDialog::new()
+                    .set_title("匯出 2D CAD → DXF")
+                    .add_filter("DXF 圖面", &["dxf", "DXF"])
+                    .set_file_name("drawing.dxf")
+                    .save_file();
+                if let Some(p) = file {
+                    let ps = p.to_string_lossy().to_string();
+                    match crate::dxf_io::export_draft_to_dxf(&self.editor.draft_doc, &ps) {
+                        Ok(count) => {
+                            self.console_push("ACTION", format!("[2D] 匯出 {} 個圖元: {}", count, ps));
+                            self.file_message = Some((format!("已匯出 {} 個 2D 圖元到 DXF", count), std::time::Instant::now()));
+                        }
+                        Err(e) => {
+                            self.console_push("ERROR", format!("[2D] 匯出失敗: {}", e));
+                            self.file_message = Some((format!("匯出失敗: {}", e), std::time::Instant::now()));
+                        }
+                    }
+                }
+            }
             MenuAction::SplitObject => {
                 if let Some(id) = self.editor.selected_ids.first().cloned() {
                     if let Some(obj) = self.scene.objects.get(&id) {

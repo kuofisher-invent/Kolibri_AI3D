@@ -161,6 +161,20 @@ pub enum DraftEntity {
         scale: [f64; 2],
         rotation: f64,
     },
+    /// 修訂雲形（Revcloud — 波浪邊界）
+    Revcloud {
+        points: Vec<Point2>,
+        arc_radius: f64,
+    },
+    /// 表格
+    Table {
+        position: Point2,
+        rows: u32,
+        cols: u32,
+        row_height: f64,
+        col_width: f64,
+        cells: Vec<String>,  // row-major, len = rows * cols
+    },
 }
 
 /// 填充花樣

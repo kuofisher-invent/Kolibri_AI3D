@@ -151,6 +151,25 @@ pub enum Tool {
     DraftPoint,       // 點
     #[cfg(feature = "drafting")]
     DraftXline,       // 建構線
+    #[cfg(feature = "drafting")]
+    DraftErase,       // 刪除（Erase）
+    #[cfg(feature = "drafting")]
+    DraftBreak,       // 打斷（Break）
+    #[cfg(feature = "drafting")]
+    DraftJoin,        // 接合（Join）
+    #[cfg(feature = "drafting")]
+    DraftRevcloud,    // 修訂雲形（Revcloud）
+    #[cfg(feature = "drafting")]
+    DraftTable,       // 表格（Table）
+    // ── Circle/Arc sub-modes ──
+    #[cfg(feature = "drafting")]
+    DraftCircle2P,    // 兩點圓
+    #[cfg(feature = "drafting")]
+    DraftCircle3P,    // 三點圓
+    #[cfg(feature = "drafting")]
+    DraftArc3P,       // 三點弧
+    #[cfg(feature = "drafting")]
+    DraftArcSCE,      // 起點-圓心-終點弧
 }
 
 impl Tool {
@@ -422,6 +441,47 @@ pub(crate) struct EditorState {
     pub(crate) ribbon_tab: RibbonTab,
     #[cfg(feature = "drafting")]
     pub(crate) show_layer_manager: bool,
+    // ── 特性面板狀態 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_prop_color_idx: usize,      // 0=隨圖層
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_prop_linetype_idx: usize,    // 0=Continuous
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_prop_lineweight_idx: usize,  // 0=隨圖層
+    // ── Fillet/Chamfer 參數 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_fillet_radius: f64,   // mm, 預設 5.0
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_chamfer_dist: f64,    // mm, 預設 5.0
+    // ── Text 輸入 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_text_input: String,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_text_height: f64,     // mm, 預設 3.5
+    #[cfg(feature = "drafting")]
+    pub(crate) show_text_editor: bool,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_text_place: Option<[f64; 2]>,
+    // ── Block ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_blocks: std::collections::HashMap<String, Vec<kolibri_drafting::DraftObject>>,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_block_name: String,
+    // ── DraftMove/Rotate/Scale base point ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_transform_base: Option<[f64; 2]>,
+    // ── Fillet/Chamfer 第一條線記憶 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_fillet_first: Option<kolibri_drafting::DraftId>,
+    // ── ORTHO / POLAR / DYN ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_ortho: bool,     // F8 正交模式
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_polar: bool,     // F10 極座標追蹤
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_dyn_input: bool, // F12 動態輸入
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_osnap: bool,     // F3 物件鎖點
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────
@@ -437,6 +497,10 @@ pub(crate) enum DraftDrawState {
     RectFrom { p1: [f64; 2] },
     PolylinePoints { points: Vec<[f64; 2]> },
     DimP1 { p1: [f64; 2] },
+    /// 標註 3-click：p1, p2 已確定，等使用者拖曳決定 offset 位置
+    DimP2 { p1: [f64; 2], p2: [f64; 2] },
+    /// 角度標註：中心 + 第一端點已確定
+    AngleP1 { center: [f64; 2], p1: [f64; 2] },
     TextPlace,
     LeaderPoints { points: Vec<[f64; 2]> },
 }

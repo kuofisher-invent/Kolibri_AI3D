@@ -12,7 +12,7 @@ impl KolibriApp {
         // ── Mode switch: 下拉選單 ──
         {
             let current_label = if self.viewer.layout_mode {
-                "出圖"
+                "CAD"
             } else {
                 match self.editor.work_mode {
                     WorkMode::Modeling => "建模",
@@ -28,21 +28,21 @@ impl KolibriApp {
                 .selected_text(egui::RichText::new(format!("模式: {}", current_label)).size(11.0).strong().color(brand))
                 .show_ui(ui, |ui| {
                     if ui.selectable_label(!self.viewer.layout_mode && self.editor.work_mode == WorkMode::Modeling, "建模").clicked() {
-                        self.viewer.layout_mode = false;
+                        self.exit_layout_mode();
                         self.editor.work_mode = WorkMode::Modeling;
                     }
                     #[cfg(feature = "steel")]
                     if ui.selectable_label(!self.viewer.layout_mode && self.editor.work_mode == WorkMode::Steel, "鋼構").clicked() {
-                        self.viewer.layout_mode = false;
+                        self.exit_layout_mode();
                         self.editor.work_mode = WorkMode::Steel;
                     }
                     #[cfg(feature = "piping")]
                     if ui.selectable_label(!self.viewer.layout_mode && self.editor.work_mode == WorkMode::Piping, "管線").clicked() {
-                        self.viewer.layout_mode = false;
+                        self.exit_layout_mode();
                         self.editor.work_mode = WorkMode::Piping;
                     }
-                    if ui.selectable_label(self.viewer.layout_mode, "出圖").clicked() {
-                        self.viewer.layout_mode = true;
+                    if ui.selectable_label(self.viewer.layout_mode, "CAD").clicked() {
+                        self.enter_layout_mode();
                     }
                 });
         }

@@ -276,6 +276,9 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
         "export_scene" => Some(McpCommand::ExportScene {
             path: args["path"].as_str().unwrap_or("D:/AI_Design/Kolibri_Ai3D/app/scene_export.json").into(),
         }),
+        "set_layout_mode" => Some(McpCommand::SetLayoutMode {
+            enabled: args["enabled"].as_bool().unwrap_or(true),
+        }),
         _ => None,
     }
 }

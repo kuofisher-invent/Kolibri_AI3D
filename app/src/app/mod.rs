@@ -389,6 +389,40 @@ impl KolibriApp {
                 ribbon_tab: crate::editor::RibbonTab::Home,
                 #[cfg(feature = "drafting")]
                 show_layer_manager: false,
+                #[cfg(feature = "drafting")]
+                draft_prop_color_idx: 0,
+                #[cfg(feature = "drafting")]
+                draft_prop_linetype_idx: 0,
+                #[cfg(feature = "drafting")]
+                draft_prop_lineweight_idx: 0,
+                #[cfg(feature = "drafting")]
+                draft_fillet_radius: 5.0,
+                #[cfg(feature = "drafting")]
+                draft_chamfer_dist: 5.0,
+                #[cfg(feature = "drafting")]
+                draft_text_input: String::new(),
+                #[cfg(feature = "drafting")]
+                draft_text_height: 3.5,
+                #[cfg(feature = "drafting")]
+                show_text_editor: false,
+                #[cfg(feature = "drafting")]
+                draft_text_place: None,
+                #[cfg(feature = "drafting")]
+                draft_blocks: std::collections::HashMap::new(),
+                #[cfg(feature = "drafting")]
+                draft_block_name: String::new(),
+                #[cfg(feature = "drafting")]
+                draft_transform_base: None,
+                #[cfg(feature = "drafting")]
+                draft_fillet_first: None,
+                #[cfg(feature = "drafting")]
+                draft_ortho: false,
+                #[cfg(feature = "drafting")]
+                draft_polar: true,
+                #[cfg(feature = "drafting")]
+                draft_dyn_input: true,
+                #[cfg(feature = "drafting")]
+                draft_osnap: true,
             },
 
             right_tab: RightTab::Properties,
@@ -452,6 +486,33 @@ impl KolibriApp {
         app.svg_icons.preload_ribbon_icons(&cc.egui_ctx);
 
         app
+    }
+
+    /// 切換到 2D CAD 出圖模式
+    pub(crate) fn enter_layout_mode(&mut self) {
+        if self.viewer.layout_mode { return; }
+        self.viewer.layout_mode = true;
+        #[cfg(feature = "drafting")]
+        {
+            self.editor.tool = Tool::DraftSelect;
+        }
+    }
+
+    /// 切回 3D 建模模式
+    pub(crate) fn exit_layout_mode(&mut self) {
+        if !self.viewer.layout_mode { return; }
+        self.viewer.layout_mode = false;
+        // 將工具重設為 3D Select，避免殘留 Draft* 工具
+        self.editor.tool = Tool::Select;
+    }
+
+    /// F6 切換 2D/3D
+    pub(crate) fn toggle_layout_mode(&mut self) {
+        if self.viewer.layout_mode {
+            self.exit_layout_mode();
+        } else {
+            self.enter_layout_mode();
+        }
     }
 }
 

@@ -339,6 +339,10 @@ impl KolibriApp {
                     Err(e) => McpResult { success: false, data: json!({"error": format!("{}", e)}) },
                 }
             }
+            McpCommand::SetLayoutMode { enabled } => {
+                if enabled { self.enter_layout_mode(); } else { self.exit_layout_mode(); }
+                McpResult { success: true, data: json!({"layout_mode": enabled}) }
+            }
         }
     }
 }

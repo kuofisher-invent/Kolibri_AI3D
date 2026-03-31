@@ -45,4 +45,4 @@ resvg = { version = "0.44", optional = true }
 default = ["steel", "piping", "drafting"]
 steel = []
 piping = ["dep:kolibri-piping"]
-drafting = ["dep:kolibri-drafting", "dep:resvg"]
+drafting = ["dep:kolibri-drafting", "dep:resvg", "kolibri-io/drafting"]

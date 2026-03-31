@@ -364,6 +364,224 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
     Ok(count)
 }
 
+// ─── 2D DraftDocument DXF Import/Export ──────────────────────────────────────
+
+/// 將累積的 DXF entity 資料 flush 到 DraftDocument
+#[cfg(feature = "drafting")]
+fn flush_draft_entity(
+    entity: &str, coords: &std::collections::HashMap<i32, f64>,
+    text: &str, poly_pts: &mut Vec<[f64; 2]>, poly_closed: bool,
+    doc: &mut kolibri_drafting::DraftDocument,
+) -> usize {
+    match entity {
+        "LINE" => {
+            doc.add(kolibri_drafting::DraftEntity::Line {
+                start: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+                end:   [*coords.get(&11).unwrap_or(&0.0), *coords.get(&21).unwrap_or(&0.0)],
+            }); 1
+        }
+        "CIRCLE" => {
+            doc.add(kolibri_drafting::DraftEntity::Circle {
+                center: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+                radius: *coords.get(&40).unwrap_or(&1.0),
+            }); 1
+        }
+        "ARC" => {
+            doc.add(kolibri_drafting::DraftEntity::Arc {
+                center: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+                radius: *coords.get(&40).unwrap_or(&1.0),
+                start_angle: coords.get(&50).unwrap_or(&0.0).to_radians(),
+                end_angle: coords.get(&51).unwrap_or(&360.0).to_radians(),
+            }); 1
+        }
+        "LWPOLYLINE" => {
+            if poly_pts.len() >= 2 {
+                doc.add(kolibri_drafting::DraftEntity::Polyline {
+                    points: poly_pts.clone(), closed: poly_closed,
+                });
+                poly_pts.clear();
+                1
+            } else { poly_pts.clear(); 0 }
+        }
+        "TEXT" | "MTEXT" => {
+            if !text.is_empty() {
+                doc.add(kolibri_drafting::DraftEntity::Text {
+                    position: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+                    content: text.to_string(),
+                    height: *coords.get(&40).unwrap_or(&2.5),
+                    rotation: coords.get(&50).unwrap_or(&0.0).to_radians(),
+                }); 1
+            } else { 0 }
+        }
+        "ELLIPSE" => {
+            let mx = *coords.get(&11).unwrap_or(&1.0);
+            let my = *coords.get(&21).unwrap_or(&0.0);
+            let sm = (mx * mx + my * my).sqrt();
+            doc.add(kolibri_drafting::DraftEntity::Ellipse {
+                center: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+                semi_major: sm, semi_minor: sm * coords.get(&40).unwrap_or(&0.5),
+                rotation: my.atan2(mx),
+            }); 1
+        }
+        "DIMENSION" => {
+            doc.add(kolibri_drafting::DraftEntity::DimLinear {
+                p1: [*coords.get(&13).unwrap_or(&0.0), *coords.get(&23).unwrap_or(&0.0)],
+                p2: [*coords.get(&14).unwrap_or(&0.0), *coords.get(&24).unwrap_or(&0.0)],
+                offset: 8.0,
+                text_override: if text.is_empty() { None } else { Some(text.to_string()) },
+            }); 1
+        }
+        "POINT" => {
+            doc.add(kolibri_drafting::DraftEntity::Point {
+                position: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
+            }); 1
+        }
+        _ => 0,
+    }
+}
+
+/// 從 DXF 檔案匯入到 DraftDocument（2D CAD 模式用）
+#[cfg(feature = "drafting")]
+pub fn import_dxf_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
+    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let lines: Vec<&str> = content.lines().collect();
+    let mut count = 0;
+    let mut i = 0;
+    let mut in_entities = false;
+    let mut current_entity = String::new();
+    let mut coords: std::collections::HashMap<i32, f64> = std::collections::HashMap::new();
+    let mut text_buf = String::new();
+    let mut polyline_pts: Vec<[f64; 2]> = Vec::new();
+    let mut polyline_closed = false;
+
+    while i < lines.len().saturating_sub(1) {
+        let code = lines[i].trim();
+        let value = lines[i + 1].trim();
+        i += 2;
+
+        if value == "ENTITIES" && code == "2" { in_entities = true; continue; }
+        if !in_entities { continue; }
+
+        if code == "0" {
+            // ENDSEC 或新 entity → 先處理前一個
+            count += flush_draft_entity(&current_entity, &coords, &text_buf,
+                &mut polyline_pts, polyline_closed, doc);
+
+            if value == "ENDSEC" { in_entities = false; continue; }
+
+            current_entity = value.to_string();
+            coords.clear();
+            text_buf.clear();
+            polyline_closed = false;
+        } else if let Ok(c) = code.parse::<i32>() {
+            if c == 1 { text_buf = value.to_string(); }
+            else if c == 70 && current_entity == "LWPOLYLINE" {
+                polyline_closed = value.parse::<i32>().unwrap_or(0) & 1 != 0;
+            } else if c == 10 && current_entity == "LWPOLYLINE" {
+                let x = value.parse::<f64>().unwrap_or(0.0);
+                let y_idx = i;
+                if y_idx < lines.len().saturating_sub(1) {
+                    let yc = lines[y_idx].trim();
+                    let yv = lines[y_idx + 1].trim();
+                    if yc == "20" {
+                        let y = yv.parse::<f64>().unwrap_or(0.0);
+                        polyline_pts.push([x, y]);
+                        i += 2;
+                    }
+                }
+            } else if let Ok(v) = value.parse::<f64>() {
+                coords.insert(c, v);
+            }
+        }
+    }
+
+    // 處理最後一個 entity
+    count += flush_draft_entity(&current_entity, &coords, &text_buf,
+        &mut polyline_pts, polyline_closed, doc);
+
+    if count == 0 { return Err("DXF 中沒有找到 2D 圖元".into()); }
+    Ok(count)
+}
+
+/// 從 DraftDocument 匯出到 DXF 檔案（2D CAD 模式用）
+#[cfg(feature = "drafting")]
+pub fn export_draft_to_dxf(doc: &kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
+    let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+    let mut count = 0;
+
+    // DXF Header
+    writeln!(file, "0\nSECTION\n2\nHEADER\n0\nENDSEC").map_err(|e| e.to_string())?;
+    // Tables (minimal)
+    writeln!(file, "0\nSECTION\n2\nTABLES\n0\nENDSEC").map_err(|e| e.to_string())?;
+    // Entities
+    writeln!(file, "0\nSECTION\n2\nENTITIES").map_err(|e| e.to_string())?;
+
+    for obj in &doc.objects {
+        if !obj.visible { continue; }
+        match &obj.entity {
+            kolibri_drafting::DraftEntity::Line { start, end } => {
+                writeln!(file, "0\nLINE\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0\n11\n{:.6}\n21\n{:.6}\n31\n0.0",
+                    obj.layer, start[0], start[1], end[0], end[1]).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Circle { center, radius } => {
+                writeln!(file, "0\nCIRCLE\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0\n40\n{:.6}",
+                    obj.layer, center[0], center[1], radius).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Arc { center, radius, start_angle, end_angle } => {
+                writeln!(file, "0\nARC\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0\n40\n{:.6}\n50\n{:.6}\n51\n{:.6}",
+                    obj.layer, center[0], center[1], radius,
+                    start_angle.to_degrees(), end_angle.to_degrees()).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Rectangle { p1, p2 } => {
+                // 矩形 → LWPOLYLINE
+                writeln!(file, "0\nLWPOLYLINE\n8\n{}\n90\n4\n70\n1\n10\n{:.6}\n20\n{:.6}\n10\n{:.6}\n20\n{:.6}\n10\n{:.6}\n20\n{:.6}\n10\n{:.6}\n20\n{:.6}",
+                    obj.layer, p1[0], p1[1], p2[0], p1[1], p2[0], p2[1], p1[0], p2[1]).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Polyline { points, closed } => {
+                let flag = if *closed { 1 } else { 0 };
+                write!(file, "0\nLWPOLYLINE\n8\n{}\n90\n{}\n70\n{}", obj.layer, points.len(), flag).map_err(|e| e.to_string())?;
+                for pt in points {
+                    write!(file, "\n10\n{:.6}\n20\n{:.6}", pt[0], pt[1]).map_err(|e| e.to_string())?;
+                }
+                writeln!(file).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Ellipse { center, semi_major, semi_minor, rotation } => {
+                let mx = semi_major * rotation.cos();
+                let my = semi_major * rotation.sin();
+                let ratio = semi_minor / semi_major;
+                writeln!(file, "0\nELLIPSE\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0\n11\n{:.6}\n21\n{:.6}\n31\n0.0\n40\n{:.6}\n41\n0.0\n42\n6.283185",
+                    obj.layer, center[0], center[1], mx, my, ratio).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Text { position, content, height, rotation } => {
+                writeln!(file, "0\nTEXT\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0\n40\n{:.6}\n1\n{}\n50\n{:.6}",
+                    obj.layer, position[0], position[1], height, content, rotation.to_degrees()).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::Point { position } => {
+                writeln!(file, "0\nPOINT\n8\n{}\n10\n{:.6}\n20\n{:.6}\n30\n0.0",
+                    obj.layer, position[0], position[1]).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            kolibri_drafting::DraftEntity::DimLinear { p1, p2, offset, text_override } => {
+                let text = text_override.as_deref().unwrap_or("");
+                writeln!(file, "0\nDIMENSION\n8\n{}\n13\n{:.6}\n23\n{:.6}\n33\n0.0\n14\n{:.6}\n24\n{:.6}\n34\n0.0\n1\n{}",
+                    obj.layer, p1[0], p1[1], p2[0], p2[1], text).map_err(|e| e.to_string())?;
+                count += 1;
+            }
+            _ => {} // 其他圖元暫不匯出
+        }
+    }
+
+    writeln!(file, "0\nENDSEC\n0\nEOF").map_err(|e| e.to_string())?;
+    Ok(count)
+}
+
 /// Map MaterialKind to DXF ACI (AutoCAD Color Index) — approximate
 fn material_to_aci(mat: &kolibri_core::scene::MaterialKind) -> i32 {
     use kolibri_core::scene::MaterialKind;
@@ -386,5 +604,153 @@ fn material_to_aci(mat: &kolibri_core::scene::MaterialKind) -> i32 {
         MaterialKind::Grass | MaterialKind::Soil => 3,          // green
         MaterialKind::Marble => 7,                               // white
         _ => 7,                                                   // default white
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "drafting")]
+mod tests_draft_dxf {
+    use super::*;
+
+    #[test]
+    fn test_import_export_roundtrip() {
+        // 建立測試 DXF 內容
+        let dxf_content = r#"0
+SECTION
+2
+HEADER
+0
+ENDSEC
+0
+SECTION
+2
+ENTITIES
+0
+LINE
+8
+0
+10
+0.0
+20
+0.0
+30
+0.0
+11
+100.0
+21
+0.0
+31
+0.0
+0
+LINE
+8
+0
+10
+100.0
+20
+0.0
+30
+0.0
+11
+100.0
+21
+80.0
+31
+0.0
+0
+CIRCLE
+8
+0
+10
+50.0
+20
+40.0
+30
+0.0
+40
+25.0
+0
+TEXT
+8
+0
+10
+10.0
+20
+-15.0
+30
+0.0
+40
+5.0
+1
+Hello
+50
+0.0
+0
+POINT
+8
+0
+10
+25.0
+20
+25.0
+30
+0.0
+0
+ENDSEC
+0
+EOF
+"#;
+        // 寫入暫存檔
+        let import_path = std::env::temp_dir().join("kolibri_test_import.dxf");
+        std::fs::write(&import_path, dxf_content).unwrap();
+
+        // 匯入
+        let mut doc = kolibri_drafting::DraftDocument::new();
+        let count = import_dxf_to_draft(&mut doc, import_path.to_str().unwrap()).unwrap();
+        assert!(count >= 4, "Expected at least 4 entities, got {}", count);
+        println!("Imported {} entities", count);
+
+        // 檢查圖元類型
+        let mut has_line = false;
+        let mut has_circle = false;
+        let mut has_text = false;
+        let mut has_point = false;
+        for obj in &doc.objects {
+            match &obj.entity {
+                kolibri_drafting::DraftEntity::Line { .. } => has_line = true,
+                kolibri_drafting::DraftEntity::Circle { center, radius } => {
+                    has_circle = true;
+                    assert!((center[0] - 50.0).abs() < 0.01);
+                    assert!((center[1] - 40.0).abs() < 0.01);
+                    assert!((*radius - 25.0).abs() < 0.01);
+                }
+                kolibri_drafting::DraftEntity::Text { content, .. } => {
+                    has_text = true;
+                    assert_eq!(content, "Hello");
+                }
+                kolibri_drafting::DraftEntity::Point { .. } => has_point = true,
+                _ => {}
+            }
+        }
+        assert!(has_line, "Missing LINE");
+        assert!(has_circle, "Missing CIRCLE");
+        assert!(has_text, "Missing TEXT");
+        assert!(has_point, "Missing POINT");
+
+        // 匯出
+        let export_path = std::env::temp_dir().join("kolibri_test_export.dxf");
+        let exported = export_draft_to_dxf(&doc, export_path.to_str().unwrap()).unwrap();
+        assert!(exported >= 4, "Expected at least 4 exported, got {}", exported);
+        println!("Exported {} entities", exported);
+
+        // 驗證匯出的 DXF 可以重新匯入
+        let mut doc2 = kolibri_drafting::DraftDocument::new();
+        let count2 = import_dxf_to_draft(&mut doc2, export_path.to_str().unwrap()).unwrap();
+        assert!(count2 >= 4, "Re-import got only {} entities", count2);
+        println!("Round-trip OK: {} → {} → {} entities", count, exported, count2);
+
+        // 清理
+        let _ = std::fs::remove_file(&import_path);
+        let _ = std::fs::remove_file(&export_path);
     }
 }

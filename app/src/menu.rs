@@ -58,6 +58,10 @@ pub enum MenuAction {
     SplitObject,
     ImportDxfSmart,
     SmartImport,
+    #[cfg(feature = "drafting")]
+    ImportDxfToDraft,   // DXF → 2D DraftDocument
+    #[cfg(feature = "drafting")]
+    ExportDraftDxf,     // 2D DraftDocument → DXF
     ToggleConsole,
     ToggleGrid,
     ToggleAxes,
@@ -100,7 +104,10 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
                 if ui.button("OBJ 模型").clicked() { action = MenuAction::ExportObj; ui.close_menu(); }
                 if ui.button("STL 模型").clicked() { action = MenuAction::ExportStl; ui.close_menu(); }
                 if ui.button("GLTF 模型").clicked() { action = MenuAction::ExportGltf; ui.close_menu(); }
-                if ui.button("DXF 圖面").clicked() { action = MenuAction::ExportDxf; ui.close_menu(); }
+                if ui.button("DXF 圖面 (3D)").clicked() { action = MenuAction::ExportDxf; ui.close_menu(); }
+                ui.separator();
+                #[cfg(feature = "drafting")]
+                if ui.button("DXF 圖面 (2D CAD)").clicked() { action = MenuAction::ExportDraftDxf; ui.close_menu(); }
                 ui.separator();
                 ui.label("2D 截圖");
                 if ui.button("PNG 截圖").clicked() { action = MenuAction::ExportPng; ui.close_menu(); }
@@ -110,8 +117,11 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
             ui.menu_button("匯入", |ui| {
                 if ui.button("OBJ 模型").clicked() { action = MenuAction::ImportObj; ui.close_menu(); }
                 if ui.button("STL 模型").clicked() { action = MenuAction::ImportStl; ui.close_menu(); }
-                if ui.button("DXF 圖面").clicked() { action = MenuAction::ImportDxf; ui.close_menu(); }
+                if ui.button("DXF 圖面 (3D)").clicked() { action = MenuAction::ImportDxf; ui.close_menu(); }
                 if ui.button("GLTF 模型").clicked() { action = MenuAction::ImportGltf; ui.close_menu(); }
+                ui.separator();
+                #[cfg(feature = "drafting")]
+                if ui.button("DXF/DWG → 2D CAD").clicked() { action = MenuAction::ImportDxfToDraft; ui.close_menu(); }
                 ui.separator();
                 if ui.button("DXF 智慧匯入 (解析軸線/柱梁)").clicked() { action = MenuAction::ImportDxfSmart; ui.close_menu(); }
                 ui.separator();
