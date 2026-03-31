@@ -274,6 +274,21 @@ impl KolibriApp {
                 }
             }
 
+            // Camera/Section tools — no click action needed
+            Tool::Walk | Tool::LookAround => {}
+            Tool::SectionPlane => {
+                // 點擊放置剖面平面
+                if let Some(ground) = self.editor.mouse_ground {
+                    self.viewer.section_plane_enabled = true;
+                    // 根據最近的軸向設定剖面
+                    let axis = if ground[1].abs() > ground[0].abs().max(ground[2].abs()) { 1 }
+                        else if ground[0].abs() > ground[2].abs() { 0 } else { 2 };
+                    self.viewer.section_plane_axis = axis;
+                    self.viewer.section_plane_offset = ground[axis as usize];
+                    self.file_message = Some((format!("剖面平面已放置 ({}軸 {:.0}mm)", ["X","Y","Z"][axis as usize], ground[axis as usize]), std::time::Instant::now()));
+                }
+            }
+
             // Drawing tools — dispatched to click_draw.rs
             Tool::CreateBox | Tool::CreateCylinder | Tool::CreateSphere
             | Tool::Rectangle | Tool::Circle
@@ -284,11 +299,35 @@ impl KolibriApp {
             // Editing tools — dispatched to click_edit.rs
             Tool::Move | Tool::Rotate | Tool::Scale | Tool::Offset
             | Tool::PushPull | Tool::FollowMe
-            | Tool::Wall | Tool::Slab
-            | Tool::SteelColumn | Tool::SteelBeam | Tool::SteelBrace
+            | Tool::Wall | Tool::Slab => {
+                self.on_click_edit();
+            }
+            #[cfg(feature = "steel")]
+            Tool::SteelColumn | Tool::SteelBeam | Tool::SteelBrace
             | Tool::SteelPlate | Tool::SteelGrid | Tool::SteelConnection => {
                 self.on_click_edit();
             }
+
+            // Piping tools
+            #[cfg(feature = "piping")]
+            Tool::PipeDraw => {
+                self.editor.piping.tool = kolibri_piping::PipingTool::DrawPipe;
+                if let Some(ground) = self.editor.mouse_ground {
+                    self.editor.piping.on_click(&mut self.scene, ground);
+                    self.scene.version += 1;
+                }
+            }
+            #[cfg(feature = "piping")]
+            Tool::PipeFitting => {
+                self.editor.piping.tool = kolibri_piping::PipingTool::PlaceFitting;
+                if let Some(ground) = self.editor.mouse_ground {
+                    self.editor.piping.on_click(&mut self.scene, ground);
+                    self.scene.version += 1;
+                }
+            }
+            // Drafting 工具由 draft_canvas 處理，3D viewport 點擊忽略
+            #[cfg(feature = "drafting")]
+            _ => {}
         }
 
         // Fallback: any click on an object selects it (like SketchUp)

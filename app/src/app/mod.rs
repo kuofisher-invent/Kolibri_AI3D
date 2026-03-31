@@ -19,6 +19,9 @@ pub(crate) use crate::editor::{
     Tool, WorkMode, DrawState, ScaleHandle, PullFace, SnapType, SnapResult,
     AiSuggestion, SuggestionAction, RightTab, CursorHint, EditorState, SelectionMode,
 };
+#[cfg(feature = "drafting")]
+#[allow(unused_imports)]
+pub(crate) use crate::editor::{DraftDrawState, RibbonTab};
 pub(crate) use crate::viewer::{RenderMode, ViewerState};
 pub(crate) use crate::overlay::{
     ArcInfo, compute_arc, compute_arc_info, draw_dashed_line,
@@ -109,6 +112,16 @@ pub struct KolibriApp {
     pub(crate) perf_gpu_verts: usize,
     pub(crate) perf_gpu_idx: usize,
     pub(crate) perf_mesh_build_ms: f32,
+
+    // GPU info
+    pub(crate) gpu_name: String,
+
+    // Help tab category
+    pub(crate) help_category: u8,
+
+    // SVG icon cache（出圖模式 Ribbon 用）
+    #[cfg(feature = "drafting")]
+    pub(crate) svg_icons: crate::svg_icons::SvgIconCache,
 }
 
 /// rstar entry: AABB + object ID
@@ -239,8 +252,16 @@ impl KolibriApp {
         }
 
         let rs = cc.wgpu_render_state.as_ref().expect("需要 wgpu 後端");
-        // Log GPU adapter info
-        eprintln!("[GPU] Adapter: {:?}", rs.adapter.get_info());
+        // GPU adapter info — HighPerformance 已在 NativeOptions 設定，自動選最強 GPU
+        let gpu_info = rs.adapter.get_info();
+        let gpu_name = format!("{} ({})", gpu_info.name, match gpu_info.device_type {
+            wgpu::DeviceType::DiscreteGpu => "獨顯",
+            wgpu::DeviceType::IntegratedGpu => "內顯",
+            wgpu::DeviceType::VirtualGpu => "虛擬",
+            wgpu::DeviceType::Cpu => "CPU",
+            _ => "其他",
+        });
+        eprintln!("[GPU] 使用: {} | Backend: {:?}", gpu_name, gpu_info.backend);
 
         let mut app = Self {
             device: rs.device.clone(),
@@ -267,6 +288,9 @@ impl KolibriApp {
                 layout_mode: false,
                 layout: Default::default(),
                 show_grid: true,
+                show_axes: true,
+                show_toolbar: true,
+                show_right_panel: true,
                 grid_spacing: 1000.0,
                 dark_mode: false,
                 language: 0, // 0=繁中, 1=English
@@ -324,7 +348,7 @@ impl KolibriApp {
                 cursor_hint_fade: None,
                 prev_tool_for_hint: Tool::Select,
                 work_mode: WorkMode::Modeling,
-                steel_profile: "H300x150x6x9".into(),
+                steel_profile: "H300×150×6.5×9".into(),
                 steel_material: "SS400".into(),
                 steel_height: 4200.0,
                 collision_warning: None,
@@ -351,6 +375,18 @@ impl KolibriApp {
                 command_palette_query: String::new(),
                 gizmo_hovered_axis: None,
                 gizmo_drag_axis: None,
+                #[cfg(feature = "piping")]
+                piping: kolibri_piping::PipingState::default(),
+                #[cfg(feature = "drafting")]
+                draft_state: crate::editor::DraftDrawState::Idle,
+                #[cfg(feature = "drafting")]
+                draft_doc: kolibri_drafting::DraftDocument::new(),
+                #[cfg(feature = "drafting")]
+                draft_layers: kolibri_drafting::LayerManager::default(),
+                #[cfg(feature = "drafting")]
+                draft_selected: Vec::new(),
+                #[cfg(feature = "drafting")]
+                ribbon_tab: crate::editor::RibbonTab::Home,
             },
 
             right_tab: RightTab::Properties,
@@ -404,7 +440,15 @@ impl KolibriApp {
             perf_gpu_verts: 0,
             perf_gpu_idx: 0,
             perf_mesh_build_ms: 0.0,
+            gpu_name,
+            help_category: 0,
+            #[cfg(feature = "drafting")]
+            svg_icons: crate::svg_icons::SvgIconCache::new(),
         };
+        // 預載 SVG icons
+        #[cfg(feature = "drafting")]
+        app.svg_icons.preload_ribbon_icons(&cc.egui_ctx);
+
         app
     }
 }

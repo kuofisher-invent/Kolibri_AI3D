@@ -357,6 +357,7 @@ impl KolibriApp {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.viewer.show_colors, egui::RichText::new("色彩").size(10.0));
                 ui.checkbox(&mut self.viewer.show_grid, egui::RichText::new("格線").size(10.0));
+                ui.checkbox(&mut self.viewer.show_axes, egui::RichText::new("軸向").size(10.0));
             });
         });  // end Styles collapsing header
 
@@ -567,14 +568,27 @@ impl KolibriApp {
                 Tool::Group       => "群組 — 點擊物件標記為群組".into(),
                 Tool::Component   => "元件 — 點擊物件標記為可重複使用的元件".into(),
                 Tool::Eraser      => "橡皮擦 — 點擊物件刪除".into(),
+                #[cfg(feature = "steel")]
                 Tool::SteelGrid   => "軸線 — 點擊放置軸線".into(),
+                #[cfg(feature = "steel")]
                 Tool::SteelColumn => format!("柱 — 點擊放置 {} 柱", self.editor.steel_profile),
+                #[cfg(feature = "steel")]
                 Tool::SteelBeam   => "梁 — 點擊起點，再點擊終點".into(),
+                #[cfg(feature = "steel")]
                 Tool::SteelBrace  => "斜撐 — 點擊起點，再點擊終點".into(),
+                #[cfg(feature = "steel")]
                 Tool::SteelPlate  => "鋼板 — 畫矩形，再推拉厚度".into(),
+                #[cfg(feature = "steel")]
                 Tool::SteelConnection => "接頭 — 選取兩個構件".into(),
+                Tool::Walk        => "行走 — WASD 移動, 滑鼠環顧".into(),
+                Tool::LookAround  => "環顧 — 滑鼠拖曳環顧視角".into(),
+                Tool::SectionPlane => "剖面 — 點擊放置剖面平面".into(),
                 Tool::Wall => format!("牆 (W) — 點擊兩點畫牆（厚{:.0}mm 高{:.0}mm）", self.editor.wall_thickness, self.editor.wall_height),
                 Tool::Slab => format!("板 — 點擊兩角畫板（厚{:.0}mm）", self.editor.slab_thickness),
+                #[cfg(feature = "piping")]
+                Tool::PipeDraw | Tool::PipeFitting => self.editor.piping.status_text(),
+                #[cfg(feature = "drafting")]
+                _ => "出圖工具 — 使用 Ribbon 工具列操作".into(),
             },
             DrawState::BoxBase { .. } => "移動滑鼠拖出底面矩形, 點擊確認".into(),
             DrawState::BoxHeight { .. } => "上下移動設定高度, 點擊確認 (或輸入數字+Enter)".into(),

@@ -1,17 +1,21 @@
 # Kolibri_Ai3D — Claude Code 專案規範
 
 ## 專案概述
-Kolibri_Ai3D 是一個 Rust + egui + wgpu 桌面 3D CAD 建模軟體，具有：
-- SketchUp 風格的即時 3D 互動建模（10 項核心功能齊全）
-- Tekla 風格的鋼構模式
+Kolibri_Ai3D 是一個 Rust + egui + wgpu 桌面 3D/2D CAD 建模軟體，具有：
+- SketchUp 風格的即時 3D 互動建模（推拉/旋轉/縮放/偏移 等完整工具）
+- Tekla 風格的鋼構模式（CNS 386 H 型鋼規格，feature gate）
+- 管線繪製模式（PVC/EMT/消防鐵管/不鏽鋼/銅管，CNS 標準，feature gate）
+- BIM/IFC 屬性（IfcColumn/IfcBeam/IfcWall/IfcPipeSegment）
 - CAD 匯入/匯出（DXF/DWG/SKP/OBJ/STL/glTF/PDF）
 - AI 語意辨識與 4 層推斷引擎
 - MCP Server（stdio + HTTP/SSE，支援 Claude Desktop / ChatGPT）
-- PBR Cook-Torrance 渲染
+- PBR Cook-Torrance 渲染（雙面渲染、背面藍灰色調）
+- 面板顯示/隱藏 Toggle（工具列/屬性/Console）
+- ZWCAD 風格 2D 出圖模式（深色 Ribbon 41 工具 + SVG icons + 2D Canvas + 點格線 + 十字游標）
 
 ## 架構
 
-### Cargo Workspace（4 crates）
+### Cargo Workspace（7 crates）
 ```
 Kolibri_Ai3D/
 ├── Cargo.toml              # workspace root
@@ -34,6 +38,19 @@ Kolibri_Ai3D/
 │   │   ├── cad_import/     # DXF 智慧匯入管線
 │   │   ├── import/         # 統一匯入管線
 │   │   └── dwg_parser/     # DWG 解析器
+│   ├── skp/                # SketchUp SDK FFI（匯入+匯出）
+│   │   ├── ffi.rs          # 動態載入 SketchUpAPI.dll
+│   │   ├── converter.rs    # SKP → SkpScene 轉換
+│   │   └── exporter.rs     # Scene → .skp 匯出
+│   ├── piping/             # 管線外掛（feature: piping）
+│   │   ├── pipe_data.rs    # PipeSystem, PipeSegment, PipeFitting
+│   │   ├── catalog.rs      # CNS 標準管材規格目錄
+│   │   ├── geometry.rs     # 圓柱 Mesh 管段/彎頭/三通/閥門
+│   │   └── tools.rs        # PipingTool, PipingState
+│   ├── drafting/           # 2D 出圖引擎（feature: drafting）
+│   │   ├── entities.rs     # DraftEntity, DraftDocument, DraftObject
+│   │   ├── layer.rs        # DraftLayer, LayerManager
+│   │   └── geometry.rs     # offset, trim, mirror, array, rotate
 │   └── mcp/                # MCP Server（4 層架構）
 │       ├── protocol.rs     # JSON-RPC 2.0 協定型別
 │       ├── adapter.rs      # 17 tools → Scene API 轉接
@@ -45,24 +62,53 @@ Kolibri_Ai3D/
 │           └── test_harness.rs # 自動化測試
 └── app/                    # GUI 應用程式
     └── src/
-        ├── app.rs          # KolibriApp 主結構 + update loop (~1400 行)
-        ├── editor.rs       # EditorState, Tool, DrawState, SelectionMode
-        ├── viewer.rs       # ViewerState, RenderMode
-        ├── overlay.rs      # 2D overlay 繪圖 (~1400 行) + ArcInfo
-        ├── tools.rs        # 工具互動邏輯
-        ├── panels.rs       # 右側面板 UI
-        ├── renderer.rs     # wgpu PBR 渲染器（Cook-Torrance BRDF）
-        ├── camera.rs       # OrbitCamera
-        ├── snap.rs         # 吸附推斷（含 tangent、InferenceEngine 2.0）
+        ├── app/            # KolibriApp 主結構（模組化）
+        │   ├── mod.rs      # KolibriApp struct + new()
+        │   ├── update.rs   # update loop + keyboard/viewport dispatch
+        │   ├── update_ui.rs # draw_panels (topbar, toolbar, right panel, status)
+        │   └── commands.rs # 指令調度
+        ├── editor.rs       # EditorState, Tool, DrawState, SelectionMode, WorkMode
+        ├── viewer.rs       # ViewerState, RenderMode, show_grid/axes/toolbar/right_panel
+        ├── overlay/        # 2D overlay 繪圖
+        │   ├── cursor.rs   # 游標提示卡、snap 圓點、ghost line
+        │   ├── gizmo.rs    # 選取框、Move gizmo、Scale handles
+        │   ├── hud.rs      # 樓層指示、軸向、比例尺、toasts
+        │   ├── guides.rs   # 材質選取器、推拉參考線、量角器
+        │   └── navigation.rs # 視角按鈕、nav pad、面板 toggle
+        ├── tools/          # 工具互動邏輯
+        │   ├── viewport.rs # 拖曳/滾輪/PushPull move handler
+        │   ├── click.rs    # on_click 分發
+        │   ├── click_draw.rs   # 繪圖工具狀態機
+        │   ├── click_edit.rs   # 編輯工具（Move/Rotate/Scale/PushPull/Steel）
+        │   ├── keyboard.rs     # 快捷鍵（含 Mirror/Flip）
+        │   ├── measure.rs      # VCB 尺寸輸入（含單位解析 m/cm/ft/'/"）
+        │   ├── menu_actions.rs # 選單動作（匯出/CSG/Hide/Explode/SKP export）
+        │   ├── geometry_ops.rs # H型鋼 CNS 規格表 + mesh 生成 + Mirror/Flip
+        │   └── picking.rs      # pick() + pick_face()（slab method）
+        ├── panels/         # UI 面板
+        │   ├── toolbar.rs  # 左側工具列（模式下拉 + 工具按鈕）
+        │   ├── ribbon.rs   # ZWCAD 深色 Ribbon（4 tab, 41 工具, SVG icons）
+        │   ├── draft_canvas.rs  # 2D 深色畫布 + 點格線 + 十字游標 + 互動
+        │   ├── tab_properties.rs # 右側屬性面板（DIMENSIONS/TRANSFORM/BIM-IFC/MATERIAL）
+        │   ├── tab_scene.rs     # 場景面板 + status_text()
+        │   ├── tab_help.rs      # 說明面板（操作/快捷鍵/管線規格/鋼構規格/法規）
+        │   └── material_swatches.rs # 材質色票
+        ├── renderer/       # wgpu PBR 渲染器
+        │   ├── pipeline.rs # ViewportRenderer + dirty-flag caching
+        │   ├── mesh_builder.rs # 場景 mesh 建構（含 face highlight）
+        │   ├── primitives.rs   # push_box/cylinder/sphere
+        │   ├── shaders.rs      # WGSL shader（雙面渲染 + back-face tint）
+        │   └── helpers.rs      # 工具函式
+        ├── camera.rs       # OrbitCamera（35° FOV, zoom toward cursor）
+        ├── snap.rs         # 吸附推斷（含 tangent、14 種 SnapType）
         ├── inference.rs    # 推斷上下文
-        ├── inference_engine.rs  # 4 層推斷引擎
-        ├── icons.rs        # Heroicons 風格向量圖示
-        ├── menu.rs         # 選單列
-        ├── layout.rs       # 出圖模式
+        ├── inference_engine.rs  # 4 層推斷引擎（Geometry/Context/Semantic/Intent）
+        ├── icons.rs        # 向量圖示（含 Steel/Piping/Walk/Section icons）
+        ├── svg_icons.rs    # SVG icon loader（resvg → TextureHandle, 85 icons）
+        ├── menu.rs         # 選單列（檔案/編輯/工具/檢視/版面）+ 右鍵選單
+        ├── layout.rs       # 出圖模式（Paper Space）
         ├── mcp_server.rs   # APP 內建 MCP (GUI Bridge)
-        ├── file_io.rs      # 檔案讀寫 (impl KolibriApp)
-        ├── builders/       # 鋼構建造器
-        └── ...             # re-export shims (scene, halfedge, collision, csg, measure, dxf_io, obj_io, stl_io, gltf_io)
+        └── file_io.rs      # 檔案讀寫
 ```
 
 ### 三層 Store 分離（Pascal Editor 風格）
@@ -92,25 +138,37 @@ Kolibri_Ai3D/
 - core/io crate 使用 `pub` 可見性；app crate 使用 `pub(crate)`
 - 避免 `unwrap()`，使用 `?` 或 `unwrap_or`
 
+### Feature Flags
+```toml
+[features]
+default = ["steel", "piping", "drafting"]
+steel = []                                    # 鋼構模式（CNS 386 H 型鋼）
+piping = ["dep:kolibri-piping"]               # 管線模式（CNS 管材規格）
+drafting = ["dep:kolibri-drafting", "dep:resvg"] # 2D 出圖模式（ZWCAD Ribbon + SVG icons）
+```
+
 ### 測試與建置
 ```bash
-# 建置全 workspace
+# 建置全 workspace（含所有 feature）
 cargo build
+
+# 建置 release
+cargo build --release
+
+# 只建模模式（不含鋼構/管線）
+cargo build -p kolibri-cad --no-default-features
 
 # 執行 GUI APP
 cargo run -p kolibri-cad
 
-# 執行 MCP Server（stdio）
-cargo run --bin kolibri-mcp-server
-
-# 執行 MCP Server（HTTP + Dashboard）
-cargo run --bin kolibri-mcp-server -- --http
-
-# 執行 MCP 測試
-cargo run --bin kolibri-mcp-test
+# 測試管線幾何
+cargo test -p kolibri-piping
 
 # 測試 core crate（不需 GPU）
 cargo test -p kolibri-core
+
+# 執行 MCP Server（HTTP + Dashboard）
+cargo run --bin kolibri-mcp-server -- --http
 
 # 檢查
 cargo clippy

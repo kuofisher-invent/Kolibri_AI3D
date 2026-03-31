@@ -6,14 +6,48 @@ impl KolibriApp {
     /// 繪製所有 UI 面板：頂部列、左側工具列、右側屬性面板、Console、底部狀態列
     pub(super) fn draw_panels(&mut self, ctx: &egui::Context) {
         // ── Top branded bar ──
+        let topbar_fill = if self.viewer.layout_mode {
+            egui::Color32::from_rgb(45, 45, 48)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 217)
+        };
+        let topbar_border = if self.viewer.layout_mode {
+            egui::Color32::from_rgb(60, 60, 64)
+        } else {
+            egui::Color32::from_rgb(229, 231, 239)
+        };
+        let topbar_stroke = if self.viewer.layout_mode {
+            egui::Stroke::NONE
+        } else {
+            egui::Stroke::new(1.0, topbar_border)
+        };
         egui::TopBottomPanel::top("topbar")
+            .show_separator_line(!self.viewer.layout_mode)
             .frame(egui::Frame::none()
-                .fill(egui::Color32::from_rgba_unmultiplied(255, 255, 255, 217))
+                .fill(topbar_fill)
                 .inner_margin(egui::Margin::symmetric(18.0, 8.0))
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239))))
+                .stroke(topbar_stroke))
             .show(ctx, |ui| {
+            // 出圖模式：臨時切換文字色為淺色
+            if self.viewer.layout_mode {
+                ui.style_mut().visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 205));
+                ui.style_mut().visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(220, 220, 225));
+                ui.style_mut().visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+                ui.style_mut().visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+                ui.style_mut().visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+            }
             ui.horizontal(|ui| {
                 // Left: Brand logo + name
+                let name_color = if self.viewer.layout_mode {
+                    egui::Color32::from_rgb(220, 220, 225)
+                } else {
+                    egui::Color32::from_rgb(31, 36, 48)
+                };
+                let subtitle_color = if self.viewer.layout_mode {
+                    egui::Color32::from_rgb(160, 165, 175)
+                } else {
+                    egui::Color32::from_rgb(110, 118, 135)
+                };
                 {
                     let (logo_rect, _) = ui.allocate_exact_size(egui::vec2(34.0, 34.0), egui::Sense::hover());
                     ui.painter().rect_filled(logo_rect, 12.0, egui::Color32::from_rgb(76, 139, 245));
@@ -22,8 +56,8 @@ impl KolibriApp {
 
                     ui.vertical(|ui| {
                         ui.add_space(2.0);
-                        ui.label(egui::RichText::new("Kolibri Ai3D").strong().size(14.0).color(egui::Color32::from_rgb(31, 36, 48)));
-                        ui.label(egui::RichText::new("3D Modeling Workflow").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        ui.label(egui::RichText::new("Kolibri Ai3D").strong().size(14.0).color(name_color));
+                        ui.label(egui::RichText::new("3D Modeling Workflow").size(10.0).color(subtitle_color));
                     });
                 }
 
@@ -35,15 +69,27 @@ impl KolibriApp {
                 let can_redo = self.scene.can_redo();
                 let count = self.scene.objects.len();
                 let has_file = self.current_file.is_some();
-                let action = crate::menu::draw_menu_bar(ui, has_sel, can_undo, can_redo, count, &self.recent_files, has_file, self.viewer.use_ortho, self.viewer.saved_cameras.len());
+                let action = crate::menu::draw_menu_bar(ui, has_sel, can_undo, can_redo, count, &self.recent_files, has_file, self.viewer.use_ortho, self.viewer.saved_cameras.len(), self.viewer.show_grid, self.viewer.show_axes, self.viewer.show_toolbar, self.viewer.show_right_panel, self.viewer.show_console);
 
                 // Right side: help + undo/redo + save + project name
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // 出圖模式：按鈕背景調深
+                    let icon_color = if self.viewer.layout_mode {
+                        egui::Color32::from_rgb(200, 200, 210)
+                    } else {
+                        egui::Color32::from_rgb(50, 55, 65)
+                    };
+                    let badge_color = if self.viewer.layout_mode {
+                        egui::Color32::from_rgb(160, 165, 175)
+                    } else {
+                        egui::Color32::from_rgb(110, 118, 135)
+                    };
+
                     // MCP Server button
                     let mcp_label = if self.mcp_http_running {
                         egui::RichText::new("MCP").size(11.0).strong().color(egui::Color32::WHITE)
                     } else {
-                        egui::RichText::new("MCP").size(11.0).color(egui::Color32::from_rgb(110, 118, 135))
+                        egui::RichText::new("MCP").size(11.0).color(badge_color)
                     };
                     let mcp_fill = if self.mcp_http_running {
                         egui::Color32::from_rgb(60, 186, 108)
@@ -66,6 +112,8 @@ impl KolibriApp {
 
                     ui.add_space(4.0);
 
+                    ui.add_space(4.0);
+
                     // Help button
                     let help_btn = egui::Button::new(egui::RichText::new("?").size(14.0).strong())
                         .fill(egui::Color32::from_rgba_unmultiplied(76, 139, 245, 40))
@@ -81,28 +129,28 @@ impl KolibriApp {
                     let redo_count = self.scene.redo_count();
                     let redo_tip = format!("重做 (Ctrl+Y) — {} 步", redo_count);
                     if ui.add_enabled(self.scene.can_redo(), egui::Button::new(
-                        egui::RichText::new("\u{21bb}").size(14.0))).on_hover_text(redo_tip).clicked() {
+                        egui::RichText::new("\u{21bb}").size(14.0).color(icon_color))).on_hover_text(redo_tip).clicked() {
                         self.scene.redo();
                     }
                     if redo_count > 0 {
-                        ui.label(egui::RichText::new(format!("{}", redo_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        ui.label(egui::RichText::new(format!("{}", redo_count)).size(10.0).color(badge_color));
                     }
 
                     // Undo button with count badge
                     let undo_count = self.scene.undo_count();
                     let undo_tip = format!("復原 (Ctrl+Z) — {} 步", undo_count);
                     if ui.add_enabled(self.scene.can_undo(), egui::Button::new(
-                        egui::RichText::new("\u{21ba}").size(14.0))).on_hover_text(undo_tip).clicked() {
+                        egui::RichText::new("\u{21ba}").size(14.0).color(icon_color))).on_hover_text(undo_tip).clicked() {
                         self.scene.undo();
                     }
                     if undo_count > 0 {
-                        ui.label(egui::RichText::new(format!("{}", undo_count)).size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        ui.label(egui::RichText::new(format!("{}", undo_count)).size(10.0).color(badge_color));
                     }
 
                     ui.add_space(4.0);
 
                     // Save button
-                    if ui.add(egui::Button::new("\u{1f4be}")).on_hover_text("儲存 (Ctrl+S)").clicked() {
+                    if ui.add(egui::Button::new(egui::RichText::new("\u{1f4be}").color(icon_color))).on_hover_text("儲存 (Ctrl+S)").clicked() {
                         self.save_scene();
                     }
 
@@ -122,7 +170,7 @@ impl KolibriApp {
                         "\u{1f4c4} 新專案".to_string()
                     };
 
-                    let proj_btn = egui::Button::new(egui::RichText::new(&project_display).size(11.0))
+                    let proj_btn = egui::Button::new(egui::RichText::new(&project_display).size(11.0).color(icon_color))
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::new(0.5, egui::Color32::from_rgb(229, 231, 239)))
                         .rounding(8.0);
@@ -147,32 +195,103 @@ impl KolibriApp {
                     crate::menu::MenuAction::ToggleConsole => {
                         self.viewer.show_console = !self.viewer.show_console;
                     }
+                    crate::menu::MenuAction::ToggleGrid => {
+                        self.viewer.show_grid = !self.viewer.show_grid;
+                    }
+                    crate::menu::MenuAction::ToggleAxes => {
+                        self.viewer.show_axes = !self.viewer.show_axes;
+                    }
+                    crate::menu::MenuAction::ToggleToolbar => {
+                        self.viewer.show_toolbar = !self.viewer.show_toolbar;
+                    }
+                    crate::menu::MenuAction::ToggleRightPanel => {
+                        self.viewer.show_right_panel = !self.viewer.show_right_panel;
+                    }
                     other => self.handle_menu_action(other),
                 }
             });
         });
 
-        // ── Left panel (toolbar only) ──
-        egui::SidePanel::left("left_panel")
-            .exact_width(124.0).resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::none()
-                .fill(egui::Color32::from_rgb(245, 246, 250))
-                .stroke(egui::Stroke::NONE)
-                .inner_margin(egui::Margin::symmetric(6.0, 0.0)))
-            .show(ctx, |ui| {
-                ui.add_space(8.0);
-                self.toolbar_ui(ui);
-            });
+        // ── Ribbon（出圖模式時顯示在 topbar 下方）──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            self.draw_ribbon(ctx);
+        }
 
-        // ── Right panel ──
-        egui::SidePanel::right("right_panel")
-            .exact_width(240.0).resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::none()
-                .fill(egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220))
-                .inner_margin(egui::Margin::symmetric(10.0, 8.0)))
-            .show(ctx, |ui| self.right_panel_ui(ui));
+        // ── 出圖模式：左側屬性/圖層工具列（ZWCAD 風格）──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            egui::SidePanel::left("draft_left_tools")
+                .exact_width(24.0).resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(56, 56, 59))
+                    .inner_margin(egui::Margin::symmetric(2.0, 4.0)))
+                .show(ctx, |ui| {
+                    let icon_btn_size = egui::vec2(20.0, 20.0);
+                    let dim = egui::Color32::from_rgb(200, 200, 205);
+                    let hover_bg = egui::Color32::from_rgb(75, 75, 80);
+
+                    // 屬性/圖層/鎖點等功能按鈕（非繪圖工具）
+                    let funcs: &[(&str, &str, &str)] = &[
+                        ("⊞", "屬性", "物件屬性面板"),
+                        ("◫", "圖層", "圖層管理員"),
+                        ("⊕", "鎖點", "物件鎖點設定"),
+                        ("⊙", "極座標", "極座標追蹤"),
+                        ("▦", "格線", "格線顯示/隱藏"),
+                        ("⊡", "正交", "正交模式"),
+                        ("▤", "線型", "線型管理"),
+                        ("◉", "線寬", "線寬顯示"),
+                        ("⊿", "查詢", "查詢距離/面積"),
+                        ("⊞", "計算", "快速計算器"),
+                    ];
+
+                    for &(icon, label, tooltip) in funcs {
+                        let (rect, resp) = ui.allocate_exact_size(icon_btn_size, egui::Sense::click());
+                        let p = ui.painter();
+                        if resp.hovered() {
+                            p.rect_filled(rect, 2.0, hover_bg);
+                        }
+                        p.text(rect.center(), egui::Align2::CENTER_CENTER, icon,
+                            egui::FontId::proportional(11.0), dim);
+
+                        if resp.on_hover_text(tooltip).clicked() {
+                            if label == "格線" {
+                                self.viewer.show_grid = !self.viewer.show_grid;
+                            }
+                            self.console_push("INFO", format!("{}", label));
+                        }
+                    }
+                });
+        }
+
+        // ── Left panel (toolbar only) — 出圖模式時完全不顯示 ──
+        if !self.viewer.layout_mode {
+            let toolbar_w = if self.viewer.show_toolbar { 124.0 } else { 0.0 };
+            egui::SidePanel::left("left_panel")
+                .exact_width(toolbar_w).resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(245, 246, 250))
+                    .stroke(egui::Stroke::NONE)
+                    .inner_margin(egui::Margin::symmetric(6.0, 0.0)))
+                .show(ctx, |ui| {
+                    ui.add_space(8.0);
+                    self.toolbar_ui(ui);
+                });
+        }
+
+        // ── Right panel（出圖模式時完全不顯示）──
+        if !self.viewer.layout_mode {
+            let right_w = if self.viewer.show_right_panel { 240.0 } else { 0.0 };
+            egui::SidePanel::right("right_panel")
+                .exact_width(right_w).resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::none()
+                    .fill(egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220))
+                    .inner_margin(egui::Margin::symmetric(10.0, 8.0)))
+                .show(ctx, |ui| self.right_panel_ui(ui));
+        }
 
         // ── Console/Log panel (above status bar) ──
         if self.viewer.show_console {
@@ -221,12 +340,95 @@ impl KolibriApp {
                 });
         }
 
+        // ── 出圖模式：模型/配置 Tab 列（ZWCAD 最底部）──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            egui::TopBottomPanel::bottom("draft_tabs")
+                .exact_height(26.0)
+                .frame(egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(50, 50, 54))
+                    .inner_margin(egui::Margin::symmetric(6.0, 0.0)))
+                .show(ctx, |ui| {
+                    let tab_active_bg = egui::Color32::from_rgb(64, 64, 68);
+                    let tab_active_text = egui::Color32::WHITE;
+                    let tab_text = egui::Color32::from_rgb(180, 180, 185);
+                    ui.horizontal_centered(|ui| {
+                        ui.label(egui::RichText::new("≡").size(14.0).color(tab_text));
+                        ui.add_space(4.0);
+
+                        if ui.add(egui::Button::new(egui::RichText::new("模型").size(12.0).color(tab_active_text))
+                            .fill(tab_active_bg).rounding(0.0).stroke(egui::Stroke::NONE))
+                            .on_hover_text("模型空間").clicked() {
+                            self.viewer.layout_mode = false;
+                        }
+                        ui.add(egui::Button::new(egui::RichText::new("配置1").size(12.0).color(tab_text))
+                            .fill(egui::Color32::TRANSPARENT).rounding(0.0).stroke(egui::Stroke::NONE));
+                        ui.add(egui::Button::new(egui::RichText::new("配置2").size(12.0).color(tab_text))
+                            .fill(egui::Color32::TRANSPARENT).rounding(0.0).stroke(egui::Stroke::NONE));
+                        ui.label(egui::RichText::new("+").size(13.0).color(tab_text));
+                    });
+                });
+        }
+
+        // ── 出圖模式：底部狀態列（座標 + 功能 toggles）──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode {
+            egui::TopBottomPanel::bottom("draft_status")
+                .exact_height(24.0)
+                .frame(egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(40, 40, 44))
+                    .inner_margin(egui::Margin::symmetric(8.0, 2.0)))
+                .show(ctx, |ui| {
+                    let dim = egui::Color32::from_rgb(160, 160, 165);
+                    let on_color = egui::Color32::from_rgb(80, 200, 255);
+                    ui.horizontal(|ui| {
+                        // 左側：座標（較大字）
+                        let mouse_mm = self.editor.mouse_screen;
+                        ui.label(egui::RichText::new(format!("X:{:.0}", mouse_mm[0])).size(11.0).color(egui::Color32::from_rgb(200, 200, 205)).monospace());
+                        ui.label(egui::RichText::new(format!("Y:{:.0}", mouse_mm[1])).size(11.0).color(egui::Color32::from_rgb(200, 200, 205)).monospace());
+                        ui.label(egui::RichText::new("Z:0").size(11.0).color(dim).monospace());
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // 右側功能 toggles（稍小字）
+                            ui.label(egui::RichText::new(format!("{} 圖元", self.editor.draft_doc.objects.len())).size(10.0).color(dim));
+                            ui.separator();
+                            ui.label(egui::RichText::new("Units:mm").size(10.0).color(dim));
+                            ui.separator();
+                            ui.label(egui::RichText::new("線寬").size(10.0).color(dim));
+                            ui.separator();
+                            ui.label(egui::RichText::new("極座標").size(10.0).color(on_color));
+                            ui.separator();
+                            ui.label(egui::RichText::new("物件鎖點").size(10.0).color(on_color));
+                            ui.separator();
+                            let grid_color = if self.viewer.show_grid { on_color } else { dim };
+                            if ui.add(egui::Label::new(egui::RichText::new("格線").size(10.0).color(grid_color)).sense(egui::Sense::click())).clicked() {
+                                self.viewer.show_grid = !self.viewer.show_grid;
+                            }
+                            ui.separator();
+                            ui.label(egui::RichText::new("Snap:ON").size(10.0).color(on_color));
+                            ui.separator();
+                            ui.label(egui::RichText::new("正交").size(10.0).color(dim));
+                        });
+                    });
+                });
+        }
+
         // ── Bottom: status + measurement ──
+        let status_fill = if self.viewer.layout_mode {
+            egui::Color32::from_rgb(45, 45, 48)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210)
+        };
+        let status_border = if self.viewer.layout_mode {
+            egui::Color32::from_rgb(60, 60, 64)
+        } else {
+            egui::Color32::from_rgb(229, 231, 239)
+        };
         egui::TopBottomPanel::bottom("status")
             .frame(egui::Frame::none()
-                .fill(egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210))
+                .fill(status_fill)
                 .inner_margin(egui::Margin::symmetric(16.0, 6.0))
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239))))
+                .stroke(egui::Stroke::new(1.0, status_border)))
             .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 // Show file save/load message for 3 seconds
@@ -238,6 +440,27 @@ impl KolibriApp {
                     }
                 }
                 ui.label(egui::RichText::new(self.status_text()).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                // Hover entity info（SU 風格：hover 時顯示物件資訊）
+                if let Some(ref hid) = self.editor.hovered_id {
+                    if let Some(obj) = self.scene.objects.get(hid) {
+                        let shape_info = match &obj.shape {
+                            crate::scene::Shape::Box { width, height, depth } =>
+                                format!("Box {:.0}×{:.0}×{:.0}", width, height, depth),
+                            crate::scene::Shape::Cylinder { radius, height, .. } =>
+                                format!("Cyl r{:.0} h{:.0}", radius, height),
+                            crate::scene::Shape::Sphere { radius, .. } =>
+                                format!("Sphere r{:.0}", radius),
+                            crate::scene::Shape::Line { points, .. } =>
+                                format!("Line {}pts", points.len()),
+                            crate::scene::Shape::Mesh(m) =>
+                                format!("Mesh {}F", m.faces.len()),
+                        };
+                        let name = if obj.name.is_empty() { &shape_info } else { &obj.name };
+                        ui.separator();
+                        ui.label(egui::RichText::new(format!("\u{25b6} {}", name)).size(11.0)
+                            .color(egui::Color32::from_rgb(76, 139, 245)));
+                    }
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Always-visible measurement input (like SketchUp VCB)
                     ui.label(egui::RichText::new("mm").size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
@@ -276,7 +499,8 @@ impl KolibriApp {
                         ));
                         ui.separator();
                         let vk = self.perf_gpu_verts as f32 / 1000.0;
-                        ui.label(egui::RichText::new(format!("GPU {:.0}K verts", vk)).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        ui.label(egui::RichText::new(format!("GPU {:.0}K verts", vk)).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)))
+                            .on_hover_text(&self.gpu_name);
                         if self.perf_mesh_build_ms > 1.0 {
                             ui.separator();
                             ui.label(egui::RichText::new(format!("mesh {:.0}ms", self.perf_mesh_build_ms)).size(11.0).color(

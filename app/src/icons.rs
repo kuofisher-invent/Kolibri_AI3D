@@ -585,11 +585,17 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::Group          => group(p, r, color),
         Tool::Component      => component(p, r, color),
         Tool::Eraser         => eraser(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelGrid       => steel_grid(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelColumn     => steel_column(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelBeam       => steel_beam(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelBrace      => steel_brace(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelPlate      => steel_plate(p, r, color),
+        #[cfg(feature = "steel")]
         Tool::SteelConnection => steel_connection(p, r, color),
         Tool::Wall => { // 牆圖示：矩形 + 門洞
             p.line_segment([egui::pos2(r.left()+2.0, r.bottom()-2.0), egui::pos2(r.left()+2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));
@@ -599,6 +605,46 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::Slab => { // 板圖示：水平矩形
             p.rect_stroke(r.shrink(3.0), 2.0, egui::Stroke::new(1.5, color));
             p.line_segment([egui::pos2(r.left()+3.0, r.center().y), egui::pos2(r.right()-3.0, r.center().y)], egui::Stroke::new(1.0, color));
+        }
+        Tool::Walk => { // 行走：人形
+            let cx = r.center().x; let cy = r.center().y;
+            p.circle_filled(egui::pos2(cx, r.top()+5.0), 3.0, color); // head
+            p.line_segment([egui::pos2(cx, r.top()+8.0), egui::pos2(cx, cy+2.0)], egui::Stroke::new(1.5, color)); // body
+            p.line_segment([egui::pos2(cx, cy+2.0), egui::pos2(cx-5.0, r.bottom()-3.0)], egui::Stroke::new(1.5, color)); // left leg
+            p.line_segment([egui::pos2(cx, cy+2.0), egui::pos2(cx+5.0, r.bottom()-3.0)], egui::Stroke::new(1.5, color)); // right leg
+        }
+        Tool::LookAround => { // 眼睛
+            let cx = r.center().x; let cy = r.center().y;
+            p.circle_stroke(egui::pos2(cx, cy), 8.0, egui::Stroke::new(1.5, color));
+            p.circle_filled(egui::pos2(cx, cy), 3.5, color);
+        }
+        Tool::SectionPlane => { // 剖面：矩形+切割線
+            let s = r.shrink(4.0);
+            p.rect_stroke(s, 2.0, egui::Stroke::new(1.0, color));
+            p.line_segment([egui::pos2(s.left(), s.center().y), egui::pos2(s.right(), s.center().y)], egui::Stroke::new(2.0, color));
+        }
+        #[cfg(feature = "piping")]
+        Tool::PipeDraw => { // 管線圖示：水平管 + 連接點
+            let cy = r.center().y;
+            p.line_segment([egui::pos2(r.left()+3.0, cy), egui::pos2(r.right()-3.0, cy)], egui::Stroke::new(3.0, color));
+            p.circle_filled(egui::pos2(r.left()+3.0, cy), 2.5, color);
+            p.circle_filled(egui::pos2(r.right()-3.0, cy), 2.5, color);
+        }
+        #[cfg(feature = "piping")]
+        Tool::PipeFitting => { // 管件圖示：L 形彎頭
+            let cx = r.center().x;
+            let cy = r.center().y;
+            p.line_segment([egui::pos2(r.left()+4.0, cy), egui::pos2(cx, cy)], egui::Stroke::new(3.0, color));
+            p.line_segment([egui::pos2(cx, cy), egui::pos2(cx, r.top()+4.0)], egui::Stroke::new(3.0, color));
+            p.circle_filled(egui::pos2(cx, cy), 2.0, color);
+        }
+        #[cfg(feature = "drafting")]
+        _ => { // Drafting 工具：繪製鉛筆圖示
+            let cx = r.center().x;
+            let cy = r.center().y;
+            p.line_segment([egui::pos2(r.left()+4.0, r.bottom()-4.0), egui::pos2(r.right()-6.0, r.top()+6.0)], egui::Stroke::new(1.8, color));
+            p.line_segment([egui::pos2(r.right()-6.0, r.top()+6.0), egui::pos2(r.right()-4.0, r.top()+4.0)], egui::Stroke::new(1.8, color));
+            p.circle_filled(egui::pos2(r.left()+4.0, r.bottom()-4.0), 1.5, color);
         }
     }
 }

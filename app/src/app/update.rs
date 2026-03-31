@@ -132,7 +132,7 @@ impl eframe::App for KolibriApp {
                 ("複製", "Ctrl+C"), ("貼上", "Ctrl+V"), ("剪下", "Ctrl+X"),
                 ("全選", "Ctrl+A"),
                 ("切換線框", ""), ("切換X光", ""), ("切換草稿", ""),
-                ("深色模式", ""), ("顯示格線", ""),
+                ("深色模式", ""), ("顯示格線", ""), ("顯示軸向", ""),
                 ("匯出 OBJ", ""), ("匯出 STL", ""), ("匯出 DXF", ""),
                 ("匯入 OBJ", ""), ("匯入 DXF", ""),
                 ("清空場景", ""), ("MCP Server", ""),
@@ -241,12 +241,20 @@ impl eframe::App for KolibriApp {
                 .fill(egui::Color32::from_rgb(245, 246, 250))
                 .inner_margin(egui::Margin::same(0.0)))
             .show(ctx, |ui| {
-                // ── Layout mode: 2D paper view ──
+                // ── Layout mode: 2D 出圖畫布 ──
                 if self.viewer.layout_mode {
-                    let avail = ui.available_size();
-                    let (rect, _response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
-                    crate::layout::draw_layout(ui, &self.viewer.layout, rect);
-                    return;
+                    #[cfg(feature = "drafting")]
+                    {
+                        self.draw_draft_canvas(ui);
+                        return;
+                    }
+                    #[cfg(not(feature = "drafting"))]
+                    {
+                        let avail = ui.available_size();
+                        let (rect, _response) = ui.allocate_exact_size(avail, egui::Sense::click_and_drag());
+                        crate::layout::draw_layout(ui, &self.viewer.layout, rect);
+                        return;
+                    }
                 }
 
                 let avail = ui.available_size();
@@ -856,8 +864,8 @@ impl eframe::App for KolibriApp {
                 }
             });
 
-        // ── WASD walk mode when Orbit tool is active ──
-        if self.editor.tool == Tool::Orbit && !ctx.wants_keyboard_input() {
+        // ── WASD walk mode when Orbit/Walk/LookAround tool is active ──
+        if matches!(self.editor.tool, Tool::Orbit | Tool::Walk | Tool::LookAround) && !ctx.wants_keyboard_input() {
             let walk_speed = self.viewer.camera.distance * 0.005;
             ctx.input(|i| {
                 if i.key_down(egui::Key::W) { self.viewer.camera.walk_forward(walk_speed); }
@@ -879,6 +887,11 @@ impl eframe::App for KolibriApp {
         // ── F1 = toggle help overlay ──
         if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
             self.viewer.show_help = !self.viewer.show_help;
+        }
+
+        // ── F6 = toggle 出圖模式 ──
+        if ctx.input(|i| i.key_pressed(egui::Key::F6)) {
+            self.viewer.layout_mode = !self.viewer.layout_mode;
         }
 
         // ── F12 = toggle console panel ──

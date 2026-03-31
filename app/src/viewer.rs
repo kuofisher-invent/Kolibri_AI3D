@@ -45,6 +45,9 @@ pub(crate) struct ViewerState {
     pub(crate) layout_mode: bool,
     pub(crate) layout: crate::layout::Layout,
     pub(crate) show_grid: bool,
+    pub(crate) show_axes: bool,
+    pub(crate) show_toolbar: bool,
+    pub(crate) show_right_panel: bool,
     pub(crate) grid_spacing: f32,  // mm, default 1000.0 (1m)
     pub(crate) dark_mode: bool,
     /// 語言：0=繁體中文, 1=English

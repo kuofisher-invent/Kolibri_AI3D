@@ -37,3 +37,12 @@ tower-http = { version = "0.5", features = ["cors"] }
 rstar = "0.12"
 rayon = "1"
 sysinfo = "0.30"
+kolibri-piping = { path = "../crates/piping", optional = true }
+kolibri-drafting = { path = "../crates/drafting", optional = true }
+resvg = { version = "0.44", optional = true }
+
+[features]
+default = ["steel", "piping", "drafting"]
+steel = []
+piping = ["dep:kolibri-piping"]
+drafting = ["dep:kolibri-drafting", "dep:resvg"]

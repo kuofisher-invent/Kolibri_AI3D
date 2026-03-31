@@ -39,7 +39,15 @@ impl KolibriApp {
                             self.extrude_along_path(&pid, &pts);
                         }
                         self.editor.draw_state = DrawState::Idle;
-                    } else {
+                    }
+                    else {
+                        // Piping: ESC cancels pipe drawing
+                        #[cfg(feature = "piping")]
+                        {
+                            if matches!(self.editor.tool, Tool::PipeDraw | Tool::PipeFitting) {
+                                self.editor.piping.cancel();
+                            }
+                        }
                         self.editor.tool = Tool::Select;
                         self.editor.draw_state = DrawState::Idle;
                         self.editor.selected_ids.clear();
@@ -160,53 +168,10 @@ impl KolibriApp {
                     self.editor.selected_ids = all.difference(&sel).cloned().collect();
                 }
 
-                // Mirror X (Ctrl+M)
+                // Mirror (Ctrl+M = X, Ctrl+Shift+M 循環 Y/Z)
                 if ctrl && i.key_pressed(egui::Key::M) && !self.editor.selected_ids.is_empty() {
-                    self.scene.snapshot();
-                    let selected_objs: Vec<_> = self.editor.selected_ids.iter()
-                        .filter_map(|id| self.scene.objects.get(id).cloned())
-                        .collect();
-                    let cx = if !selected_objs.is_empty() {
-                        let sum: f32 = selected_objs.iter().map(|o| {
-                            let w = match &o.shape {
-                                Shape::Box { width, .. } => *width,
-                                Shape::Cylinder { radius, .. } => *radius * 2.0,
-                                Shape::Sphere { radius, .. } => *radius * 2.0,
-                                _ => 0.0,
-                            };
-                            o.position[0] + w / 2.0
-                        }).sum();
-                        sum / selected_objs.len() as f32
-                    } else { 0.0 };
-
-                    let mut new_ids = Vec::new();
-                    for obj in &selected_objs {
-                        let mut clone = obj.clone();
-                        clone.id = self.scene.next_id_pub();
-                        clone.name = format!("{}_mirror", clone.name);
-                        let obj_cx = clone.position[0] + match &clone.shape {
-                            Shape::Box { width, .. } => *width / 2.0,
-                            Shape::Cylinder { radius, .. } => *radius,
-                            Shape::Sphere { radius, .. } => *radius,
-                            _ => 0.0,
-                        };
-                        let mirrored_cx = 2.0 * cx - obj_cx;
-                        let half_w = match &clone.shape {
-                            Shape::Box { width, .. } => *width / 2.0,
-                            Shape::Cylinder { radius, .. } => *radius,
-                            Shape::Sphere { radius, .. } => *radius,
-                            _ => 0.0,
-                        };
-                        clone.position[0] = mirrored_cx - half_w;
-                        new_ids.push(clone.id.clone());
-                        self.scene.objects.insert(clone.id.clone(), clone);
-                    }
-                    self.scene.version += 1;
-                    self.editor.selected_ids.extend(new_ids);
-                    self.file_message = Some((
-                        format!("已鏡射 {} 個物件", selected_objs.len()),
-                        std::time::Instant::now(),
-                    ));
+                    let axis = if shift { 2 } else { 0 }; // Shift+Ctrl+M = Z, Ctrl+M = X
+                    self.mirror_selected(axis, true); // true = 建立副本
                 }
 
                 // Copy properties (Ctrl+Shift+C)
@@ -374,7 +339,7 @@ impl KolibriApp {
                 if !matches!(self.editor.draw_state, DrawState::Idle) {
                     for ev in &i.events {
                         if let egui::Event::Text(t) = ev {
-                            if t.chars().all(|c| c.is_ascii_digit() || c == ',' || c == '.' || c == 'x') {
+                            if t.chars().all(|c| c.is_ascii_digit() || c == ',' || c == '.' || c == 'x' || c == 'X' || c == 'r' || c == 'R' || c == '%' || c == 'm' || c == 'c' || c == 'f' || c == 't' || c == '\'' || c == '"') {
                                 self.editor.measure_input.push_str(t);
                             }
                         }

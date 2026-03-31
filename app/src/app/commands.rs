@@ -47,6 +47,7 @@ impl KolibriApp {
             "切換草稿" => self.viewer.render_mode = RenderMode::Sketch,
             "深色模式" => self.viewer.dark_mode = !self.viewer.dark_mode,
             "顯示格線" => self.viewer.show_grid = !self.viewer.show_grid,
+            "顯示軸向" => self.viewer.show_axes = !self.viewer.show_axes,
             "清空場景" => { self.scene.snapshot(); self.scene.objects.clear(); self.scene.version += 1; },
             "MCP Server" => {
                 if !self.mcp_http_running {

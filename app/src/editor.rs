@@ -41,25 +41,121 @@ pub enum Tool {
     Component,
     // ── Edit ──
     Eraser,
+    // ── Camera ──
+    Walk,         // 第一人稱行走
+    LookAround,   // 環顧
+    // ── Section ──
+    SectionPlane,  // 互動式剖面平面
     // ── Architecture ──
     Wall,       // 參數化牆（兩點 + 厚度 + 高度）
     Slab,       // 參數化板（矩形 + 厚度）
-    // ── Steel Mode Tools ──
+    // ── Steel Mode Tools（feature gate）──
+    #[cfg(feature = "steel")]
     SteelGrid,
+    #[cfg(feature = "steel")]
     SteelColumn,
+    #[cfg(feature = "steel")]
     SteelBeam,
+    #[cfg(feature = "steel")]
     SteelBrace,
+    #[cfg(feature = "steel")]
     SteelPlate,
+    #[cfg(feature = "steel")]
     SteelConnection,
+    // ── Piping（管線外掛，feature gate）──
+    #[cfg(feature = "piping")]
+    PipeDraw,
+    #[cfg(feature = "piping")]
+    PipeFitting,
+    // ── Drafting（2D 出圖工具，feature gate）──
+    #[cfg(feature = "drafting")]
+    DraftSelect,
+    #[cfg(feature = "drafting")]
+    DraftLine,
+    #[cfg(feature = "drafting")]
+    DraftArc,
+    #[cfg(feature = "drafting")]
+    DraftCircle,
+    #[cfg(feature = "drafting")]
+    DraftRectangle,
+    #[cfg(feature = "drafting")]
+    DraftPolyline,
+    #[cfg(feature = "drafting")]
+    DraftEllipse,
+    #[cfg(feature = "drafting")]
+    DraftOffset,
+    #[cfg(feature = "drafting")]
+    DraftTrim,
+    #[cfg(feature = "drafting")]
+    DraftMirror,
+    #[cfg(feature = "drafting")]
+    DraftArray,
+    #[cfg(feature = "drafting")]
+    DraftMove,
+    #[cfg(feature = "drafting")]
+    DraftRotate,
+    #[cfg(feature = "drafting")]
+    DraftScale,
+    #[cfg(feature = "drafting")]
+    DraftDimLinear,
+    #[cfg(feature = "drafting")]
+    DraftDimAligned,
+    #[cfg(feature = "drafting")]
+    DraftDimAngle,
+    #[cfg(feature = "drafting")]
+    DraftDimRadius,
+    #[cfg(feature = "drafting")]
+    DraftDimDiameter,
+    #[cfg(feature = "drafting")]
+    DraftText,
+    #[cfg(feature = "drafting")]
+    DraftLeader,
+    #[cfg(feature = "drafting")]
+    DraftHatch,
+    #[cfg(feature = "drafting")]
+    DraftZoomAll,
+    #[cfg(feature = "drafting")]
+    DraftZoomWindow,
+    #[cfg(feature = "drafting")]
+    DraftPan,
+    #[cfg(feature = "drafting")]
+    DraftPrint,
+    #[cfg(feature = "drafting")]
+    DraftExportPdf,
+    // ── Top 10 新增工具 ──
+    #[cfg(feature = "drafting")]
+    DraftCopy,        // 複製
+    #[cfg(feature = "drafting")]
+    DraftFillet,      // 圓角
+    #[cfg(feature = "drafting")]
+    DraftChamfer,     // 倒角
+    #[cfg(feature = "drafting")]
+    DraftExplode,     // 分解
+    #[cfg(feature = "drafting")]
+    DraftStretch,     // 拉伸
+    #[cfg(feature = "drafting")]
+    DraftExtend,      // 延伸
+    #[cfg(feature = "drafting")]
+    DraftDimContinue, // 連續標註
+    #[cfg(feature = "drafting")]
+    DraftDimBaseline, // 基線標註
+    #[cfg(feature = "drafting")]
+    DraftPolygon,     // 多邊形
+    #[cfg(feature = "drafting")]
+    DraftSpline,      // 雲形線
+    #[cfg(feature = "drafting")]
+    DraftBlock,       // 建立圖塊
+    #[cfg(feature = "drafting")]
+    DraftInsert,      // 插入圖塊
+    #[cfg(feature = "drafting")]
+    DraftPoint,       // 點
+    #[cfg(feature = "drafting")]
+    DraftXline,       // 建構線
 }
 
 impl Tool {
     pub(crate) fn is_implemented(self) -> bool {
-        match self {
-            Tool::SteelGrid | Tool::SteelColumn | Tool::SteelBeam | Tool::SteelBrace |
-            Tool::SteelPlate | Tool::SteelConnection => true,
-            _ => true,
-        }
+        true
     }
 }
 
@@ -68,7 +164,10 @@ impl Tool {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum WorkMode {
     Modeling,  // SketchUp-style general modeling
+    #[cfg(feature = "steel")]
     Steel,     // Tekla-style structural steel
+    #[cfg(feature = "piping")]
+    Piping,    // 管線繪製模式
 }
 
 // ─── Interactive draw state (SketchUp style) ────────────────────────────────
@@ -81,7 +180,7 @@ pub(crate) enum DrawState {
     CylBase { center: [f32; 3] },
     CylHeight { center: [f32; 3], radius: f32 },
     SphRadius { center: [f32; 3] },
-    Pulling { obj_id: String, face: PullFace, original_dim: f32 },
+    Pulling { obj_id: String, face: PullFace, original_dim: f32, skip_frames: u8 },
     LineFrom { p1: [f32; 3] },
     ArcP1 { p1: [f32; 3] },
     ArcP2 { p1: [f32; 3], p2: [f32; 3] },
@@ -217,7 +316,7 @@ pub(crate) enum SelectionMode {
 // ─── Right panel tabs ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum RightTab { Properties, Create, Scene, AiLog }
+pub(crate) enum RightTab { Properties, Create, Scene, AiLog, Help }
 
 // ─── Cursor Hint UI ──────────────────────────────────────────────────────────
 
@@ -305,4 +404,53 @@ pub(crate) struct EditorState {
     pub(crate) gizmo_hovered_axis: Option<u8>,
     /// Gizmo drag 狀態：拖曳中鎖定的軸
     pub(crate) gizmo_drag_axis: Option<u8>,
+
+    // ── Piping（管線外掛）──
+    #[cfg(feature = "piping")]
+    pub(crate) piping: kolibri_piping::PipingState,
+
+    // ── Drafting（2D 出圖）──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_state: DraftDrawState,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_doc: kolibri_drafting::DraftDocument,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_layers: kolibri_drafting::LayerManager,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_selected: Vec<kolibri_drafting::DraftId>,
+    #[cfg(feature = "drafting")]
+    pub(crate) ribbon_tab: RibbonTab,
+}
+
+// ─── Drafting draw state ────────────────────────────────────────────────────
+
+#[cfg(feature = "drafting")]
+#[derive(Debug, Clone)]
+pub(crate) enum DraftDrawState {
+    Idle,
+    LineFrom { p1: [f64; 2] },
+    ArcCenter { center: [f64; 2] },
+    ArcRadius { center: [f64; 2], radius: f64 },
+    CircleCenter { center: [f64; 2] },
+    RectFrom { p1: [f64; 2] },
+    PolylinePoints { points: Vec<[f64; 2]> },
+    DimP1 { p1: [f64; 2] },
+    TextPlace,
+    LeaderPoints { points: Vec<[f64; 2]> },
+}
+
+#[cfg(feature = "drafting")]
+impl Default for DraftDrawState {
+    fn default() -> Self { Self::Idle }
+}
+
+// ─── Ribbon tab ─────────────────────────────────────────────────────────────
+
+#[cfg(feature = "drafting")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum RibbonTab {
+    Home,       // 常用
+    Annotate,   // 標註
+    View,       // 檢視
+    Output,     // 輸出
 }

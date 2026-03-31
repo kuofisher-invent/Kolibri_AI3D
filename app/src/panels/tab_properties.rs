@@ -3,6 +3,26 @@ use eframe::egui;
 use crate::app::{DrawState, KolibriApp, PullFace, RightTab, ScaleHandle, SelectionMode, Tool, WorkMode};
 use crate::scene::{MaterialKind, Shape};
 
+/// 簡易 UUID v4 產生器（不依賴外部 crate）
+fn uuid_v4_simple() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let seed = t.as_nanos() as u64;
+    // xorshift64 pseudo-random
+    let mut s = seed ^ 0x6c62272e07bb0142;
+    s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+    let a = s;
+    s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+    let b = s;
+    format!("{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
+        (a >> 32) as u32,
+        (a >> 16) as u16 & 0xFFFF,
+        a as u16 & 0x0FFF,
+        0x8000 | (b >> 48) as u16 & 0x3FFF,
+        b & 0xFFFFFFFFFFFF,
+    )
+}
+
 
 impl KolibriApp {
     pub(crate) fn right_panel_ui(&mut self, ui: &mut egui::Ui) {
@@ -11,6 +31,7 @@ impl KolibriApp {
             (RightTab::Properties, "屬性"),
             (RightTab::Scene, "場景"),
             (RightTab::AiLog, "輸出"),
+            (RightTab::Help, "說明"),
         ];
 
         ui.horizontal(|ui| {
@@ -22,18 +43,19 @@ impl KolibriApp {
 
             tab_frame.show(ui, |ui| {
                 ui.horizontal(|ui| {
+                    ui.spacing_mut().button_padding = egui::vec2(6.0, 4.0);
                     for (tab, label) in &tabs {
                         let active = self.right_tab == *tab;
                         let btn = if active {
-                            egui::Button::new(egui::RichText::new(*label).size(12.0).color(egui::Color32::from_rgb(31, 36, 48)))
+                            egui::Button::new(egui::RichText::new(*label).size(11.0).color(egui::Color32::from_rgb(31, 36, 48)))
                                 .fill(egui::Color32::WHITE)
                                 .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(229, 231, 239)))
-                                .rounding(12.0)
+                                .rounding(10.0)
                         } else {
-                            egui::Button::new(egui::RichText::new(*label).size(12.0).color(egui::Color32::from_rgb(110, 118, 135)))
+                            egui::Button::new(egui::RichText::new(*label).size(11.0).color(egui::Color32::from_rgb(110, 118, 135)))
                                 .fill(egui::Color32::TRANSPARENT)
                                 .stroke(egui::Stroke::NONE)
-                                .rounding(12.0)
+                                .rounding(10.0)
                         };
                         if ui.add(btn).clicked() {
                             self.right_tab = *tab;
@@ -61,6 +83,7 @@ impl KolibriApp {
                 RightTab::Create => self.tab_create(ui),
                 RightTab::Scene => self.tab_scene(ui),
                 RightTab::AiLog => self.tab_ai_log(ui),
+                RightTab::Help => self.tab_help(ui),
             }
         });
     }
@@ -201,6 +224,7 @@ impl KolibriApp {
                 });
                 ui.checkbox(&mut self.viewer.show_colors, "顯示顏色");
                 ui.checkbox(&mut self.viewer.show_grid, "顯示格線");
+                ui.checkbox(&mut self.viewer.show_axes, "顯示軸向");
                 ui.checkbox(&mut self.viewer.dark_mode, "深色模式");
                 ui.checkbox(&mut self.viewer.show_vertex_ids, "頂點編號");
                 // ── Section Plane（剖面平面）──
@@ -584,6 +608,72 @@ impl KolibriApp {
         });
         ui.add_space(8.0);
 
+        // ── IFC / BIM 屬性 ──
+        section_frame_full(ui, |ui| {
+            section_header_text(ui, "BIM / IFC");
+
+            let ifc_classes = [
+                "", "IfcWall", "IfcColumn", "IfcBeam", "IfcSlab",
+                "IfcWindow", "IfcDoor", "IfcRoof", "IfcStair",
+                "IfcPlate", "IfcMember", "IfcFooting", "IfcPile",
+                "IfcCurtainWall", "IfcRailing", "IfcFurnishingElement",
+                "IfcBuildingElementProxy",
+            ];
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("IFC 類型").size(11.0));
+                egui::ComboBox::from_id_source("ifc_class_combo")
+                    .width(120.0)
+                    .selected_text(if obj.ifc_class.is_empty() { "(未指定)" } else { &obj.ifc_class })
+                    .show_ui(ui, |ui| {
+                        for cls in &ifc_classes {
+                            let label = if cls.is_empty() { "(未指定)" } else { cls };
+                            if ui.selectable_label(obj.ifc_class == *cls, label).clicked() {
+                                obj.ifc_class = cls.to_string();
+                            }
+                        }
+                    });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("樓  層").size(11.0));
+                ui.text_edit_singleline(&mut obj.ifc_storey);
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("系  統").size(11.0));
+                ui.text_edit_singleline(&mut obj.ifc_system);
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("BIM材料").size(11.0));
+                ui.text_edit_singleline(&mut obj.ifc_material_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("防火等級").size(11.0));
+                ui.text_edit_singleline(&mut obj.ifc_fire_rating);
+            });
+
+            // GlobalId
+            if obj.ifc_global_id.is_empty() && !obj.ifc_class.is_empty() {
+                obj.ifc_global_id = uuid_v4_simple();
+            }
+            if !obj.ifc_global_id.is_empty() {
+                ui.small(format!("GUID: {}", &obj.ifc_global_id[..obj.ifc_global_id.len().min(22)]));
+            }
+
+            // 自訂屬性集
+            if !obj.ifc_properties.is_empty() {
+                ui.add_space(4.0);
+                ui.label(egui::RichText::new("自訂屬性").size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                let props: Vec<_> = obj.ifc_properties.iter().map(|(k,v)| (k.clone(), v.clone())).collect();
+                for (key, val) in &props {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(key).size(11.0));
+                        ui.label(egui::RichText::new(val).size(11.0).strong());
+                    });
+                }
+            }
+        });
+        ui.add_space(8.0);
+
         // Material (SketchUp-style browser)
         // We need to work around the borrow of `obj` from `self.scene.objects`
         // by using local copies of the search/category state.
@@ -606,9 +696,16 @@ impl KolibriApp {
 
             ui.add_space(6.0);
 
-            // PBR sliders
-            ui.add(egui::Slider::new(&mut obj.roughness, 0.0..=1.0).text("粗糙度"));
-            ui.add(egui::Slider::new(&mut obj.metallic, 0.0..=1.0).text("金屬感"));
+            // PBR sliders — 統一寬度對齊
+            let slider_w = ui.available_width();
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("粗糙度").size(11.0));
+                ui.add_sized([slider_w - 50.0, 18.0], egui::Slider::new(&mut obj.roughness, 0.0..=1.0).show_value(true));
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("金屬感").size(11.0));
+                ui.add_sized([slider_w - 50.0, 18.0], egui::Slider::new(&mut obj.metallic, 0.0..=1.0).show_value(true));
+            });
 
             // Custom colour picker
             ui.add_space(4.0);

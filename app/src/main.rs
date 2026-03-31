@@ -40,6 +40,8 @@ mod test_bridge;
 mod texture_manager;
 mod tools;
 mod viewer;   // ViewerState, RenderMode
+#[cfg(feature = "drafting")]
+mod svg_icons;
 
 use eframe::egui;
 use eframe::wgpu;

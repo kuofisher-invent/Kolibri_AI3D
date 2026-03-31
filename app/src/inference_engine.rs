@@ -592,13 +592,22 @@ pub fn tool_to_kind(tool: crate::app::Tool) -> ToolKind {
         Tool::PaintBucket => ToolKind::PaintBucket,
         Tool::Orbit => ToolKind::Orbit,
         Tool::Pan | Tool::ZoomExtents => ToolKind::Pan,
+        #[cfg(feature = "steel")]
         Tool::SteelColumn => ToolKind::SteelColumn,
+        #[cfg(feature = "steel")]
         Tool::SteelBeam => ToolKind::SteelBeam,
+        #[cfg(feature = "steel")]
         Tool::SteelGrid => ToolKind::SteelGrid,
         Tool::Eraser => ToolKind::Eraser,
         Tool::Text | Tool::Group | Tool::Component
-        | Tool::SteelBrace | Tool::SteelPlate | Tool::SteelConnection
         | Tool::Arc3Point | Tool::Pie | Tool::Wall | Tool::Slab => ToolKind::Other,
+        #[cfg(feature = "steel")]
+        Tool::SteelBrace | Tool::SteelPlate | Tool::SteelConnection => ToolKind::Other,
+        Tool::Walk | Tool::LookAround | Tool::SectionPlane => ToolKind::Other,
+        #[cfg(feature = "piping")]
+        Tool::PipeDraw | Tool::PipeFitting => ToolKind::Other,
+        #[cfg(feature = "drafting")]
+        _ => ToolKind::Other,
     }
 }
 
