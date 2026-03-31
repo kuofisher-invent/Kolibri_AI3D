@@ -170,6 +170,36 @@ pub enum Tool {
     DraftArc3P,       // 三點弧
     #[cfg(feature = "drafting")]
     DraftArcSCE,      // 起點-圓心-終點弧
+    #[cfg(feature = "drafting")]
+    DraftLengthen,    // 加長
+    #[cfg(feature = "drafting")]
+    DraftAlign,       // 對齊
+    #[cfg(feature = "drafting")]
+    DraftRay,         // 射線
+    #[cfg(feature = "drafting")]
+    DraftMatchProp,   // 格式刷
+    #[cfg(feature = "drafting")]
+    DraftMeasureDist, // 測量距離
+    #[cfg(feature = "drafting")]
+    DraftMeasureArea, // 測量面積
+    #[cfg(feature = "drafting")]
+    DraftQuickSelect, // 快速選取
+    #[cfg(feature = "drafting")]
+    DraftList,        // 物件資訊
+    #[cfg(feature = "drafting")]
+    DraftIdPoint,     // 座標辨識
+    #[cfg(feature = "drafting")]
+    DraftDimOrdinate, // 座標標註
+    #[cfg(feature = "drafting")]
+    DraftDimArcLen,   // 弧長標註
+    #[cfg(feature = "drafting")]
+    DraftCenterMark,  // 中心標記
+    #[cfg(feature = "drafting")]
+    DraftArrayRect,   // 矩形陣列
+    #[cfg(feature = "drafting")]
+    DraftArrayPolar,  // 環形陣列
+    #[cfg(feature = "drafting")]
+    DraftArrayPath,   // 路徑陣列
 }
 
 impl Tool {
@@ -482,6 +512,16 @@ pub(crate) struct EditorState {
     pub(crate) draft_dyn_input: bool, // F12 動態輸入
     #[cfg(feature = "drafting")]
     pub(crate) draft_osnap: bool,     // F3 物件鎖點
+    // ── 圖紙分頁 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_sheets: Vec<(String, kolibri_drafting::DraftDocument)>, // (name, doc)
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_active_sheet: usize,  // 目前選中的 sheet index
+    // ── 指令別名輸入緩衝 ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_cmd_buf: String,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_cmd_time: std::time::Instant,
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────
@@ -516,7 +556,9 @@ impl Default for DraftDrawState {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum RibbonTab {
     Home,       // 常用
+    Insert,     // 插入
     Annotate,   // 標註
     View,       // 檢視
+    Manage,     // 管理
     Output,     // 輸出
 }

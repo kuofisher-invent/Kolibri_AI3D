@@ -423,6 +423,14 @@ impl KolibriApp {
                 draft_dyn_input: true,
                 #[cfg(feature = "drafting")]
                 draft_osnap: true,
+                #[cfg(feature = "drafting")]
+                draft_sheets: vec![("Drawing1".to_string(), kolibri_drafting::DraftDocument::new())],
+                #[cfg(feature = "drafting")]
+                draft_active_sheet: 0,
+                #[cfg(feature = "drafting")]
+                draft_cmd_buf: String::new(),
+                #[cfg(feature = "drafting")]
+                draft_cmd_time: std::time::Instant::now(),
             },
 
             right_tab: RightTab::Properties,

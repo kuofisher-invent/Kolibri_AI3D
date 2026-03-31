@@ -47,16 +47,19 @@ const ICON_SM: f32 = 18.0;
 const BIG_BTN_W: f32 = 58.0;
 /// 小按鈕寬度
 const SMALL_BTN_W: f32 = 72.0;
-/// 字體大小（統一跟 Tab 列一致）
-const FONT_BIG: f32 = 14.0;
-const FONT_SM: f32 = 13.0;
-const FONT_LABEL: f32 = 13.0;
+/// 字體大小
+const FONT_TAB: f32 = 15.0;  // Tab 列
+const FONT_BIG: f32 = 15.0;  // 大按鈕（跟 Tab 一樣大）
+const FONT_SM: f32 = 13.0;   // 小按鈕
+const FONT_LABEL: f32 = 13.0; // Group 底部標籤
 
 /// Tab 定義
 const TABS: &[(&str, RibbonTab)] = &[
     ("常用", RibbonTab::Home),
+    ("插入", RibbonTab::Insert),
     ("標註", RibbonTab::Annotate),
     ("檢視", RibbonTab::View),
+    ("管理", RibbonTab::Manage),
     ("輸出", RibbonTab::Output),
 ];
 
@@ -99,19 +102,8 @@ impl KolibriApp {
                         }
                     }
 
-                    // 右側：3D 切換 + 圖元計數
+                    // 右側：圖元計數（3D 切換已在 topbar [3D][2D] toggle）
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // ⇆ 3D 切換按鈕
-                        let switch_btn = egui::Button::new(
-                            egui::RichText::new("⇆ 3D 建模").size(12.0).strong().color(egui::Color32::WHITE)
-                        )
-                        .fill(egui::Color32::from_rgb(0, 122, 204))
-                        .rounding(4.0)
-                        .stroke(egui::Stroke::NONE);
-                        if ui.add(switch_btn).on_hover_text("切回 3D 建模模式 (F6)").clicked() {
-                            self.exit_layout_mode();
-                        }
-                        ui.add_space(8.0);
                         ui.label(egui::RichText::new(
                             format!("{} | {} 圖元", self.viewer.layout.name, self.editor.draft_doc.objects.len())
                         ).size(12.0).color(TEXT_DIM));
@@ -130,15 +122,23 @@ impl KolibriApp {
             .show(ctx, |ui| {
                 match self.editor.ribbon_tab {
                     RibbonTab::Home => self.ribbon_home(ui),
+                    RibbonTab::Insert => self.ribbon_insert(ui),
                     RibbonTab::Annotate => self.ribbon_annotate(ui),
                     RibbonTab::View => self.ribbon_view(ui),
+                    RibbonTab::Manage => self.ribbon_manage(ui),
                     RibbonTab::Output => self.ribbon_output(ui),
                 }
             });
 
-        // ── Drawing Tab（ZWCAD 風格文件 tab）──
+        // ── Drawing Tabs（ZWCAD 風格文件分頁 — 可新增/關閉）──
+        let mut switch_to: Option<usize> = None;
+        let mut close_idx: Option<usize> = None;
+        let mut add_new = false;
+        let sheet_count = self.editor.draft_sheets.len();
+        let active = self.editor.draft_active_sheet;
+
         egui::TopBottomPanel::top("drawing_tab")
-            .exact_height(22.0)
+            .exact_height(24.0)
             .show_separator_line(false)
             .frame(egui::Frame::none()
                 .fill(egui::Color32::from_rgb(50, 50, 54))
@@ -146,19 +146,91 @@ impl KolibriApp {
                 .inner_margin(egui::Margin { left: 8.0, right: 8.0, top: 0.0, bottom: 0.0 }))
             .show(ctx, |ui| {
                 ui.horizontal_centered(|ui| {
-                    // Drawing1 tab（選中）
-                    let tab_bg = egui::Color32::from_rgb(64, 64, 68);
-                    ui.add(egui::Button::new(
-                        egui::RichText::new("Drawing1").size(10.0).color(egui::Color32::WHITE)
-                    ).fill(tab_bg).rounding(0.0).stroke(egui::Stroke::NONE));
-                    // × 關閉
-                    ui.label(egui::RichText::new("×").size(10.0).color(egui::Color32::from_rgb(160, 160, 165)));
-                    // + 新增
-                    ui.label(egui::RichText::new("+").size(11.0).color(egui::Color32::from_rgb(160, 160, 165)));
-                    // / 分隔
-                    ui.add_space(8.0);
+                    for (i, (name, _doc)) in self.editor.draft_sheets.iter().enumerate() {
+                        let is_active = i == active;
+                        let tab_bg = if is_active {
+                            egui::Color32::from_rgb(64, 64, 68)
+                        } else {
+                            egui::Color32::from_rgb(45, 45, 48)
+                        };
+                        let text_c = if is_active {
+                            egui::Color32::WHITE
+                        } else {
+                            egui::Color32::from_rgb(160, 160, 165)
+                        };
+
+                        // Tab 名稱按鈕
+                        if ui.add(egui::Button::new(
+                            egui::RichText::new(name).size(11.0).color(text_c)
+                        ).fill(tab_bg).rounding(egui::Rounding { nw: 4.0, ne: 4.0, sw: 0.0, se: 0.0 })
+                         .stroke(egui::Stroke::NONE))
+                            .clicked() {
+                            switch_to = Some(i);
+                        }
+
+                        // × 關閉按鈕（至少保留 1 個分頁）
+                        if sheet_count > 1 {
+                            let close_btn = ui.add(egui::Button::new(
+                                egui::RichText::new("×").size(10.0).color(egui::Color32::from_rgb(140, 140, 145))
+                            ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE)
+                             .rounding(0.0));
+                            if close_btn.on_hover_text("關閉此圖紙").clicked() {
+                                close_idx = Some(i);
+                            }
+                        }
+
+                        ui.add_space(2.0);
+                    }
+
+                    // + 新增分頁按鈕
+                    let plus_btn = ui.add(egui::Button::new(
+                        egui::RichText::new("+").size(13.0).color(egui::Color32::from_rgb(160, 160, 165))
+                    ).fill(egui::Color32::TRANSPARENT).stroke(egui::Stroke::NONE));
+                    if plus_btn.on_hover_text("新增圖紙").clicked() {
+                        add_new = true;
+                    }
                 });
             });
+
+        // 處理分頁操作（在 show 外面執行避免 borrow 衝突）
+        if let Some(idx) = switch_to {
+            // 儲存目前 sheet
+            if active < self.editor.draft_sheets.len() {
+                self.editor.draft_sheets[active].1 = self.editor.draft_doc.clone();
+            }
+            self.editor.draft_active_sheet = idx;
+            if idx < self.editor.draft_sheets.len() {
+                self.editor.draft_doc = self.editor.draft_sheets[idx].1.clone();
+            }
+            self.editor.draft_selected.clear();
+        }
+        if let Some(idx) = close_idx {
+            // 儲存目前 sheet
+            if active < self.editor.draft_sheets.len() {
+                self.editor.draft_sheets[active].1 = self.editor.draft_doc.clone();
+            }
+            self.editor.draft_sheets.remove(idx);
+            if self.editor.draft_active_sheet >= self.editor.draft_sheets.len() {
+                self.editor.draft_active_sheet = self.editor.draft_sheets.len().saturating_sub(1);
+            }
+            let new_active = self.editor.draft_active_sheet;
+            if new_active < self.editor.draft_sheets.len() {
+                self.editor.draft_doc = self.editor.draft_sheets[new_active].1.clone();
+            }
+            self.editor.draft_selected.clear();
+        }
+        if add_new {
+            // 儲存目前 sheet
+            if active < self.editor.draft_sheets.len() {
+                self.editor.draft_sheets[active].1 = self.editor.draft_doc.clone();
+            }
+            let n = self.editor.draft_sheets.len() + 1;
+            let name = format!("Drawing{}", n);
+            self.editor.draft_sheets.push((name, kolibri_drafting::DraftDocument::new()));
+            self.editor.draft_active_sheet = self.editor.draft_sheets.len() - 1;
+            self.editor.draft_doc = kolibri_drafting::DraftDocument::new();
+            self.editor.draft_selected.clear();
+        }
     }
 
     // ─── Tab 內容 ───────────────────────────────────────────────────────────
@@ -223,6 +295,16 @@ impl KolibriApp {
                 ToolBtn { tool: Tool::DraftInsert, label: "插入", tooltip: "插入圖塊 (I)" },
             ], 2);
             self.ribbon_vsep(ui);
+            // ── 公用程式 ──
+            self.ribbon_group_n(ui, "公用", &[
+                ToolBtn { tool: Tool::DraftMeasureDist, label: "距離", tooltip: "測量距離 (DI)" },
+                ToolBtn { tool: Tool::DraftMeasureArea, label: "面積", tooltip: "測量面積 (AA)" },
+                ToolBtn { tool: Tool::DraftMatchProp, label: "格式刷", tooltip: "複製格式 (MA)" },
+                ToolBtn { tool: Tool::DraftQuickSelect, label: "快選", tooltip: "快速選取 (QSELECT)" },
+                ToolBtn { tool: Tool::DraftList, label: "資訊", tooltip: "物件資訊 (LI)" },
+                ToolBtn { tool: Tool::DraftIdPoint, label: "座標", tooltip: "ID Point" },
+            ], 2);
+            self.ribbon_vsep(ui);
             self.ribbon_properties_group(ui);
         });
     }
@@ -249,6 +331,44 @@ impl KolibriApp {
             ToolBtn { tool: Tool::DraftHatch, label: "填充", tooltip: "填充 (H)" },
         ]);
         });  // close horizontal_top for annotate
+    }
+
+    #[cfg(feature = "drafting")]
+    fn ribbon_insert(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal_top(|ui| {
+            self.ribbon_group_n(ui, "圖塊", &[
+                ToolBtn { tool: Tool::DraftInsert, label: "插入", tooltip: "插入圖塊 (I)" },
+                ToolBtn { tool: Tool::DraftBlock, label: "建立", tooltip: "建立圖塊 (B)" },
+            ], 2);
+            self.ribbon_vsep(ui);
+            // 參考 group
+            ui.vertical(|ui| {
+                ui.set_min_size(egui::vec2(100.0, RIBBON_CONTENT_H));
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new("外部參考 (Xref)").size(11.0).color(TEXT_COLOR));
+                ui.label(egui::RichText::new("PDF 底圖").size(11.0).color(TEXT_DIM));
+                ui.label(egui::RichText::new("影像參考").size(11.0).color(TEXT_DIM));
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new("參考").size(FONT_LABEL).color(TEXT_DIM));
+                });
+            });
+        });
+    }
+
+    #[cfg(feature = "drafting")]
+    fn ribbon_manage(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal_top(|ui| {
+            ui.vertical(|ui| {
+                ui.set_min_size(egui::vec2(120.0, RIBBON_CONTENT_H));
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new("自訂介面 (CUI)").size(11.0).color(TEXT_COLOR));
+                ui.label(egui::RichText::new("執行腳本 (SCR)").size(11.0).color(TEXT_DIM));
+                ui.label(egui::RichText::new("CAD 標準檢查").size(11.0).color(TEXT_DIM));
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new("自訂").size(FONT_LABEL).color(TEXT_DIM));
+                });
+            });
+        });
     }
 
     #[cfg(feature = "drafting")]
@@ -401,11 +521,11 @@ impl KolibriApp {
         );
     }
 
-    /// 圖層 Group（ZWCAD 風格下拉）
+    /// 圖層 Group（ZWCAD 風格下拉 — 含可見/鎖定/顏色）
     #[cfg(feature = "drafting")]
     fn ribbon_layer_group(&mut self, ui: &mut egui::Ui) {
         let total_h = RIBBON_CONTENT_H;
-        let group_w = 120.0;
+        let group_w = 180.0;
         let layer_count = self.editor.draft_layers.layers.len();
 
         ui.vertical(|ui| {
@@ -413,19 +533,66 @@ impl KolibriApp {
 
             ui.add_space(6.0);
 
-            // 圖層下拉
+            // 圖層下拉（含 visibility / lock / color swatch）
             let current = self.editor.draft_layers.current.clone();
-            egui::ComboBox::from_id_source("draft_layer_combo_zw")
+            // 取得當前圖層顏色用於 selected_text 顏色色票
+            let cur_color = self.editor.draft_layers.current_layer()
+                .map(|l| l.color).unwrap_or([255, 255, 255]);
+            let combo_id = egui::Id::new("draft_layer_combo_zw");
+            egui::ComboBox::from_id_source(combo_id)
                 .width(group_w - 16.0)
-                .selected_text(egui::RichText::new(&current).size(10.0).color(TEXT_COLOR))
+                .selected_text(egui::RichText::new(format!(
+                    "\u{25A0} {}", current))
+                    .size(10.0)
+                    .color(egui::Color32::from_rgb(cur_color[0], cur_color[1], cur_color[2])))
                 .show_ui(ui, |ui| {
-                    let layer_names: Vec<String> = self.editor.draft_layers.layers.iter()
-                        .map(|l| l.name.clone()).collect();
-                    for name in layer_names {
-                        let selected = name == self.editor.draft_layers.current;
-                        if ui.selectable_label(selected, &name).clicked() {
-                            self.editor.draft_layers.current = name;
-                        }
+                    // 收集 layer info 以避免多次借用
+                    let layer_info: Vec<(String, [u8;3], bool, bool)> = self.editor.draft_layers.layers.iter()
+                        .map(|l| (l.name.clone(), l.color, l.visible, l.locked))
+                        .collect();
+                    for (idx, (name, color, visible, locked)) in layer_info.iter().enumerate() {
+                        let is_current = *name == self.editor.draft_layers.current;
+                        ui.horizontal(|ui| {
+                            ui.set_min_width(group_w - 24.0);
+                            // 可見性 toggle
+                            let vis_label = if *visible { "\u{1F441}" } else { "\u{2014}" };
+                            let vis_resp = ui.add(egui::Label::new(
+                                egui::RichText::new(vis_label).size(12.0).color(
+                                    if *visible { TEXT_COLOR } else { TEXT_DIM }))
+                                .sense(egui::Sense::click()));
+                            if vis_resp.clicked() {
+                                if let Some(layer) = self.editor.draft_layers.layers.get_mut(idx) {
+                                    layer.visible = !layer.visible;
+                                }
+                            }
+                            vis_resp.on_hover_text("切換可見性");
+
+                            // 鎖定 toggle
+                            let lock_label = if *locked { "\u{1F512}" } else { "\u{1F513}" };
+                            let lock_resp = ui.add(egui::Label::new(
+                                egui::RichText::new(lock_label).size(12.0).color(
+                                    if *locked { egui::Color32::from_rgb(255, 180, 0) } else { TEXT_DIM }))
+                                .sense(egui::Sense::click()));
+                            if lock_resp.clicked() {
+                                if let Some(layer) = self.editor.draft_layers.layers.get_mut(idx) {
+                                    layer.locked = !layer.locked;
+                                }
+                            }
+                            lock_resp.on_hover_text("切換鎖定");
+
+                            // 顏色色票
+                            let (swatch_rect, _) = ui.allocate_exact_size(
+                                egui::vec2(10.0, 10.0), egui::Sense::hover());
+                            ui.painter().rect_filled(swatch_rect, 2.0,
+                                egui::Color32::from_rgb(color[0], color[1], color[2]));
+
+                            // 圖層名稱（可點選切換當前圖層）
+                            let name_resp = ui.selectable_label(is_current,
+                                egui::RichText::new(name).size(10.0).color(TEXT_COLOR));
+                            if name_resp.clicked() {
+                                self.editor.draft_layers.current = name.clone();
+                            }
+                        });
                     }
                 });
 
@@ -433,7 +600,7 @@ impl KolibriApp {
             ui.label(egui::RichText::new(format!("{} 個圖層", layer_count))
                 .size(9.0).color(TEXT_DIM));
 
-            // 底部標籤（用 painter 在剩餘空間底部畫）
+            // 底部標籤
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 ui.label(egui::RichText::new("圖層").size(14.0).color(TEXT_DIM));
             });
