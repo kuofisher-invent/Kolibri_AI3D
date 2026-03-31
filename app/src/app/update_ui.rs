@@ -292,54 +292,7 @@ impl KolibriApp {
             self.editor.show_layer_manager = open;
         }
 
-        // ── 出圖模式：左側屬性/圖層工具列（ZWCAD 風格）──
-        #[cfg(feature = "drafting")]
-        if self.viewer.layout_mode {
-            egui::SidePanel::left("draft_left_tools")
-                .exact_width(24.0).resizable(false)
-                .show_separator_line(false)
-                .frame(egui::Frame::none()
-                    .fill(egui::Color32::from_rgb(56, 56, 59))
-                    .inner_margin(egui::Margin::symmetric(2.0, 4.0)))
-                .show(ctx, |ui| {
-                    let icon_btn_size = egui::vec2(20.0, 20.0);
-                    let dim = egui::Color32::from_rgb(200, 200, 205);
-                    let hover_bg = egui::Color32::from_rgb(75, 75, 80);
-
-                    // 屬性/圖層/鎖點等功能按鈕（非繪圖工具）
-                    let funcs: &[(&str, &str, &str)] = &[
-                        ("⊞", "屬性", "物件屬性面板"),
-                        ("◫", "圖層", "圖層管理員"),
-                        ("⊕", "鎖點", "物件鎖點設定"),
-                        ("⊙", "極座標", "極座標追蹤"),
-                        ("▦", "格線", "格線顯示/隱藏"),
-                        ("⊡", "正交", "正交模式"),
-                        ("▤", "線型", "線型管理"),
-                        ("◉", "線寬", "線寬顯示"),
-                        ("⊿", "查詢", "查詢距離/面積"),
-                        ("⊞", "計算", "快速計算器"),
-                    ];
-
-                    for &(icon, label, tooltip) in funcs {
-                        let (rect, resp) = ui.allocate_exact_size(icon_btn_size, egui::Sense::click());
-                        let p = ui.painter();
-                        if resp.hovered() {
-                            p.rect_filled(rect, 2.0, hover_bg);
-                        }
-                        p.text(rect.center(), egui::Align2::CENTER_CENTER, icon,
-                            egui::FontId::proportional(11.0), dim);
-
-                        if resp.on_hover_text(tooltip).clicked() {
-                            match label {
-                                "格線" => self.viewer.show_grid = !self.viewer.show_grid,
-                                "圖層" => self.editor.show_layer_manager = !self.editor.show_layer_manager,
-                                _ => {}
-                            }
-                            self.console_push("INFO", format!("{}", label));
-                        }
-                    }
-                });
-        }
+        // （左側工具列已移除 — Ribbon 已包含所有功能）
 
         // ── Left panel (toolbar only) — 出圖模式時完全不顯示 ──
         if !self.viewer.layout_mode {
@@ -374,6 +327,7 @@ impl KolibriApp {
             egui::TopBottomPanel::bottom("console")
                 .min_height(100.0)
                 .max_height(300.0)
+                .show_separator_line(false)
                 .resizable(true)
                 .frame(egui::Frame::none()
                     .fill(egui::Color32::from_rgb(30, 30, 35))
@@ -421,8 +375,10 @@ impl KolibriApp {
         if self.viewer.layout_mode {
             egui::TopBottomPanel::bottom("draft_tabs")
                 .exact_height(26.0)
+                .show_separator_line(false)
                 .frame(egui::Frame::none()
                     .fill(egui::Color32::from_rgb(50, 50, 54))
+                    .stroke(egui::Stroke::NONE)
                     .inner_margin(egui::Margin::symmetric(6.0, 0.0)))
                 .show(ctx, |ui| {
                     let tab_active_bg = egui::Color32::from_rgb(64, 64, 68);
@@ -451,8 +407,10 @@ impl KolibriApp {
         if self.viewer.layout_mode {
             egui::TopBottomPanel::bottom("draft_status")
                 .exact_height(24.0)
+                .show_separator_line(false)
                 .frame(egui::Frame::none()
                     .fill(egui::Color32::from_rgb(40, 40, 44))
+                    .stroke(egui::Stroke::NONE)
                     .inner_margin(egui::Margin::symmetric(8.0, 2.0)))
                 .show(ctx, |ui| {
                     let dim = egui::Color32::from_rgb(160, 160, 165);
@@ -501,8 +459,10 @@ impl KolibriApp {
             egui::Color32::from_rgb(229, 231, 239)
         };
         egui::TopBottomPanel::bottom("status")
+            .show_separator_line(!self.viewer.layout_mode)
             .frame(egui::Frame::none()
                 .fill(status_fill)
+                .stroke(if self.viewer.layout_mode { egui::Stroke::NONE } else { egui::Stroke::new(1.0, status_border) })
                 .inner_margin(egui::Margin::symmetric(16.0, 6.0))
                 .stroke(egui::Stroke::new(1.0, status_border)))
             .show(ctx, |ui| {

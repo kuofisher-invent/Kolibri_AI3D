@@ -236,9 +236,15 @@ impl eframe::App for KolibriApp {
 
         // Viewport
         let _t_viewport_start = std::time::Instant::now();
+        let central_fill = if self.viewer.layout_mode {
+            egui::Color32::from_rgb(33, 40, 48)
+        } else {
+            egui::Color32::from_rgb(245, 246, 250)
+        };
         egui::CentralPanel::default()
             .frame(egui::Frame::none()
-                .fill(egui::Color32::from_rgb(245, 246, 250))
+                .fill(central_fill)
+                .stroke(egui::Stroke::NONE)
                 .inner_margin(egui::Margin::same(0.0)))
             .show(ctx, |ui| {
                 // ── Layout mode: 2D 出圖畫布 ──

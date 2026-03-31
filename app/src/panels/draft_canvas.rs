@@ -320,59 +320,88 @@ impl KolibriApp {
                         egui::FontId::proportional(10.0), dim_color);
                 }
                 kolibri_drafting::DraftEntity::DimRadius { center, radius, angle } => {
+                    // ZWCAD 風格：圓心→圓周 + 箭頭 + 文字帶底線
                     let c = to_screen(center[0], center[1]);
                     let r = *radius as f32 * scale;
                     let ep = egui::pos2(
                         c.x + r * angle.cos() as f32,
                         c.y - r * angle.sin() as f32,
                     );
-                    painter.line_segment([c, ep], egui::Stroke::new(0.8, dim_color));
-                    let mid = egui::pos2((c.x + ep.x) / 2.0, (c.y + ep.y) / 2.0 - 8.0);
-                    painter.text(mid, egui::Align2::CENTER_BOTTOM,
-                        format!("R{:.0}", radius),
-                        egui::FontId::proportional(10.0), dim_color);
+                    let dim_st = egui::Stroke::new(0.8, dim_color);
+                    // 尺寸線
+                    painter.line_segment([c, ep], dim_st);
+                    // 箭頭（在圓周端）
+                    let dir = (ep - c).normalized();
+                    let perp = egui::vec2(-dir.y, dir.x);
+                    painter.add(egui::Shape::convex_polygon(
+                        vec![ep, ep - dir * 7.0 + perp * 2.5, ep - dir * 7.0 - perp * 2.5],
+                        dim_color, egui::Stroke::NONE));
+                    // 文字 + 底線（從圓周端向外延伸）
+                    let text_start = ep + dir * 4.0;
+                    let text_label = format!("R{:.0}", radius);
+                    let text_width = text_label.len() as f32 * 6.5;
+                    let text_end = egui::pos2(text_start.x + text_width, text_start.y);
+                    painter.line_segment([ep, text_end], dim_st);
+                    painter.text(
+                        egui::pos2(text_start.x + 2.0, text_start.y - 3.0),
+                        egui::Align2::LEFT_BOTTOM, text_label,
+                        egui::FontId::proportional(11.0), dim_color);
                 }
                 kolibri_drafting::DraftEntity::DimDiameter { center, radius, angle } => {
+                    // ZWCAD 風格：貫穿圓心 + 兩端箭頭 + 文字帶底線
                     let c = to_screen(center[0], center[1]);
                     let r = *radius as f32 * scale;
-                    let ep1 = egui::pos2(
-                        c.x + r * angle.cos() as f32,
-                        c.y - r * angle.sin() as f32,
-                    );
-                    let ep2 = egui::pos2(
-                        c.x - r * angle.cos() as f32,
-                        c.y + r * angle.sin() as f32,
-                    );
-                    painter.line_segment([ep1, ep2], egui::Stroke::new(0.8, dim_color));
-                    let mid = egui::pos2(c.x, c.y - 8.0);
-                    painter.text(mid, egui::Align2::CENTER_BOTTOM,
-                        format!("⌀{:.0}", radius * 2.0),
-                        egui::FontId::proportional(10.0), dim_color);
+                    let ep1 = egui::pos2(c.x + r * angle.cos() as f32, c.y - r * angle.sin() as f32);
+                    let ep2 = egui::pos2(c.x - r * angle.cos() as f32, c.y + r * angle.sin() as f32);
+                    let dim_st = egui::Stroke::new(0.8, dim_color);
+                    painter.line_segment([ep1, ep2], dim_st);
+                    // 兩端箭頭
+                    let dir = (ep1 - ep2).normalized();
+                    let perp = egui::vec2(-dir.y, dir.x);
+                    painter.add(egui::Shape::convex_polygon(
+                        vec![ep1, ep1 - dir * 7.0 + perp * 2.5, ep1 - dir * 7.0 - perp * 2.5],
+                        dim_color, egui::Stroke::NONE));
+                    painter.add(egui::Shape::convex_polygon(
+                        vec![ep2, ep2 + dir * 7.0 + perp * 2.5, ep2 + dir * 7.0 - perp * 2.5],
+                        dim_color, egui::Stroke::NONE));
+                    // 文字 + 底線（從 ep1 向外延伸）
+                    let text_start = ep1 + dir * 4.0;
+                    let text_label = format!("⌀{:.0}", radius * 2.0);
+                    let text_width = text_label.len() as f32 * 6.5;
+                    let text_end = egui::pos2(text_start.x + text_width, text_start.y);
+                    painter.line_segment([ep1, text_end], dim_st);
+                    painter.text(
+                        egui::pos2(text_start.x + 2.0, text_start.y - 3.0),
+                        egui::Align2::LEFT_BOTTOM, text_label,
+                        egui::FontId::proportional(11.0), dim_color);
                 }
                 kolibri_drafting::DraftEntity::Leader { points, text } => {
+                    // ZWCAD 風格：箭頭→折線→水平底線 + 文字在底線上方
                     let screen_pts: Vec<egui::Pos2> = points.iter()
                         .map(|p| to_screen(p[0], p[1])).collect();
+                    let dim_st = egui::Stroke::new(0.8, dim_color);
                     for w in screen_pts.windows(2) {
-                        painter.line_segment([w[0], w[1]], egui::Stroke::new(0.8, dim_color));
+                        painter.line_segment([w[0], w[1]], dim_st);
                     }
-                    if let Some(last) = screen_pts.last() {
-                        painter.text(*last + egui::vec2(4.0, -4.0), egui::Align2::LEFT_BOTTOM,
-                            text, egui::FontId::proportional(10.0), dim_color);
-                    }
-                    // 箭頭
+                    // 箭頭（在第一個點）
                     if screen_pts.len() >= 2 {
                         let tip = screen_pts[0];
                         let from = screen_pts[1];
                         let dir = (tip - from).normalized();
                         let perp = egui::vec2(-dir.y, dir.x);
-                        let arrow_len = 6.0;
-                        let a1 = tip - dir * arrow_len + perp * 2.5;
-                        let a2 = tip - dir * arrow_len - perp * 2.5;
                         painter.add(egui::Shape::convex_polygon(
-                            vec![tip, a1, a2],
-                            dim_color,
-                            egui::Stroke::NONE,
-                        ));
+                            vec![tip, tip - dir * 7.0 + perp * 2.5, tip - dir * 7.0 - perp * 2.5],
+                            dim_color, egui::Stroke::NONE));
+                    }
+                    // 水平底線 + 文字（從最後一點向右延伸）
+                    if let Some(last) = screen_pts.last() {
+                        let text_width = text.len() as f32 * 7.0 + 10.0;
+                        let line_end = egui::pos2(last.x + text_width, last.y);
+                        painter.line_segment([*last, line_end], dim_st);
+                        painter.text(
+                            egui::pos2(last.x + 4.0, last.y - 3.0),
+                            egui::Align2::LEFT_BOTTOM, text,
+                            egui::FontId::proportional(11.0), dim_color);
                     }
                 }
                 kolibri_drafting::DraftEntity::Hatch { boundary, pattern, .. } => {
