@@ -293,6 +293,75 @@ impl KolibriApp {
     }
 }
 
+impl KolibriApp {
+    /// 鏡射選取物件（axis: 0=X, 1=Y, 2=Z）；copy=true 時建立副本
+    pub(crate) fn mirror_selected(&mut self, axis: usize, copy: bool) {
+        if self.editor.selected_ids.is_empty() { return; }
+        self.scene.snapshot();
+
+        // 計算選取物件中心
+        let ids: Vec<String> = self.editor.selected_ids.clone();
+        let mut center = [0.0f32; 3];
+        let mut count = 0usize;
+        for id in &ids {
+            if let Some(obj) = self.scene.objects.get(id) {
+                for i in 0..3 { center[i] += obj.position[i]; }
+                count += 1;
+            }
+        }
+        if count == 0 { return; }
+        for i in 0..3 { center[i] /= count as f32; }
+
+        let mut new_ids = Vec::new();
+        for id in &ids {
+            if let Some(obj) = self.scene.objects.get(id).cloned() {
+                let mut mirrored = obj.clone();
+                if copy {
+                    mirrored.id = format!("{}_mirror_{}", obj.id, axis);
+                    mirrored.name = format!("{} (鏡射)", obj.name);
+                }
+                // 以中心鏡射
+                let delta = mirrored.position[axis] - center[axis];
+                mirrored.position[axis] = center[axis] - delta;
+
+                if copy {
+                    let mid = mirrored.id.clone();
+                    self.scene.objects.insert(mid.clone(), mirrored);
+                    new_ids.push(mid);
+                } else {
+                    self.scene.objects.insert(id.clone(), mirrored);
+                }
+            }
+        }
+        if copy && !new_ids.is_empty() {
+            self.editor.selected_ids = new_ids;
+        }
+        self.scene.version += 1;
+        let axis_name = ["X", "Y", "Z"][axis.min(2)];
+        let action = if copy { "鏡射複製" } else { "鏡射" };
+        self.file_message = Some((format!("{} {} 軸 ({} 個物件)", action, axis_name, count), std::time::Instant::now()));
+    }
+}
+
+/// CNS 386 H型鋼規格表: (name, H, B, tw, tf, weight_kg_per_m)
+pub(crate) const H_PROFILES: &[(&str, f32, f32, f32, f32, f32)] = &[
+    ("H100x50x5x7",   100.0,  50.0, 5.0,  7.0,  9.30),
+    ("H125x60x6x8",   125.0,  60.0, 6.0,  8.0, 13.10),
+    ("H150x75x5x7",   150.0,  75.0, 5.0,  7.0, 14.00),
+    ("H175x90x5x8",   175.0,  90.0, 5.0,  8.0, 18.20),
+    ("H200x100x5.5x8", 200.0, 100.0, 5.5, 8.0, 21.30),
+    ("H250x125x6x9",  250.0, 125.0, 6.0,  9.0, 29.60),
+    ("H300x150x6x9",  300.0, 150.0, 6.0,  9.0, 36.70),
+    ("H350x175x7x11", 350.0, 175.0, 7.0, 11.0, 49.60),
+    ("H400x200x8x13", 400.0, 200.0, 8.0, 13.0, 66.00),
+    ("H450x200x9x14", 450.0, 200.0, 9.0, 14.0, 76.00),
+    ("H500x200x10x16",500.0, 200.0,10.0, 16.0, 89.70),
+    ("H600x200x11x17",600.0, 200.0,11.0, 17.0,106.00),
+    ("H700x300x13x24",700.0, 300.0,13.0, 24.0,185.00),
+    ("H800x300x14x26",800.0, 300.0,14.0, 26.0,210.00),
+    ("H900x300x16x28",900.0, 300.0,16.0, 28.0,243.00),
+];
+
 /// Parse H-section profile string like "H300x150x6x9" -> (H, B, tw, tf) in mm
 pub(crate) fn parse_h_profile(profile: &str) -> (f32, f32, f32, f32) {
     let parts: Vec<f32> = profile

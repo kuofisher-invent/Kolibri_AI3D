@@ -161,9 +161,10 @@ pub fn create_pipe_segment(
 
     let id = scene.insert_mesh_raw(name, start, mesh, mat);
     if let Some(obj) = scene.objects.get_mut(&id) {
-        obj.ifc_class = "IfcPipeSegment".to_string();
-        obj.ifc_system = spec.system.label().to_string();
-        obj.ifc_material_name = spec.spec_name.clone();
+        // IFC 屬性（待 core 支援後啟用）
+        // obj.ifc_class = "IfcPipeSegment".to_string();
+        // obj.ifc_system = spec.system.label().to_string();
+        // obj.ifc_material_name = spec.spec_name.clone();
         obj.tag = format!("管線:{}", spec.system.label());
     }
     scene.version += 1;
@@ -218,9 +219,10 @@ pub fn create_fitting(
 
     let id = scene.insert_mesh_raw(name, position, mesh, mat);
     if let Some(obj) = scene.objects.get_mut(&id) {
-        obj.ifc_class = "IfcPipeFitting".to_string();
-        obj.ifc_system = spec.system.label().to_string();
-        obj.ifc_material_name = format!("{} {}", kind.label(), spec.spec_name);
+        // IFC 屬性（待 core 支援後啟用）
+        // obj.ifc_class = "IfcPipeFitting".to_string();
+        // obj.ifc_system = spec.system.label().to_string();
+        // obj.ifc_material_name = format!("{} {}", kind.label(), spec.spec_name);
         obj.tag = format!("管件:{}", spec.system.label());
     }
     scene.version += 1;

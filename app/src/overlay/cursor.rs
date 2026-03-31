@@ -106,7 +106,7 @@ impl KolibriApp {
 
                 // ── A2/A3: Cursor-following dimension during drag/push-pull ──
                 self.editor.cursor_dimension = match &self.editor.draw_state {
-                    DrawState::Pulling { obj_id, face, original_dim } => {
+                    DrawState::Pulling { obj_id, face, original_dim, .. } => {
                         if let Some(obj) = self.scene.objects.get(obj_id) {
                             let current_dim = match (&obj.shape, face) {
                                 (Shape::Box { height, .. }, PullFace::Top | PullFace::Bottom) => *height,

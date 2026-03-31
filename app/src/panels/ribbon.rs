@@ -198,6 +198,9 @@ impl KolibriApp {
                 ToolBtn { tool: Tool::DraftBlock, label: "建立", tooltip: "建立圖塊 (B)" },
                 ToolBtn { tool: Tool::DraftInsert, label: "插入", tooltip: "插入圖塊 (I)" },
             ]);
+            self.ribbon_vsep(ui);
+            // 特性 group（顏色/線型/線寬 下拉）
+            self.ribbon_properties_group(ui);
         });
     }
 
@@ -398,6 +401,57 @@ impl KolibriApp {
             // 底部標籤（用 painter 在剩餘空間底部畫）
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
                 ui.label(egui::RichText::new("圖層").size(9.5).color(TEXT_DIM));
+            });
+        });
+    }
+
+    /// 特性 Group（ZWCAD 風格：顏色/線型/線寬 3 排下拉）
+    #[cfg(feature = "drafting")]
+    fn ribbon_properties_group(&mut self, ui: &mut egui::Ui) {
+        let group_w = 130.0;
+        ui.vertical(|ui| {
+            ui.set_min_size(egui::vec2(group_w, RIBBON_CONTENT_H));
+            ui.add_space(4.0);
+
+            // 顏色下拉
+            ui.horizontal(|ui| {
+                // 色塊
+                let current_layer = self.editor.draft_layers.current_layer()
+                    .map(|l| l.color).unwrap_or([255, 255, 255]);
+                let (cr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                ui.painter().rect_filled(cr, 2.0,
+                    egui::Color32::from_rgb(current_layer[0], current_layer[1], current_layer[2]));
+                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+            });
+
+            ui.add_space(2.0);
+
+            // 線型下拉
+            ui.horizontal(|ui| {
+                // 線型示意
+                let (lr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                let p = ui.painter();
+                p.line_segment(
+                    [egui::pos2(lr.left() + 1.0, lr.center().y), egui::pos2(lr.right() - 1.0, lr.center().y)],
+                    egui::Stroke::new(1.5, TEXT_COLOR));
+                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+            });
+
+            ui.add_space(2.0);
+
+            // 線寬下拉
+            ui.horizontal(|ui| {
+                let (wr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                let p = ui.painter();
+                p.line_segment(
+                    [egui::pos2(wr.left() + 1.0, wr.center().y), egui::pos2(wr.right() - 1.0, wr.center().y)],
+                    egui::Stroke::new(2.5, TEXT_COLOR));
+                ui.label(egui::RichText::new("隨圖層").size(10.0).color(TEXT_COLOR));
+            });
+
+            // 底部標籤
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new("特性").size(9.5).color(TEXT_DIM));
             });
         });
     }

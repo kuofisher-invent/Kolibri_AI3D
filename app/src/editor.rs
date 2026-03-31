@@ -420,6 +420,8 @@ pub(crate) struct EditorState {
     pub(crate) draft_selected: Vec<kolibri_drafting::DraftId>,
     #[cfg(feature = "drafting")]
     pub(crate) ribbon_tab: RibbonTab,
+    #[cfg(feature = "drafting")]
+    pub(crate) show_layer_manager: bool,
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────

@@ -6,4 +6,4 @@ mod click_edit;
 mod measure;
 mod picking;
 mod menu_actions;
-mod geometry_ops;
+pub(crate) mod geometry_ops;

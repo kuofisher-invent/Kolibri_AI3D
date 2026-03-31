@@ -59,6 +59,10 @@ pub enum MenuAction {
     ImportDxfSmart,
     SmartImport,
     ToggleConsole,
+    ToggleGrid,
+    ToggleAxes,
+    ToggleToolbar,
+    ToggleRightPanel,
     ReverseFace,
 }
 

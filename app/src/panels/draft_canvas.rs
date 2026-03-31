@@ -115,27 +115,89 @@ impl KolibriApp {
             );
         }
 
+        // ── 2D Snap 偵測 ──
+        // 收集所有 snap 點（端點/中點/圓心）
+        let snap_threshold_mm = 5.0_f64;
+        let mut snap_point: Option<([f64; 2], &str, egui::Color32)> = None;
+        if let Some(hover_pos) = response.hover_pos() {
+            let mx = ((hover_pos.x - origin.x) / scale) as f64;
+            let my = ((origin.y - hover_pos.y) / scale) as f64;
+
+            let mut best_dist = snap_threshold_mm;
+            for obj in &self.editor.draft_doc.objects {
+                if !obj.visible { continue; }
+                // 端點 Snap
+                let grips = self.entity_grip_points(&obj.entity);
+                for gp in &grips {
+                    let d = ((gp[0] - mx).powi(2) + (gp[1] - my).powi(2)).sqrt();
+                    if d < best_dist {
+                        best_dist = d;
+                        snap_point = Some((*gp, "端點", egui::Color32::from_rgb(60, 220, 60)));
+                    }
+                }
+                // 中點 Snap（線段）
+                if let kolibri_drafting::DraftEntity::Line { start, end } = &obj.entity {
+                    let mid = [(start[0] + end[0]) / 2.0, (start[1] + end[1]) / 2.0];
+                    let d = ((mid[0] - mx).powi(2) + (mid[1] - my).powi(2)).sqrt();
+                    if d < best_dist {
+                        best_dist = d;
+                        snap_point = Some((mid, "中點", egui::Color32::from_rgb(60, 220, 220)));
+                    }
+                }
+                // 圓心 Snap
+                if let kolibri_drafting::DraftEntity::Circle { center, .. } = &obj.entity {
+                    let d = ((center[0] - mx).powi(2) + (center[1] - my).powi(2)).sqrt();
+                    if d < best_dist {
+                        best_dist = d;
+                        snap_point = Some((*center, "圓心", egui::Color32::from_rgb(220, 60, 60)));
+                    }
+                }
+            }
+        }
+
+        // 繪製 snap 指示器
+        if let Some((sp, label, color)) = &snap_point {
+            let screen_sp = to_screen(sp[0], sp[1]);
+            let sz = 5.0;
+            // 方形指示器（AutoCAD 風格）
+            painter.rect_stroke(
+                egui::Rect::from_center_size(screen_sp, egui::vec2(sz * 2.0, sz * 2.0)),
+                0.0, egui::Stroke::new(2.0, *color));
+            // 標籤
+            painter.text(
+                egui::pos2(screen_sp.x + sz + 4.0, screen_sp.y - sz - 2.0),
+                egui::Align2::LEFT_BOTTOM, *label,
+                egui::FontId::proportional(9.0), *color);
+        }
+
         // 十字游標（ZWCAD 風格：跟隨滑鼠的全畫面十字線）
         if let Some(hover_pos) = response.hover_pos() {
+            // 如果有 snap 點，十字游標吸附到 snap 位置
+            let cursor_pos = if let Some((sp, _, _)) = &snap_point {
+                to_screen(sp[0], sp[1])
+            } else {
+                hover_pos
+            };
+
             let cross_color = egui::Color32::from_rgba_unmultiplied(180, 190, 200, 120);
             // 水平線
             painter.line_segment(
-                [egui::pos2(rect.left(), hover_pos.y), egui::pos2(rect.right(), hover_pos.y)],
+                [egui::pos2(rect.left(), cursor_pos.y), egui::pos2(rect.right(), cursor_pos.y)],
                 egui::Stroke::new(0.5, cross_color),
             );
             // 垂直線
             painter.line_segment(
-                [egui::pos2(hover_pos.x, rect.top()), egui::pos2(hover_pos.x, rect.bottom())],
+                [egui::pos2(cursor_pos.x, rect.top()), egui::pos2(cursor_pos.x, rect.bottom())],
                 egui::Stroke::new(0.5, cross_color),
             );
             // 中心小十字（粗）
             let arm = 10.0;
             painter.line_segment(
-                [egui::pos2(hover_pos.x - arm, hover_pos.y), egui::pos2(hover_pos.x + arm, hover_pos.y)],
+                [egui::pos2(cursor_pos.x - arm, cursor_pos.y), egui::pos2(cursor_pos.x + arm, cursor_pos.y)],
                 egui::Stroke::new(1.2, egui::Color32::from_rgb(220, 220, 230)),
             );
             painter.line_segment(
-                [egui::pos2(hover_pos.x, hover_pos.y - arm), egui::pos2(hover_pos.x, hover_pos.y + arm)],
+                [egui::pos2(cursor_pos.x, cursor_pos.y - arm), egui::pos2(cursor_pos.x, cursor_pos.y + arm)],
                 egui::Stroke::new(1.2, egui::Color32::from_rgb(220, 220, 230)),
             );
         }
@@ -1223,10 +1285,222 @@ impl KolibriApp {
                 }
             }
 
-            // ── 圓角 FILLET / 倒角 CHAMFER / 拉伸 STRETCH / 延伸 EXTEND ──
-            // 這些需要選取兩個圖元，暫時用提示
-            Tool::DraftFillet | Tool::DraftChamfer | Tool::DraftStretch | Tool::DraftExtend => {
-                self.console_push("INFO", "請先選取兩個相鄰圖元（開發中）".into());
+            // ── 修剪 TRIM：點擊要裁掉的部分 ──
+            Tool::DraftTrim => {
+                // 找最近的線段圖元
+                let mut best_id = None;
+                let mut best_dist = 5.0_f64;
+                for obj in &self.editor.draft_doc.objects {
+                    if !obj.visible { continue; }
+                    let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                    if d < best_dist {
+                        best_dist = d;
+                        best_id = Some(obj.id);
+                    }
+                }
+                if let Some(id) = best_id {
+                    // 收集所有其他圖元作為裁剪邊界
+                    let cutting: Vec<kolibri_drafting::DraftEntity> = self.editor.draft_doc.objects.iter()
+                        .filter(|o| o.id != id && o.visible)
+                        .map(|o| o.entity.clone())
+                        .collect();
+                    let entity = self.editor.draft_doc.objects.iter().find(|o| o.id == id).map(|o| o.entity.clone());
+                    if let Some(kolibri_drafting::DraftEntity::Line { start, end }) = entity {
+                        if let Some(trimmed) = kolibri_drafting::geometry::trim_line_at_boundary(
+                            &start, &end, &cutting, &p) {
+                            self.editor.draft_doc.remove(id);
+                            self.editor.draft_doc.add(trimmed);
+                            self.console_push("ACTION", "修剪完成".into());
+                        } else {
+                            self.console_push("WARN", "找不到交點可修剪".into());
+                        }
+                    } else {
+                        self.console_push("INFO", "修剪目前僅支援線段".into());
+                    }
+                }
+            }
+
+            // ── 延伸 EXTEND：點擊要延伸的線段 ──
+            Tool::DraftExtend => {
+                let mut best_id = None;
+                let mut best_dist = 5.0_f64;
+                for obj in &self.editor.draft_doc.objects {
+                    if !obj.visible { continue; }
+                    let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                    if d < best_dist {
+                        best_dist = d;
+                        best_id = Some(obj.id);
+                    }
+                }
+                if let Some(id) = best_id {
+                    let boundary: Vec<kolibri_drafting::DraftEntity> = self.editor.draft_doc.objects.iter()
+                        .filter(|o| o.id != id && o.visible)
+                        .map(|o| o.entity.clone())
+                        .collect();
+                    let entity = self.editor.draft_doc.objects.iter().find(|o| o.id == id).map(|o| o.entity.clone());
+                    if let Some(kolibri_drafting::DraftEntity::Line { start, end }) = entity {
+                        if let Some(extended) = kolibri_drafting::geometry::extend_line_to_boundary(
+                            &start, &end, &boundary) {
+                            self.editor.draft_doc.remove(id);
+                            self.editor.draft_doc.add(extended);
+                            self.console_push("ACTION", "延伸完成".into());
+                        } else {
+                            self.console_push("WARN", "找不到邊界可延伸".into());
+                        }
+                    } else {
+                        self.console_push("INFO", "延伸目前僅支援線段".into());
+                    }
+                }
+            }
+
+            // ── 偏移 OFFSET：選圖元 → 點擊偏移方向 ──
+            Tool::DraftOffset => {
+                match self.editor.draft_state.clone() {
+                    DraftDrawState::Idle => {
+                        // 先選取要偏移的圖元
+                        let mut best_id = None;
+                        let mut best_dist = 5.0_f64;
+                        for obj in &self.editor.draft_doc.objects {
+                            if !obj.visible { continue; }
+                            let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                            if d < best_dist { best_dist = d; best_id = Some(obj.id); }
+                        }
+                        if let Some(id) = best_id {
+                            self.editor.draft_selected = vec![id];
+                            self.editor.draft_state = DraftDrawState::LineFrom { p1: p };
+                            self.console_push("INFO", format!("已選取圖元 #{}，點擊指定偏移方向", id));
+                        }
+                    }
+                    DraftDrawState::LineFrom { p1: _ } => {
+                        if let Some(&sel_id) = self.editor.draft_selected.first() {
+                            let entity = self.editor.draft_doc.objects.iter().find(|o| o.id == sel_id).map(|o| o.entity.clone());
+                            if let Some(ent) = entity {
+                                // 計算偏移距離（用 click 點到圖元的距離）
+                                let dist = self.draft_entity_distance(&ent, mm_x, mm_y);
+                                // 判斷方向：正/負偏移
+                                let offset_dist = if dist > 0.0 { dist } else { 5.0 };
+                                if let Some(offset_ent) = kolibri_drafting::geometry::offset_entity(&ent, offset_dist) {
+                                    self.editor.draft_doc.add(offset_ent);
+                                    self.console_push("ACTION", format!("偏移 {:.1}mm", offset_dist));
+                                }
+                            }
+                        }
+                        self.editor.draft_state = DraftDrawState::Idle;
+                        self.editor.draft_selected.clear();
+                    }
+                    _ => { self.editor.draft_state = DraftDrawState::Idle; }
+                }
+            }
+
+            // ── 圓角 FILLET：點擊第一條線 → 點擊第二條線 ──
+            Tool::DraftFillet => {
+                match self.editor.draft_state.clone() {
+                    DraftDrawState::Idle => {
+                        let mut best_id = None;
+                        let mut best_dist = 5.0_f64;
+                        for obj in &self.editor.draft_doc.objects {
+                            if !obj.visible { continue; }
+                            let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                            if d < best_dist { best_dist = d; best_id = Some(obj.id); }
+                        }
+                        if let Some(id) = best_id {
+                            self.editor.draft_selected = vec![id];
+                            self.editor.draft_state = DraftDrawState::DimP1 { p1: p };
+                            self.console_push("INFO", "已選第一條線，點擊第二條線".into());
+                        }
+                    }
+                    DraftDrawState::DimP1 { .. } => {
+                        let mut best_id = None;
+                        let mut best_dist = 5.0_f64;
+                        for obj in &self.editor.draft_doc.objects {
+                            if !obj.visible { continue; }
+                            if self.editor.draft_selected.contains(&obj.id) { continue; }
+                            let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                            if d < best_dist { best_dist = d; best_id = Some(obj.id); }
+                        }
+                        if let (Some(id1), Some(id2)) = (self.editor.draft_selected.first().copied(), best_id) {
+                            let e1 = self.editor.draft_doc.objects.iter().find(|o| o.id == id1).map(|o| o.entity.clone());
+                            let e2 = self.editor.draft_doc.objects.iter().find(|o| o.id == id2).map(|o| o.entity.clone());
+                            if let (Some(kolibri_drafting::DraftEntity::Line { start: a1, end: a2 }),
+                                    Some(kolibri_drafting::DraftEntity::Line { start: b1, end: b2 })) = (e1, e2) {
+                                let radius = 5.0; // 預設圓角半徑 5mm
+                                if let Some((new_a, new_b, arc)) = kolibri_drafting::geometry::fillet_lines(&a1, &a2, &b1, &b2, radius) {
+                                    self.editor.draft_doc.remove(id1);
+                                    self.editor.draft_doc.remove(id2);
+                                    self.editor.draft_doc.add(new_a);
+                                    self.editor.draft_doc.add(new_b);
+                                    self.editor.draft_doc.add(arc);
+                                    self.console_push("ACTION", format!("圓角 R={:.0}", radius));
+                                } else {
+                                    self.console_push("WARN", "無法套用圓角（線段不相交）".into());
+                                }
+                            } else {
+                                self.console_push("INFO", "圓角目前僅支援兩條線段".into());
+                            }
+                        }
+                        self.editor.draft_state = DraftDrawState::Idle;
+                        self.editor.draft_selected.clear();
+                    }
+                    _ => { self.editor.draft_state = DraftDrawState::Idle; }
+                }
+            }
+
+            // ── 倒角 CHAMFER：同 Fillet 但用斜線 ──
+            Tool::DraftChamfer => {
+                match self.editor.draft_state.clone() {
+                    DraftDrawState::Idle => {
+                        let mut best_id = None;
+                        let mut best_dist = 5.0_f64;
+                        for obj in &self.editor.draft_doc.objects {
+                            if !obj.visible { continue; }
+                            let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                            if d < best_dist { best_dist = d; best_id = Some(obj.id); }
+                        }
+                        if let Some(id) = best_id {
+                            self.editor.draft_selected = vec![id];
+                            self.editor.draft_state = DraftDrawState::DimP1 { p1: p };
+                            self.console_push("INFO", "已選第一條線，點擊第二條線".into());
+                        }
+                    }
+                    DraftDrawState::DimP1 { .. } => {
+                        let mut best_id = None;
+                        let mut best_dist = 5.0_f64;
+                        for obj in &self.editor.draft_doc.objects {
+                            if !obj.visible { continue; }
+                            if self.editor.draft_selected.contains(&obj.id) { continue; }
+                            let d = self.draft_entity_distance(&obj.entity, mm_x, mm_y);
+                            if d < best_dist { best_dist = d; best_id = Some(obj.id); }
+                        }
+                        if let (Some(id1), Some(id2)) = (self.editor.draft_selected.first().copied(), best_id) {
+                            let e1 = self.editor.draft_doc.objects.iter().find(|o| o.id == id1).map(|o| o.entity.clone());
+                            let e2 = self.editor.draft_doc.objects.iter().find(|o| o.id == id2).map(|o| o.entity.clone());
+                            if let (Some(kolibri_drafting::DraftEntity::Line { start: a1, end: a2 }),
+                                    Some(kolibri_drafting::DraftEntity::Line { start: b1, end: b2 })) = (e1, e2) {
+                                let dist = 5.0; // 預設倒角距離 5mm
+                                if let Some((new_a, new_b, chamfer)) = kolibri_drafting::geometry::chamfer_lines(&a1, &a2, &b1, &b2, dist, dist) {
+                                    self.editor.draft_doc.remove(id1);
+                                    self.editor.draft_doc.remove(id2);
+                                    self.editor.draft_doc.add(new_a);
+                                    self.editor.draft_doc.add(new_b);
+                                    self.editor.draft_doc.add(chamfer);
+                                    self.console_push("ACTION", format!("倒角 D={:.0}", dist));
+                                } else {
+                                    self.console_push("WARN", "無法套用倒角（線段不相交）".into());
+                                }
+                            } else {
+                                self.console_push("INFO", "倒角目前僅支援兩條線段".into());
+                            }
+                        }
+                        self.editor.draft_state = DraftDrawState::Idle;
+                        self.editor.draft_selected.clear();
+                    }
+                    _ => { self.editor.draft_state = DraftDrawState::Idle; }
+                }
+            }
+
+            // ── 拉伸 STRETCH ──
+            Tool::DraftStretch => {
+                self.console_push("INFO", "拉伸：請用框選選取端點後拖曳（開發中）".into());
             }
 
             // ── 連續標註 / 基線標註 ──

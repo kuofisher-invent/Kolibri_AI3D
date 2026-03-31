@@ -387,6 +387,8 @@ impl KolibriApp {
                 draft_selected: Vec::new(),
                 #[cfg(feature = "drafting")]
                 ribbon_tab: crate::editor::RibbonTab::Home,
+                #[cfg(feature = "drafting")]
+                show_layer_manager: false,
             },
 
             right_tab: RightTab::Properties,

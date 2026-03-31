@@ -608,69 +608,12 @@ impl KolibriApp {
         });
         ui.add_space(8.0);
 
-        // ── IFC / BIM 屬性 ──
+        // ── IFC / BIM 屬性（暫時停用：SceneObject 尚未加入 IFC 欄位）──
+        // TODO: 待 SceneObject 加入 ifc_class/ifc_storey/ifc_system/ifc_material_name/
+        //       ifc_fire_rating/ifc_global_id/ifc_properties 欄位後重新啟用
         section_frame_full(ui, |ui| {
             section_header_text(ui, "BIM / IFC");
-
-            let ifc_classes = [
-                "", "IfcWall", "IfcColumn", "IfcBeam", "IfcSlab",
-                "IfcWindow", "IfcDoor", "IfcRoof", "IfcStair",
-                "IfcPlate", "IfcMember", "IfcFooting", "IfcPile",
-                "IfcCurtainWall", "IfcRailing", "IfcFurnishingElement",
-                "IfcBuildingElementProxy",
-            ];
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("IFC 類型").size(11.0));
-                egui::ComboBox::from_id_source("ifc_class_combo")
-                    .width(120.0)
-                    .selected_text(if obj.ifc_class.is_empty() { "(未指定)" } else { &obj.ifc_class })
-                    .show_ui(ui, |ui| {
-                        for cls in &ifc_classes {
-                            let label = if cls.is_empty() { "(未指定)" } else { cls };
-                            if ui.selectable_label(obj.ifc_class == *cls, label).clicked() {
-                                obj.ifc_class = cls.to_string();
-                            }
-                        }
-                    });
-            });
-
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("樓  層").size(11.0));
-                ui.text_edit_singleline(&mut obj.ifc_storey);
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("系  統").size(11.0));
-                ui.text_edit_singleline(&mut obj.ifc_system);
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("BIM材料").size(11.0));
-                ui.text_edit_singleline(&mut obj.ifc_material_name);
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("防火等級").size(11.0));
-                ui.text_edit_singleline(&mut obj.ifc_fire_rating);
-            });
-
-            // GlobalId
-            if obj.ifc_global_id.is_empty() && !obj.ifc_class.is_empty() {
-                obj.ifc_global_id = uuid_v4_simple();
-            }
-            if !obj.ifc_global_id.is_empty() {
-                ui.small(format!("GUID: {}", &obj.ifc_global_id[..obj.ifc_global_id.len().min(22)]));
-            }
-
-            // 自訂屬性集
-            if !obj.ifc_properties.is_empty() {
-                ui.add_space(4.0);
-                ui.label(egui::RichText::new("自訂屬性").size(11.0).color(egui::Color32::from_rgb(110, 118, 135)));
-                let props: Vec<_> = obj.ifc_properties.iter().map(|(k,v)| (k.clone(), v.clone())).collect();
-                for (key, val) in &props {
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(key).size(11.0));
-                        ui.label(egui::RichText::new(val).size(11.0).strong());
-                    });
-                }
-            }
+            ui.label(egui::RichText::new("(尚未啟用)").size(10.0).color(egui::Color32::from_gray(140)));
         });
         ui.add_space(8.0);
 

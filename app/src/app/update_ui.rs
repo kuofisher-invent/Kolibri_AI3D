@@ -69,7 +69,7 @@ impl KolibriApp {
                 let can_redo = self.scene.can_redo();
                 let count = self.scene.objects.len();
                 let has_file = self.current_file.is_some();
-                let action = crate::menu::draw_menu_bar(ui, has_sel, can_undo, can_redo, count, &self.recent_files, has_file, self.viewer.use_ortho, self.viewer.saved_cameras.len(), self.viewer.show_grid, self.viewer.show_axes, self.viewer.show_toolbar, self.viewer.show_right_panel, self.viewer.show_console);
+                let action = crate::menu::draw_menu_bar(ui, has_sel, can_undo, can_redo, count, &self.recent_files, has_file, self.viewer.use_ortho, self.viewer.saved_cameras.len());
 
                 // Right side: help + undo/redo + save + project name
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -218,6 +218,80 @@ impl KolibriApp {
             self.draw_ribbon(ctx);
         }
 
+        // ── 圖層管理員對話框 ──
+        #[cfg(feature = "drafting")]
+        if self.viewer.layout_mode && self.editor.show_layer_manager {
+            let mut open = self.editor.show_layer_manager;
+            egui::Window::new("圖層管理員")
+                .open(&mut open)
+                .default_size([320.0, 280.0])
+                .resizable(true)
+                .show(ctx, |ui| {
+                    // 工具列
+                    ui.horizontal(|ui| {
+                        if ui.button("+ 新增").clicked() {
+                            let name = format!("圖層{}", self.editor.draft_layers.layers.len());
+                            self.editor.draft_layers.add(kolibri_drafting::DraftLayer::new(&name, [255, 255, 255]));
+                        }
+                        ui.label(egui::RichText::new(format!("目前: {}", self.editor.draft_layers.current)).size(11.0));
+                    });
+                    ui.separator();
+
+                    // 圖層列表
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let layer_data: Vec<(String, [u8; 3], bool, bool, bool)> = self.editor.draft_layers.layers.iter()
+                            .map(|l| (l.name.clone(), l.color, l.visible, l.locked, l.frozen))
+                            .collect();
+
+                        for (name, color, visible, locked, frozen) in &layer_data {
+                            ui.horizontal(|ui| {
+                                let is_current = *name == self.editor.draft_layers.current;
+
+                                // 可見 toggle
+                                let vis_icon = if *visible { "👁" } else { "  " };
+                                if ui.small_button(vis_icon).on_hover_text("可見/隱藏").clicked() {
+                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
+                                        l.visible = !l.visible;
+                                    }
+                                }
+
+                                // 鎖定 toggle
+                                let lock_icon = if *locked { "🔒" } else { "🔓" };
+                                if ui.small_button(lock_icon).on_hover_text("鎖定/解鎖").clicked() {
+                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
+                                        l.locked = !l.locked;
+                                    }
+                                }
+
+                                // 凍結 toggle
+                                let freeze_icon = if *frozen { "❄" } else { "☀" };
+                                if ui.small_button(freeze_icon).on_hover_text("凍結/解凍").clicked() {
+                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
+                                        l.frozen = !l.frozen;
+                                    }
+                                }
+
+                                // 色塊
+                                let (cr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                                ui.painter().rect_filled(cr, 2.0,
+                                    egui::Color32::from_rgb(color[0], color[1], color[2]));
+
+                                // 名稱（可點擊設為目前）
+                                let label = if is_current {
+                                    egui::RichText::new(name).strong()
+                                } else {
+                                    egui::RichText::new(name)
+                                };
+                                if ui.selectable_label(is_current, label).clicked() {
+                                    self.editor.draft_layers.current = name.clone();
+                                }
+                            });
+                        }
+                    });
+                });
+            self.editor.show_layer_manager = open;
+        }
+
         // ── 出圖模式：左側屬性/圖層工具列（ZWCAD 風格）──
         #[cfg(feature = "drafting")]
         if self.viewer.layout_mode {
@@ -256,8 +330,10 @@ impl KolibriApp {
                             egui::FontId::proportional(11.0), dim);
 
                         if resp.on_hover_text(tooltip).clicked() {
-                            if label == "格線" {
-                                self.viewer.show_grid = !self.viewer.show_grid;
+                            match label {
+                                "格線" => self.viewer.show_grid = !self.viewer.show_grid,
+                                "圖層" => self.editor.show_layer_manager = !self.editor.show_layer_manager,
+                                _ => {}
                             }
                             self.console_push("INFO", format!("{}", label));
                         }
