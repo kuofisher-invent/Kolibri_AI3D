@@ -1,0 +1,755 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kolibri Ai3D Interactive Desktop Mockup v3</title>
+  <style>
+    :root{
+      --bg:#0b1018;
+      --panel:#121b2a;
+      --panel2:#172233;
+      --line:#25344c;
+      --line2:#31415d;
+      --text:#e9f0fb;
+      --muted:#91a1b9;
+      --blue:#5d96ff;
+      --blue2:#1d3359;
+      --green:#2fc775;
+      --orange:#f2a84b;
+      --red:#ef6767;
+      --shadow:0 16px 40px rgba(0,0,0,.35);
+      --soft:0 10px 22px rgba(0,0,0,.24);
+      --toolbar-w:82px;
+      --left-w:336px;
+      --right-w:388px;
+      --console-h:170px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; overflow:hidden; color:var(--text);
+      font-family:Inter,"Noto Sans TC","Microsoft JhengHei",sans-serif;
+      background:
+        radial-gradient(900px 500px at -8% -10%, rgba(93,150,255,.14), transparent 55%),
+        radial-gradient(800px 400px at 110% -10%, rgba(62,201,195,.10), transparent 55%),
+        linear-gradient(180deg,#0b1018 0%, #0d1320 100%);
+    }
+    .app{
+      height:100vh; padding:14px;
+      display:grid;
+      grid-template-columns: var(--toolbar-w) var(--left-w) 1fr var(--right-w);
+      grid-template-rows:74px 1fr var(--console-h);
+      gap:14px;
+      transition:grid-template-columns .22s ease, grid-template-rows .22s ease;
+    }
+    .app.hide-toolbar{ --toolbar-w: 0px; }
+    .app.hide-left{ --left-w: 0px; }
+    .app.hide-right{ --right-w: 0px; }
+    .app.hide-console{ --console-h: 0px; }
+
+    .chrome{
+      background:linear-gradient(180deg, rgba(20,29,44,.96), rgba(13,19,31,.96));
+      border:1px solid rgba(255,255,255,.05);
+      box-shadow:var(--soft);
+      backdrop-filter:blur(14px);
+    }
+    .topbar{
+      grid-column:1/-1; border-radius:22px;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 18px; min-width:0;
+    }
+    .top-left{display:flex;align-items:center;gap:18px; min-width:0;}
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background:linear-gradient(135deg,#5d96ff,#7bb0ff);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 10px 22px rgba(93,150,255,.28);
+      position:relative; flex:0 0 auto;
+    }
+    .logo:before,.logo:after{content:"";position:absolute;background:#fff;border-radius:5px}
+    .logo:before{width:18px;height:4px;left:11px;top:12px;transform:rotate(-28deg)}
+    .logo:after{width:14px;height:4px;left:15px;top:23px;transform:rotate(28deg)}
+    .brand h1{margin:0;font-size:19px}
+    .brand small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+    .menus{display:flex;gap:18px;color:#b4c1d5;font-size:14px;font-weight:700}
+    .top-right{display:flex;align-items:center;gap:10px; min-width:0; flex-wrap:wrap; justify-content:flex-end;}
+    .chip,.btn,.mode-toggle button,.tab,.select,.pill,.mini,.coord,.cursor-action,.view-btn,.tool-btn,.toggle-btn{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,#172132,#101827);
+      color:#dce7f7;
+      border-radius:14px;
+      font-family:inherit;
+    }
+    .chip{
+      height:42px;padding:0 14px;display:flex;align-items:center;gap:8px;
+      box-shadow:var(--soft);font-size:13px;font-weight:800;
+    }
+    .chip.blue{background:linear-gradient(180deg,#19345f,#12294b); border-color:#2e5797; color:#cfe0ff}
+    .chip.green{background:linear-gradient(180deg,#113422,#0e2619); border-color:#28573c; color:#baf0cd}
+    .btn,.toggle-btn{
+      height:42px;display:grid;place-items:center;box-shadow:var(--soft);cursor:pointer;
+      transition:.18s ease;
+    }
+    .btn{width:42px}
+    .toggle-btn{
+      min-width:42px; padding:0 12px; font-weight:800; font-size:13px;
+    }
+    .toggle-btn.active{
+      background:linear-gradient(180deg,#1d3359,#15284a);
+      border-color:#34609f;
+      color:#fff;
+    }
+    .mode-toggle{display:flex;gap:8px;padding:6px;border-radius:18px;background:#101827;border:1px solid var(--line);box-shadow:var(--soft)}
+    .mode-toggle button{height:42px;padding:0 16px;cursor:pointer;font-weight:800}
+    .mode-toggle button.active{background:linear-gradient(180deg,#1e3358,#1a2b49);border-color:#365f9f;color:white}
+    .mode-toggle button[data-mode="rule"].active{background:linear-gradient(180deg,#3e2b12,#2f2111);border-color:#7c5628}
+
+    .toolbar{
+      grid-row:2/span 2; border-radius:24px; display:flex; flex-direction:column;
+      align-items:center; padding:12px 10px; gap:10px; overflow:hidden;
+      min-width:0; transition:opacity .18s ease, transform .18s ease;
+    }
+    .app.hide-toolbar .toolbar{opacity:0; transform:translateX(-10px); pointer-events:none;}
+    .tool-btn{width:58px;height:58px;display:grid;place-items:center;font-size:22px;box-shadow:var(--soft);cursor:pointer}
+    .tool-btn.active{background:linear-gradient(180deg,#1c3462,#15284a);border-color:#335f9e}
+    .tool-label{font-size:11px;color:#6f819d;font-weight:700;margin-top:-4px;margin-bottom:4px}
+
+    .sidebar{
+      grid-row:2/span 2;border-radius:28px;overflow:hidden;min-height:0;display:flex;flex-direction:column;
+      min-width:0; transition:opacity .18s ease, transform .18s ease;
+    }
+    .app.hide-left .left-sidebar{opacity:0; transform:translateX(-10px); pointer-events:none;}
+    .app.hide-right .right-sidebar{opacity:0; transform:translateX(10px); pointer-events:none;}
+
+    .panel-head{
+      padding:16px;border-bottom:1px solid rgba(255,255,255,.04);
+      background:linear-gradient(180deg, rgba(26,37,56,.95), rgba(18,27,42,.95));
+    }
+    .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:6px;border-radius:18px;background:#0e1522;border:1px solid rgba(255,255,255,.04)}
+    .tab{height:46px;display:flex;align-items:center;justify-content:center;color:#9fb0c8;font-weight:800;cursor:pointer}
+    .tab.active{background:linear-gradient(180deg,#1a2640,#152136);border-color:#2c3e5a;color:#f0f5fd}
+    .panel-body{flex:1;overflow:auto;padding:16px}
+    .section{margin-bottom:16px}
+    .section-title{
+      display:flex;align-items:center;justify-content:space-between;
+      font-size:13px;color:#90a1bb;font-weight:800;letter-spacing:.04em;margin-bottom:10px;
+    }
+    .badge{
+      display:inline-flex;height:26px;padding:0 10px;border-radius:999px;align-items:center;
+      background:#132238;border:1px solid #263a58;color:#cfe0ff;font-size:12px;font-weight:800;
+    }
+    .badge.orange{background:#2f2111;border-color:#69461b;color:#ffd49b}
+    .card{
+      border:1px solid rgba(255,255,255,.05);
+      background:linear-gradient(180deg,#162132,#121b2a);
+      border-radius:18px;padding:14px;box-shadow:var(--soft);
+    }
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,.06)}
+    .row:last-child{border-bottom:none}
+    .label{font-size:14px;font-weight:800}
+    .meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+    .select{min-width:132px;height:40px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:13px}
+    .pill{height:34px;padding:0 12px;display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .kpi{
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:16px;padding:12px;background:linear-gradient(180deg,#111b2b,#0d1522);
+    }
+    .kpi .n{font-size:12px;color:var(--muted);font-weight:800}
+    .kpi .v{font-size:22px;font-weight:900;margin-top:6px}
+    .search{height:46px;padding:0 14px;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:#101827;border-radius:14px}
+    .search input{border:none;background:transparent;outline:none;width:100%;color:#e9f0fb;font:inherit}
+    .tree{display:flex;flex-direction:column;gap:10px}
+    .group{border:1px solid rgba(255,255,255,.05);border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#131d2d,#101827)}
+    .group-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:linear-gradient(180deg,#172234,#131d2d);border-bottom:1px solid rgba(255,255,255,.04);font-weight:800}
+    .group-items{padding:10px}
+    .scene-item{
+      display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;
+      padding:11px 12px;border-radius:14px;cursor:pointer;border:1px solid transparent;
+    }
+    .scene-item:hover{background:#16253b}
+    .scene-item.active{background:#172943;border-color:#2e4b73}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.blue{background:var(--blue)} .dot.orange{background:var(--orange)} .dot.green{background:var(--green)}
+    .mini{width:34px;height:34px;display:grid;place-items:center;color:#aab8cc;font-size:14px}
+
+    .viewport{
+      grid-column:3;grid-row:2;position:relative;overflow:hidden;border-radius:30px;
+      border:1px solid rgba(255,255,255,.05);box-shadow:var(--shadow);
+      background:
+        radial-gradient(circle at 78% 16%, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 20%),
+        linear-gradient(180deg,#192536 0%,#1c2b3e 35%,#151d28 100%);
+      min-width:0;
+    }
+    .viewport-grid{
+      position:absolute;inset:0;
+      background-image:
+        linear-gradient(rgba(165,189,224,.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(165,189,224,.12) 1px, transparent 1px);
+      background-size:34px 34px;
+      transform:perspective(1100px) rotateX(71deg) scale(1.42) translateY(24%);
+      transform-origin:center center;opacity:.5;
+    }
+    .axis-x,.axis-y,.axis-z{position:absolute;opacity:.9}
+    .axis-x{left:16%;top:64%;width:60%;height:2px;background:#6f88ff;transform:rotate(-13deg)}
+    .axis-y{left:56%;top:4%;width:2px;height:70%;background:#66d09c}
+    .axis-z{left:45%;top:25%;width:2px;height:48%;background:#f1a85c;transform:rotate(65deg)}
+    .top-hud{
+      position:absolute;left:18px;right:18px;top:18px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+    }
+    .hud-card{
+      background:rgba(14,21,34,.82);border:1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(10px);border-radius:22px;padding:14px 16px;box-shadow:var(--soft);
+    }
+    .tool-help{width:360px}
+    .view-switch{display:flex;gap:8px;padding:8px;border-radius:22px;background:rgba(14,21,34,.78);border:1px solid rgba(255,255,255,.06)}
+    .view-btn{height:42px;padding:0 16px;display:flex;align-items:center;font-weight:800;color:#9fb0c8}
+    .view-btn.active{background:linear-gradient(180deg,#1d3359,#15284a);border-color:#34609f;color:white}
+    .stats-card{width:250px}
+    .stats-big{font-size:28px;font-weight:900;margin-top:4px}
+
+    .model{position:absolute;left:32%;top:30%;width:420px;height:260px;filter: drop-shadow(0 18px 28px rgba(0,0,0,.26))}
+    .solid{position:absolute; left:72px; top:28px; width:224px; height:132px; transform:skewX(-24deg);}
+    .face{position:absolute;border:1px solid rgba(255,255,255,.08);border-radius:16px}
+    .face.top{left:72px;top:0;width:160px;height:82px;background:linear-gradient(180deg,#5d7695,#49637f)}
+    .face.left{left:0;top:62px;width:72px;height:110px;background:linear-gradient(180deg,#465f7a,#384d66)}
+    .face.front{left:72px;top:62px;width:160px;height:110px;background:linear-gradient(180deg,#54708e,#425972);box-shadow: inset 0 0 0 3px rgba(93,150,255,.34)}
+    .selection-box{position:absolute;left:27%;top:24%;width:338px;height:256px;border:2px solid rgba(93,150,255,.65);border-radius:6px}
+    .ghost{
+      position:absolute;left:46%;top:48%;width:188px;height:72px;border:2px dashed rgba(93,150,255,.75);
+      background:linear-gradient(180deg,rgba(93,150,255,.16),rgba(93,150,255,.05));border-radius:18px;transform:skewX(-24deg);
+    }
+    .measure{position:absolute;display:flex;align-items:center;gap:8px;color:#dbe6f7;font-weight:900}
+    .measure .bubble{background:rgba(12,18,29,.92);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:6px 10px;box-shadow:var(--soft)}
+    .measure .line{background:#8797ae;opacity:.75}
+    .m1{left:40%;top:34%}.m1 .line{width:1px;height:72px}
+    .m2{left:34%;top:58%}.m2 .line{width:122px;height:2px}
+    .m3{left:47%;top:49%}.m3 .line{width:98px;height:2px}
+    .hint-tags{position:absolute;left:56%;top:28%;display:flex;flex-wrap:wrap;gap:8px;max-width:340px}
+    .tag{
+      background:rgba(13,21,34,.9);border:1px solid rgba(255,255,255,.07);padding:9px 12px;border-radius:999px;
+      font-size:13px;font-weight:800;color:#dfe8f7;
+    }
+    .tag.primary{background:#162a4c;border-color:#2f548a;color:#d7e6ff}
+    .tag.green{background:#113624;border-color:#27563b;color:#bff1cf}
+    .tag.orange{background:#3b2915;border-color:#6d4a1d;color:#ffd49d}
+    .cursor-menu{
+      position:absolute;left:59%;top:56%;display:grid;grid-template-columns:repeat(2,122px);gap:10px;
+      background:rgba(13,21,34,.84);border:1px solid rgba(255,255,255,.07);backdrop-filter:blur(12px);
+      border-radius:24px;padding:14px;box-shadow:var(--shadow);
+    }
+    .cursor-action{padding:12px;color:#dbe6f7;font-weight:800;cursor:pointer}
+    .cursor-action small{display:block;margin-top:4px;font-size:11px;color:#90a0b8;font-weight:600}
+    .cursor-action.active{background:linear-gradient(180deg,#1e345a,#162a4b);border-color:#365f9f}
+    .action-dock{
+      position:absolute;left:50%;transform:translateX(-50%);bottom:18px;
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      background:rgba(13,21,34,.86);border:1px solid rgba(255,255,255,.07);
+      border-radius:22px;padding:10px 12px;backdrop-filter:blur(12px);box-shadow:var(--shadow);
+      max-width:calc(100% - 40px);
+    }
+    .coord{height:40px;padding:0 14px;display:flex;align-items:center;font-weight:800}
+    .coord.command{min-width:220px;color:#96a7bf}
+    .mode-banner{
+      position:absolute;right:18px;bottom:104px;background:rgba(13,21,34,.9);border:1px solid rgba(255,255,255,.07);
+      border-radius:18px;padding:14px 16px;box-shadow:var(--soft);max-width:280px;
+    }
+    .mode-banner .title{font-weight:900;font-size:15px}
+    .mode-banner .desc{font-size:12px;color:#93a3bc;line-height:1.6;margin-top:6px}
+
+    .console{
+      grid-column:3;grid-row:3;border-radius:28px;overflow:hidden;background:linear-gradient(180deg,#0d111a,#0a0f16);
+      border:1px solid rgba(255,255,255,.05);box-shadow:var(--shadow);
+      min-height:0; transition:opacity .18s ease, transform .18s ease;
+    }
+    .app.hide-console .console{opacity:0; transform:translateY(10px); pointer-events:none;}
+    .console-head{
+      height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;
+      background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.04)
+    }
+    .console-body{padding:14px 16px;font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:13px;line-height:1.85;color:#dbe5f2}
+    .ok{color:#7fe0a7}.warn{color:#f8bc63}.danger{color:#ff8d8d}.info{color:#93bbff}.dim{color:#7f92ac}
+    .stack{display:grid;gap:12px}
+    .ifc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .kv{
+      border:1px solid rgba(255,255,255,.05);border-radius:16px;padding:12px;
+      background:linear-gradient(180deg,#111a29,#0d1522);
+    }
+    .kv .k{font-size:12px;color:#92a4bc;font-weight:800}
+    .kv .v{margin-top:6px;font-weight:900;font-size:14px;color:#eff5ff;word-break:break-word}
+    .prop-table{display:grid;gap:10px}
+    .prop-row{
+      display:grid;grid-template-columns:1fr auto;gap:10px;align-items:flex-start;
+      padding:11px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.05);background:linear-gradient(180deg,#111a29,#0d1522);
+    }
+    .prop-name{font-weight:800}
+    .prop-val{font-weight:900;color:#dfe9f9}
+    .list{display:grid;gap:10px}
+    .list-item{padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.05);background:linear-gradient(180deg,#111a29,#0d1522)}
+    .state{
+      display:inline-flex;height:24px;padding:0 10px;border-radius:999px;align-items:center;font-size:12px;font-weight:800
+    }
+    .state.green{background:#103724;color:#baf0ce;border:1px solid #29573c}
+    .state.orange{background:#3a2915;color:#ffd29b;border:1px solid #6a4a1d}
+    .state.red{background:#411c22;color:#ffb1b1;border:1px solid #7b313a}
+    .footer-note{font-size:12px;color:#8fa1ba;line-height:1.7;margin-top:4px}
+    .hidden{display:none !important}
+
+    .top-controls{
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      padding-left:8px; border-left:1px solid rgba(255,255,255,.08);
+    }
+    .status-dock{
+      position:absolute; top:74px; right:18px;
+      background:rgba(13,21,34,.92); border:1px solid rgba(255,255,255,.08);
+      border-radius:16px; padding:10px 12px; font-size:12px; color:var(--muted);
+      box-shadow:var(--soft);
+    }
+    .status-dock strong{color:#fff}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar chrome">
+      <div class="top-left">
+        <div class="logo"></div>
+        <div class="brand">
+          <h1>Kolibri Ai3D</h1>
+          <small>Interactive desktop mockup · top bar controls panel visibility</small>
+        </div>
+        <nav class="menus">
+          <div>檔案</div><div>編輯</div><div>工具</div><div>檢視</div><div>協同</div>
+        </nav>
+      </div>
+      <div class="top-right">
+        <div class="mode-toggle">
+          <button class="active" data-mode="model">建模</button>
+          <button data-mode="bim">BIM</button>
+          <button data-mode="rule">法規檢核</button>
+        </div>
+
+        <div class="top-controls">
+          <button class="toggle-btn active" data-pane="toolbar">工具列</button>
+          <button class="toggle-btn active" data-pane="left">左側欄</button>
+          <button class="toggle-btn active" data-pane="right">右側欄</button>
+          <button class="toggle-btn active" data-pane="console">下方面板</button>
+        </div>
+
+        <div class="chip">未儲存場景 ✳</div>
+        <div class="chip blue" id="topStatus">推拉模式</div>
+        <div class="chip green">MCP 已連線</div>
+        <button class="btn">💾</button><button class="btn">↺</button><button class="btn">↻</button>
+      </div>
+    </header>
+
+    <aside class="toolbar chrome" id="toolbarPane">
+      <div class="tool-btn active">✥</div><div class="tool-label">選取</div>
+      <div class="tool-btn">⬒</div><div class="tool-label">推拉</div>
+      <div class="tool-btn">／</div><div class="tool-label">畫線</div>
+      <div class="tool-btn">◫</div><div class="tool-label">矩形</div>
+      <div class="tool-btn">⬍</div><div class="tool-label">移動</div>
+      <div class="tool-btn">⟲</div><div class="tool-label">旋轉</div>
+      <div class="tool-btn">⌗</div><div class="tool-label">量測</div>
+      <div class="tool-btn">🏷</div><div class="tool-label">IFC</div>
+      <div class="tool-btn">⚠</div><div class="tool-label">檢核</div>
+      <div class="tool-btn">⚙</div><div class="tool-label">設定</div>
+    </aside>
+
+    <aside class="sidebar chrome left-sidebar" id="leftPane">
+      <div class="panel-head">
+        <div class="tabs">
+          <div class="tab active">設計</div>
+          <div class="tab">屬性</div>
+          <div class="tab">場景</div>
+          <div class="tab">輸出</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="left-model">
+          <div class="section">
+            <div class="section-title"><span>建模控制</span><span class="badge">只留操作前置</span></div>
+            <div class="card">
+              <div class="row">
+                <div>
+                  <div class="label">目前工具</div>
+                  <div class="meta">推拉工具 · 滑鼠停住時顯示建議動作</div>
+                </div>
+                <div class="pill">P</div>
+              </div>
+              <div class="row">
+                <div>
+                  <div class="label">工作平面</div>
+                  <div class="meta">Ground / Level GF</div>
+                </div>
+                <div class="select"><span>地面 XZ</span><span>▾</span></div>
+              </div>
+              <div class="row">
+                <div>
+                  <div class="label">吸附策略</div>
+                  <div class="meta">端點 / 中點 / 軸鎖定 / 面中心</div>
+                </div>
+                <div class="select"><span>智能吸附</span><span>▾</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title"><span>場景導覽</span><span>找物件用</span></div>
+            <div class="search"><span>🔎</span><input value="柱 / 梁 / 牆 / 板"></div>
+          </div>
+
+          <div class="tree">
+            <div class="group">
+              <div class="group-head"><span>🏗 結構構件（12）</span><span>模型樹</span></div>
+              <div class="group-items">
+                <div class="scene-item">
+                  <div class="dot blue"></div>
+                  <div><strong>梁 B-12</strong><div class="meta">鋼梁 · 跨距 6000 mm</div></div>
+                  <div class="mini">👁</div>
+                  <div class="mini">🎯</div>
+                </div>
+                <div class="scene-item active">
+                  <div class="dot orange"></div>
+                  <div><strong>柱 C-04</strong><div class="meta">混凝土柱 · 4929 × 2382</div></div>
+                  <div class="mini">👁</div>
+                  <div class="mini">🎯</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="left-bim" class="hidden">
+          <div class="section">
+            <div class="section-title"><span>BIM 模式</span><span class="badge">資料一致性</span></div>
+            <div class="card">
+              <div class="row"><div><div class="label">目前構件</div><div class="meta">柱 C-04 已綁定 IfcColumn</div></div><div class="pill">IFC</div></div>
+              <div class="row"><div><div class="label">樓層 / Storey</div><div class="meta">用於結構分類、匯出、報表</div></div><div class="select"><span>GF</span><span>▾</span></div></div>
+              <div class="row"><div><div class="label">Property Set</div><div class="meta">Pset_ColumnCommon / Custom</div></div><div class="select"><span>2 組</span><span>▾</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="left-rule" class="hidden">
+          <div class="section">
+            <div class="section-title"><span>法規檢核模式</span><span class="badge orange">可追溯</span></div>
+            <div class="card">
+              <div class="row"><div><div class="label">檢核包</div><div class="meta">消防 / 逃生 / 淨高 / 開口 / 自訂規則</div></div><div class="select"><span>消防 v1.4</span><span>▾</span></div></div>
+              <div class="row"><div><div class="label">檢核範圍</div><div class="meta">目前樓層 GF，含牆、門、走道、柱</div></div><div class="select"><span>GF 全部</span><span>▾</span></div></div>
+              <div class="row"><div><div class="label">觸發方式</div><div class="meta">每次幾何變更後自動刷新</div></div><div class="select"><span>自動</span><span>▾</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="viewport">
+      <div class="viewport-grid"></div>
+      <div class="axis-x"></div><div class="axis-y"></div><div class="axis-z"></div>
+
+      <div class="top-hud">
+        <div class="hud-card tool-help">
+          <div style="font-weight:900;font-size:16px" id="hudTitle">目前工具：推拉工具</div>
+          <div class="meta" id="hudDesc">推拉面後可直接輸入尺寸。滑鼠停住會顯示建議操作，不必一直切工具。</div>
+        </div>
+        <div class="view-switch">
+          <div class="view-btn active">透視</div><div class="view-btn">正視</div><div class="view-btn">俯視</div><div class="view-btn">左視</div>
+        </div>
+        <div class="hud-card stats-card">
+          <div class="meta" id="hudSub">距離 5 px（吸附） [S:38]</div>
+          <div class="stats-big" id="hudBig">Ground</div>
+        </div>
+      </div>
+
+      <div class="selection-box"></div>
+      <div class="model">
+        <div class="solid">
+          <div class="face top"></div><div class="face left"></div><div class="face front"></div>
+        </div>
+      </div>
+      <div class="ghost" id="ghost"></div>
+      <div class="measure m1"><div class="line"></div><div class="bubble" id="measure1">2.38 m</div></div>
+      <div class="measure m2"><div class="bubble" id="measure2">4.93 m</div><div class="line"></div></div>
+      <div class="measure m3"><div class="bubble" id="measure3">2.27 m</div><div class="line"></div></div>
+
+      <div class="hint-tags">
+        <div class="tag">端點</div><div class="tag">沿 X 軸</div><div class="tag primary" id="semanticTag">可推拉</div><div class="tag green">智能吸附</div>
+      </div>
+
+      <div class="cursor-menu" id="cursorMenu">
+        <div class="cursor-action active"><div>推拉<small>Push / Pull</small></div></div>
+        <div class="cursor-action"><div>輸入尺寸<small>Enter Value</small></div></div>
+        <div class="cursor-action"><div>建立構件<small>Make Component</small></div></div>
+        <div class="cursor-action"><div>複製<small>Copy</small></div></div>
+      </div>
+
+      <div class="mode-banner">
+        <div class="title" id="bannerTitle">建模模式</div>
+        <div class="desc" id="bannerDesc">直接用最上面 BAR 控制功能列表的顯示與隱藏，讓你在繪圖時保留最大視野。</div>
+      </div>
+
+      <div class="action-dock">
+        <div class="coord">X: 185000</div><div class="coord">Y: 0</div><div class="coord">Z: 24500</div>
+        <div class="coord">Snap: ON</div><div class="coord">Units: mm</div>
+        <div class="coord command" id="commandHint">尺寸：輸入數值或按 Tab 切換建議…</div>
+      </div>
+
+      <div class="status-dock" id="visibilityStatus">
+        顯示中：<strong>工具列 / 左側欄 / 右側欄 / 下方面板</strong>
+      </div>
+    </main>
+
+    <aside class="sidebar chrome right-sidebar" id="rightPane">
+      <div class="panel-head">
+        <div class="section-title" style="margin:0">
+          <span id="rightTitle">選取物件詳情</span>
+          <span class="badge" id="rightBadge">柱 C-04</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="right-model">
+          <div class="section">
+            <div class="grid-3">
+              <div class="kpi"><div class="n">選取數</div><div class="v">1</div></div>
+              <div class="kpi"><div class="n">模式</div><div class="v">面編輯</div></div>
+              <div class="kpi"><div class="n">FPS</div><div class="v">77</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title"><span>幾何與材質</span><span>建模時主看這裡</span></div>
+            <div class="card">
+              <div class="row"><div><div class="label">名稱</div><div class="meta">場景樹定位後在此精修</div></div><div class="select"><span>柱 C-04</span><span>✎</span></div></div>
+              <div class="row"><div><div class="label">尺寸</div><div class="meta">4929 × 2382 × 2268 mm</div></div><div class="select"><span>編輯</span><span>↕</span></div></div>
+              <div class="row"><div><div class="label">位置</div><div class="meta">X -3477 / Y 1 / Z -3952</div></div><div class="select"><span>定位</span><span>🎯</span></div></div>
+              <div class="row"><div><div class="label">材質</div><div class="meta">影響顏色與出圖分類</div></div><div class="select"><span>混凝土</span><span>▾</span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="right-bim" class="hidden">
+          <div class="section">
+            <div class="grid-3">
+              <div class="kpi"><div class="n">IFC 綁定</div><div class="v">OK</div></div>
+              <div class="kpi"><div class="n">Pset</div><div class="v">2</div></div>
+              <div class="kpi"><div class="n">QTO</div><div class="v">即時</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title"><span>基本 BIM 資訊</span><span>未來要靠這個活</span></div>
+            <div class="ifc-grid">
+              <div class="kv"><div class="k">IFC Entity</div><div class="v">IfcColumn</div></div>
+              <div class="kv"><div class="k">GlobalId</div><div class="v">3R4xGk2nT2Fh8mQb7sLz2P</div></div>
+              <div class="kv"><div class="k">Storey</div><div class="v">GF</div></div>
+              <div class="kv"><div class="k">Phase</div><div class="v">New Construction</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="right-rule" class="hidden">
+          <div class="section">
+            <div class="grid-3">
+              <div class="kpi"><div class="n">通過</div><div class="v">18</div></div>
+              <div class="kpi"><div class="n">警告</div><div class="v">3</div></div>
+              <div class="kpi"><div class="n">錯誤</div><div class="v">1</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title"><span>檢核結果</span><span>可定位、可追溯</span></div>
+            <div class="list">
+              <div class="list-item"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>逃生淨寬不足</strong><span class="state red">錯誤</span></div><div class="meta">走道 C 區段目前 1080 mm，小於要求 1200 mm。</div></div>
+              <div class="list-item"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>消防設備前方遮擋</strong><span class="state orange">警告</span></div><div class="meta">柱 C-04 與消防箱淨距不足。</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-note" id="rightFoot">
+          上方 BAR 可以直接控制四個功能區塊顯示與隱藏，這樣才像真的在畫圖，而不是一直被面板卡住。
+        </div>
+      </div>
+    </aside>
+
+    <section class="console" id="consolePane">
+      <div class="console-head">
+        <div style="font-weight:800" id="consoleTitle">Console / AI Assist</div>
+        <div class="pill">清除</div>
+      </div>
+      <div class="console-body" id="consoleBody">
+        <div><span class="dim">44.3s</span> <span class="warn">CLICK</span> PushPull @ [-1000,0,-2000] | hover=Column:C-04</div>
+        <div><span class="dim">44.8s</span> <span class="ok">SNAP</span> Face normal locked · axis=Z</div>
+        <div><span class="dim">45.0s</span> <span class="info">SUGGEST</span> Enter value → 3000 mm</div>
+        <div><span class="dim">45.4s</span> <span class="ok">HISTORY</span> Step #12 committed</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const app = document.getElementById('app');
+    const paneButtons = document.querySelectorAll('[data-pane]');
+    const visibilityStatus = document.getElementById('visibilityStatus');
+
+    function updateVisibilityText() {
+      const names = [];
+      if (!app.classList.contains('hide-toolbar')) names.push('工具列');
+      if (!app.classList.contains('hide-left')) names.push('左側欄');
+      if (!app.classList.contains('hide-right')) names.push('右側欄');
+      if (!app.classList.contains('hide-console')) names.push('下方面板');
+      visibilityStatus.innerHTML = '顯示中：<strong>' + (names.length ? names.join(' / ') : '純畫布模式') + '</strong>';
+    }
+
+    paneButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pane = btn.dataset.pane;
+        if (pane === 'toolbar') app.classList.toggle('hide-toolbar');
+        if (pane === 'left') app.classList.toggle('hide-left');
+        if (pane === 'right') app.classList.toggle('hide-right');
+        if (pane === 'console') app.classList.toggle('hide-console');
+        btn.classList.toggle('active', !app.classList.contains('hide-' + pane));
+        updateVisibilityText();
+      });
+    });
+
+    const buttons = document.querySelectorAll('[data-mode]');
+    const topStatus = document.getElementById('topStatus');
+    const hudTitle = document.getElementById('hudTitle');
+    const hudDesc = document.getElementById('hudDesc');
+    const hudSub = document.getElementById('hudSub');
+    const hudBig = document.getElementById('hudBig');
+    const semanticTag = document.getElementById('semanticTag');
+    const bannerTitle = document.getElementById('bannerTitle');
+    const bannerDesc = document.getElementById('bannerDesc');
+    const rightTitle = document.getElementById('rightTitle');
+    const rightBadge = document.getElementById('rightBadge');
+    const rightFoot = document.getElementById('rightFoot');
+    const consoleTitle = document.getElementById('consoleTitle');
+    const consoleBody = document.getElementById('consoleBody');
+    const commandHint = document.getElementById('commandHint');
+    const measure1 = document.getElementById('measure1');
+    const measure2 = document.getElementById('measure2');
+    const measure3 = document.getElementById('measure3');
+    const ghost = document.getElementById('ghost');
+    const cursorMenu = document.getElementById('cursorMenu');
+
+    const leftSections = {model:document.getElementById('left-model'), bim:document.getElementById('left-bim'), rule:document.getElementById('left-rule')};
+    const rightSections = {model:document.getElementById('right-model'), bim:document.getElementById('right-bim'), rule:document.getElementById('right-rule')};
+
+    const modeConfig = {
+      model: {
+        topStatus:'推拉模式',
+        hudTitle:'目前工具：推拉工具',
+        hudDesc:'推拉面後可直接輸入尺寸。滑鼠停住會顯示建議操作，不必一直切工具。',
+        hudSub:'距離 5 px（吸附） [S:38]',
+        hudBig:'Ground',
+        semantic:'可推拉',
+        bannerTitle:'建模模式',
+        bannerDesc:'直接用最上面 BAR 控制面板顯示，繪圖時可以迅速切成更乾淨的畫布。',
+        rightTitle:'選取物件詳情',
+        rightBadge:'柱 C-04',
+        rightFoot:'建模模式最重要的是視野與節奏。面板該出現時出現，不該出現時就收掉。',
+        consoleTitle:'Console / AI Assist',
+        consoleLines:[
+          '<div><span class="dim">44.3s</span> <span class="warn">CLICK</span> PushPull @ [-1000,0,-2000] | hover=Column:C-04</div>',
+          '<div><span class="dim">44.8s</span> <span class="ok">SNAP</span> Face normal locked · axis=Z</div>',
+          '<div><span class="dim">45.0s</span> <span class="info">SUGGEST</span> Enter value → 3000 mm</div>',
+          '<div><span class="dim">45.4s</span> <span class="ok">HISTORY</span> Step #12 committed</div>'
+        ],
+        command:'尺寸：輸入數值或按 Tab 切換建議…',
+        m1:'2.38 m', m2:'4.93 m', m3:'2.27 m',
+        ghost:{left:'46%', top:'48%', width:'188px', height:'72px'},
+        menu:[['推拉','Push / Pull'],['輸入尺寸','Enter Value'],['建立構件','Make Component'],['複製','Copy']]
+      },
+      bim: {
+        topStatus:'BIM 模式',
+        hudTitle:'目前模式：BIM / IFC 編輯',
+        hudDesc:'幾何修改後，同步維持 IFC Entity、Property Set、Storey 與 Quantity 一致。',
+        hudSub:'IFC 對應 92% · GlobalId 已存在',
+        hudBig:'IfcColumn',
+        semantic:'IFC 綁定',
+        bannerTitle:'BIM 模式',
+        bannerDesc:'BIM 不一定要一直佔滿畫面，但該展開時要一鍵回來。',
+        rightTitle:'BIM / IFC 資訊',
+        rightBadge:'IfcColumn：柱 C-04',
+        rightFoot:'BIM 模式的資料完整性，比單純畫得快更重要。',
+        consoleTitle:'BIM Event Log',
+        consoleLines:[
+          '<div><span class="dim">44.8s</span> <span class="ok">IFC</span> Entity remains <strong>IfcColumn</strong> after extrusion update</div>',
+          '<div><span class="dim">45.0s</span> <span class="ok">QTO</span> Volume recalculated → 26.63 m³</div>',
+          '<div><span class="dim">45.2s</span> <span class="info">PSET</span> FireRating preserved → 2 HR</div>',
+          '<div><span class="dim">45.4s</span> <span class="ok">REL</span> Storey assignment confirmed → GF</div>'
+        ],
+        command:'BIM：更新數量 / 屬性 / IFC 綁定…',
+        m1:'Storey GF', m2:'Volume 26.63 m³', m3:'LoadBearing=True',
+        ghost:{left:'45%', top:'44%', width:'214px', height:'86px'},
+        menu:[['指定 IFC','Assign Entity'],['編輯 Pset','Property Set'],['設定樓層','Storey'],['更新數量','QTO Update']]
+      },
+      rule: {
+        topStatus:'法規檢核',
+        hudTitle:'目前模式：消防 / 法規檢核',
+        hudDesc:'以空間與構件關係做檢核，結果要能定位到 3D 畫面，不是只出一串報告。',
+        hudSub:'Rule Pack：消防 v1.4 · GF',
+        hudBig:'1 Error',
+        semantic:'需檢核',
+        bannerTitle:'法規檢核模式',
+        bannerDesc:'檢核結果可以先隱藏面板看空間，再打開右側追錯，節奏會比較順。',
+        rightTitle:'法規檢核結果',
+        rightBadge:'GF：消防 / 逃生',
+        rightFoot:'法規檢核模式要能回答三件事：哪裡錯、為什麼錯、怎麼改。',
+        consoleTitle:'Rule Check Log',
+        consoleLines:[
+          '<div><span class="dim">45.1s</span> <span class="danger">FAIL</span> FIRE-EGRESS-001 corridor width = 1080 mm < required 1200 mm</div>',
+          '<div><span class="dim">45.2s</span> <span class="warn">WARN</span> Fire cabinet clearance impacted by Column:C-04</div>',
+          '<div><span class="dim">45.4s</span> <span class="ok">PASS</span> Slab opening dimensions verified</div>',
+          '<div><span class="dim">45.5s</span> <span class="info">LOCATE</span> Highlighted conflict zone in viewport</div>'
+        ],
+        command:'檢核：定位違規 / 查看條文 / 生成報告…',
+        m1:'1080 mm', m2:'需 ≥ 1200 mm', m3:'錯誤區域',
+        ghost:{left:'42%', top:'44%', width:'258px', height:'96px'},
+        menu:[['定位違規','Locate Issue'],['查看條文','Open Rule'],['比較修正','Before / After'],['生成報告','Export Report']]
+      }
+    };
+
+    function renderMenu(items){
+      cursorMenu.innerHTML = items.map((it, idx) => `
+        <div class="cursor-action ${idx===0 ? 'active' : ''}">
+          <div>${it[0]}<small>${it[1]}</small></div>
+        </div>
+      `).join('');
+    }
+
+    function switchMode(mode){
+      buttons.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      Object.keys(leftSections).forEach(k => leftSections[k].classList.toggle('hidden', k !== mode));
+      Object.keys(rightSections).forEach(k => rightSections[k].classList.toggle('hidden', k !== mode));
+
+      const c = modeConfig[mode];
+      topStatus.textContent = c.topStatus;
+      hudTitle.textContent = c.hudTitle;
+      hudDesc.textContent = c.hudDesc;
+      hudSub.textContent = c.hudSub;
+      hudBig.textContent = c.hudBig;
+      semanticTag.textContent = c.semantic;
+      bannerTitle.textContent = c.bannerTitle;
+      bannerDesc.textContent = c.bannerDesc;
+      rightTitle.textContent = c.rightTitle;
+      rightBadge.textContent = c.rightBadge;
+      rightFoot.textContent = c.rightFoot;
+      consoleTitle.textContent = c.consoleTitle;
+      consoleBody.innerHTML = c.consoleLines.join('');
+      commandHint.textContent = c.command;
+      measure1.textContent = c.m1;
+      measure2.textContent = c.m2;
+      measure3.textContent = c.m3;
+      ghost.style.left = c.ghost.left;
+      ghost.style.top = c.ghost.top;
+      ghost.style.width = c.ghost.width;
+      ghost.style.height = c.ghost.height;
+      renderMenu(c.menu);
+    }
+
+    buttons.forEach(btn => btn.addEventListener('click', () => switchMode(btn.dataset.mode)));
+    switchMode('model');
+    updateVisibilityText();
+  </script>
+</body>
+</html>
