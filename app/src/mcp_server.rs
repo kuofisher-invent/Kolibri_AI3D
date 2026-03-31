@@ -61,6 +61,33 @@ pub enum McpCommand {
     Screenshot { path: String },
     ExportScene { path: String },
     SetLayoutMode { enabled: bool },
+    // ── 2D Drafting ──
+    #[cfg(feature = "drafting")]
+    DraftAddLine { p1: [f64; 2], p2: [f64; 2] },
+    #[cfg(feature = "drafting")]
+    DraftAddCircle { center: [f64; 2], radius: f64 },
+    #[cfg(feature = "drafting")]
+    DraftAddArc { center: [f64; 2], radius: f64, start_angle: f64, end_angle: f64 },
+    #[cfg(feature = "drafting")]
+    DraftAddRectangle { p1: [f64; 2], p2: [f64; 2] },
+    #[cfg(feature = "drafting")]
+    DraftAddPolyline { points: Vec<[f64; 2]>, closed: bool },
+    #[cfg(feature = "drafting")]
+    DraftAddText { position: [f64; 2], content: String, height: f64 },
+    #[cfg(feature = "drafting")]
+    DraftAddDimLinear { p1: [f64; 2], p2: [f64; 2], offset: f64 },
+    #[cfg(feature = "drafting")]
+    DraftDelete { id: u64 },
+    #[cfg(feature = "drafting")]
+    DraftClear,
+    #[cfg(feature = "drafting")]
+    DraftList,
+    #[cfg(feature = "drafting")]
+    DraftGetEntity { id: u64 },
+    #[cfg(feature = "drafting")]
+    DraftSetTool { tool: String },
+    #[cfg(feature = "drafting")]
+    DraftSelect { ids: Vec<u64> },
 }
 
 /// MCP result sent back from GUI thread to MCP thread

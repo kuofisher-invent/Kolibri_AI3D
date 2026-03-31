@@ -279,6 +279,72 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
         "set_layout_mode" => Some(McpCommand::SetLayoutMode {
             enabled: args["enabled"].as_bool().unwrap_or(true),
         }),
+        _ => {
+            #[cfg(feature = "drafting")]
+            if let Some(cmd) = parse_draft_command(tool, args) { return Some(cmd); }
+            None
+        }
+    }
+}
+
+#[cfg(feature = "drafting")]
+fn parse_pt2(v: &serde_json::Value) -> [f64; 2] {
+    if let Some(arr) = v.as_array() {
+        if arr.len() >= 2 {
+            return [arr[0].as_f64().unwrap_or(0.0), arr[1].as_f64().unwrap_or(0.0)];
+        }
+    }
+    [0.0; 2]
+}
+
+#[cfg(feature = "drafting")]
+fn parse_draft_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
+    match tool {
+        "draft_add_line" => Some(McpCommand::DraftAddLine {
+            p1: parse_pt2(&args["p1"]), p2: parse_pt2(&args["p2"]),
+        }),
+        "draft_add_circle" => Some(McpCommand::DraftAddCircle {
+            center: parse_pt2(&args["center"]),
+            radius: args["radius"].as_f64().unwrap_or(100.0),
+        }),
+        "draft_add_arc" => Some(McpCommand::DraftAddArc {
+            center: parse_pt2(&args["center"]),
+            radius: args["radius"].as_f64().unwrap_or(100.0),
+            start_angle: args["start_angle"].as_f64().unwrap_or(0.0),
+            end_angle: args["end_angle"].as_f64().unwrap_or(std::f64::consts::FRAC_PI_2),
+        }),
+        "draft_add_rectangle" => Some(McpCommand::DraftAddRectangle {
+            p1: parse_pt2(&args["p1"]), p2: parse_pt2(&args["p2"]),
+        }),
+        "draft_add_polyline" => Some(McpCommand::DraftAddPolyline {
+            points: args["points"].as_array()
+                .map(|a| a.iter().map(|v| parse_pt2(v)).collect()).unwrap_or_default(),
+            closed: args["closed"].as_bool().unwrap_or(false),
+        }),
+        "draft_add_text" => Some(McpCommand::DraftAddText {
+            position: parse_pt2(&args["position"]),
+            content: args["content"].as_str().unwrap_or("Text").into(),
+            height: args["height"].as_f64().unwrap_or(5.0),
+        }),
+        "draft_add_dim_linear" => Some(McpCommand::DraftAddDimLinear {
+            p1: parse_pt2(&args["p1"]), p2: parse_pt2(&args["p2"]),
+            offset: args["offset"].as_f64().unwrap_or(10.0),
+        }),
+        "draft_delete" => Some(McpCommand::DraftDelete {
+            id: args["id"].as_u64().unwrap_or(0),
+        }),
+        "draft_clear" => Some(McpCommand::DraftClear),
+        "draft_list" => Some(McpCommand::DraftList),
+        "draft_get_entity" => Some(McpCommand::DraftGetEntity {
+            id: args["id"].as_u64().unwrap_or(0),
+        }),
+        "draft_set_tool" => Some(McpCommand::DraftSetTool {
+            tool: args["tool"].as_str().unwrap_or("select").into(),
+        }),
+        "draft_select" => Some(McpCommand::DraftSelect {
+            ids: args["ids"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_u64()).collect()).unwrap_or_default(),
+        }),
         _ => None,
     }
 }

@@ -343,6 +343,111 @@ impl KolibriApp {
                 if enabled { self.enter_layout_mode(); } else { self.exit_layout_mode(); }
                 McpResult { success: true, data: json!({"layout_mode": enabled}) }
             }
+            // ── 2D Drafting ──
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddLine { p1, p2 } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Line { start: p1, end: p2 });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddCircle { center, radius } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Circle { center, radius });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddArc { center, radius, start_angle, end_angle } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Arc { center, radius, start_angle, end_angle });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddRectangle { p1, p2 } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Rectangle { p1, p2 });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddPolyline { points, closed } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Polyline { points, closed });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddText { position, content, height } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Text { position, content, height, rotation: 0.0 });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftAddDimLinear { p1, p2, offset } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let id = self.editor.draft_doc.add(kolibri_drafting::DraftEntity::DimLinear { p1, p2, offset, text_override: None });
+                McpResult { success: true, data: json!({ "id": id }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftDelete { id } => {
+                let ok = self.editor.draft_doc.remove(id);
+                self.editor.draft_selected.retain(|&s| s != id);
+                McpResult { success: ok, data: json!({ "deleted": ok }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftClear => {
+                let count = self.editor.draft_doc.objects.len();
+                self.editor.draft_doc = kolibri_drafting::DraftDocument::new();
+                self.editor.draft_selected.clear();
+                McpResult { success: true, data: json!({ "cleared": count }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftList => {
+                let entities: Vec<serde_json::Value> = self.editor.draft_doc.objects.iter().map(|obj| {
+                    let etype = match &obj.entity {
+                        kolibri_drafting::DraftEntity::Line { .. } => "line",
+                        kolibri_drafting::DraftEntity::Circle { .. } => "circle",
+                        kolibri_drafting::DraftEntity::Arc { .. } => "arc",
+                        kolibri_drafting::DraftEntity::Rectangle { .. } => "rectangle",
+                        kolibri_drafting::DraftEntity::Polyline { .. } => "polyline",
+                        kolibri_drafting::DraftEntity::Text { .. } => "text",
+                        kolibri_drafting::DraftEntity::DimLinear { .. } => "dim_linear",
+                        kolibri_drafting::DraftEntity::DimAligned { .. } => "dim_aligned",
+                        _ => "other",
+                    };
+                    json!({ "id": obj.id, "type": etype, "layer": obj.layer, "visible": obj.visible })
+                }).collect();
+                McpResult { success: true, data: json!({ "count": entities.len(), "entities": entities }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftGetEntity { id } => {
+                if let Some(obj) = self.editor.draft_doc.objects.iter().find(|o| o.id == id) {
+                    let data = serde_json::to_value(obj).unwrap_or(json!({}));
+                    McpResult { success: true, data }
+                } else {
+                    McpResult { success: false, data: json!({ "error": "Entity not found" }) }
+                }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftSetTool { tool } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                let t = match tool.as_str() {
+                    "select" => Tool::DraftSelect, "line" => Tool::DraftLine,
+                    "arc" => Tool::DraftArc, "circle" => Tool::DraftCircle,
+                    "rectangle" => Tool::DraftRectangle, "polyline" => Tool::DraftPolyline,
+                    "text" => Tool::DraftText, "move" => Tool::DraftMove,
+                    "rotate" => Tool::DraftRotate, "mirror" => Tool::DraftMirror,
+                    "trim" => Tool::DraftTrim, "offset" => Tool::DraftOffset,
+                    "dim_linear" => Tool::DraftDimLinear, "dim_aligned" => Tool::DraftDimAligned,
+                    "erase" => Tool::DraftErase, "copy" => Tool::DraftCopy,
+                    _ => Tool::DraftSelect,
+                };
+                self.editor.tool = t;
+                McpResult { success: true, data: json!({ "tool": tool }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftSelect { ids } => {
+                self.editor.draft_selected = ids.clone();
+                McpResult { success: true, data: json!({ "selected": ids.len() }) }
+            }
         }
     }
 }
