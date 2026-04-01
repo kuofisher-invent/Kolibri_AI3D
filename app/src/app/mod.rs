@@ -586,12 +586,22 @@ impl KolibriApp {
         self.editor.draft_selected.clear();
 
         // 同步 DXF 中的圖層定義到 LayerManager
-        let dxf_layers = crate::dxf_io::parse_dxf_layers(file_path);
+        // DWG 檔案先被轉為 .tmp.dxf，需要找到實際的 DXF 路徑
+        let dxf_path = if file_path.to_lowercase().ends_with(".dwg") {
+            let tmp = format!("{}.tmp.dxf", file_path);
+            let sibling = file_path.rsplit_once('.').map(|(b, _)| format!("{}.dxf", b)).unwrap_or_default();
+            if std::path::Path::new(&tmp).exists() { tmp }
+            else if std::path::Path::new(&sibling).exists() { sibling }
+            else { file_path.to_string() }
+        } else {
+            file_path.to_string()
+        };
+        let dxf_layers = crate::dxf_io::parse_dxf_layers(&dxf_path);
         for (name, color) in &dxf_layers {
             self.editor.draft_layers.add(kolibri_drafting::DraftLayer::new(name, *color));
         }
         if !dxf_layers.is_empty() {
-            tracing::info!("已同步 {} 個 DXF 圖層", dxf_layers.len());
+            self.console_push("INFO", format!("已同步 {} 個圖層", dxf_layers.len()));
         }
 
         // 確保在 2D 模式

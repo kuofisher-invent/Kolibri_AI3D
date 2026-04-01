@@ -273,12 +273,18 @@ impl KolibriApp {
         #[cfg(feature = "drafting")]
         if self.viewer.layout_mode && self.editor.show_layer_manager {
             let mut open = self.editor.show_layer_manager;
+            let dark_frame = egui::Frame::window(&ctx.style())
+                .fill(egui::Color32::from_rgb(40, 44, 52))
+                .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 70, 75)));
             egui::Window::new("圖層特性管理員")
                 .open(&mut open)
                 .default_size([680.0, 420.0])
                 .min_size([500.0, 200.0])
                 .resizable(true)
+                .frame(dark_frame)
                 .show(ctx, |ui| {
+                    // 深色主題文字預設色
+                    ui.style_mut().visuals.override_text_color = Some(egui::Color32::from_rgb(220, 220, 225));
                     // ── 工具列 ──
                     ui.horizontal(|ui| {
                         if ui.button("➕ 新增圖層").clicked() {
