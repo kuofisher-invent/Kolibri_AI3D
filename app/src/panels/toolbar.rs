@@ -262,76 +262,83 @@ impl KolibriApp {
                     (Tool::PipeDraw, "畫管\n連續點擊繪製管線"),
                     (Tool::PipeFitting, "管件\n放置彎頭/三通/閥門"),
                 ]);
+                self.tool_row(ui, bsz, &[
+                    (Tool::Select, "選取\n點擊選取管段"),
+                    (Tool::TapeMeasure, "量測\n量測距離/角度"),
+                ]);
 
                 ui.separator();
                 section_header(ui, "管線參數");
-                figma_group(ui, |ui| {
-                    // 管線系統選擇
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new("系統:").size(11.0));
-                        egui::ComboBox::from_id_source("pipe_system")
-                            .width(100.0)
-                            .selected_text(self.editor.piping.current_system.label())
-                            .show_ui(ui, |ui| {
-                                for &sys in kolibri_piping::PipeSystem::all() {
-                                    if ui.selectable_label(
-                                        self.editor.piping.current_system == sys,
-                                        sys.label(),
-                                    ).clicked() {
-                                        self.editor.piping.current_system = sys;
-                                        self.editor.piping.current_spec_idx = 2; // reset to DN25
-                                    }
+                // 管線系統選擇
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("系統:").size(11.0));
+                    egui::ComboBox::from_id_source("pipe_system")
+                        .width(ui.available_width() - 4.0)
+                        .selected_text(self.editor.piping.current_system.label())
+                        .show_ui(ui, |ui| {
+                            for &sys in kolibri_piping::PipeSystem::all() {
+                                if ui.selectable_label(
+                                    self.editor.piping.current_system == sys,
+                                    sys.label(),
+                                ).clicked() {
+                                    self.editor.piping.current_system = sys;
+                                    self.editor.piping.current_spec_idx = 2;
                                 }
-                            });
-                    });
-                    // 管徑選擇
-                    let specs = kolibri_piping::PipeCatalog::specs_for(self.editor.piping.current_system);
-                    let cur_name = specs.get(self.editor.piping.current_spec_idx)
-                        .map(|s| s.spec_name.as_str()).unwrap_or("DN25");
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new("管徑:").size(11.0));
-                        egui::ComboBox::from_id_source("pipe_dn")
-                            .width(100.0)
-                            .selected_text(cur_name)
-                            .show_ui(ui, |ui| {
-                                for (i, spec) in specs.iter().enumerate() {
-                                    if ui.selectable_label(
-                                        self.editor.piping.current_spec_idx == i,
-                                        &spec.spec_name,
-                                    ).clicked() {
-                                        self.editor.piping.current_spec_idx = i;
-                                    }
-                                }
-                            });
-                    });
-                    // 繪製高度
-                    ui.add(egui::DragValue::new(&mut self.editor.piping.draw_height)
-                        .speed(10.0).prefix("高度: ").suffix(" mm").range(0.0..=20000.0));
-
-                    // 管件種類（PlaceFitting 模式）
-                    if self.editor.tool == Tool::PipeFitting {
-                        ui.add_space(4.0);
-                        ui.label(egui::RichText::new("管件:").size(11.0));
-                        let fittings = [
-                            kolibri_piping::FittingKind::Elbow90,
-                            kolibri_piping::FittingKind::Elbow45,
-                            kolibri_piping::FittingKind::Tee,
-                            kolibri_piping::FittingKind::Cross,
-                            kolibri_piping::FittingKind::Reducer,
-                            kolibri_piping::FittingKind::Valve,
-                            kolibri_piping::FittingKind::Flange,
-                            kolibri_piping::FittingKind::Cap,
-                        ];
-                        for kind in &fittings {
-                            if ui.selectable_label(
-                                self.editor.piping.current_fitting == *kind,
-                                kind.label(),
-                            ).clicked() {
-                                self.editor.piping.current_fitting = *kind;
                             }
-                        }
-                    }
+                        });
                 });
+                // 管徑選擇
+                let specs = kolibri_piping::PipeCatalog::specs_for(self.editor.piping.current_system);
+                let cur_spec = specs.get(self.editor.piping.current_spec_idx);
+                let cur_name = cur_spec.map(|s| s.spec_name.as_str()).unwrap_or("DN25");
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("管徑:").size(11.0));
+                    egui::ComboBox::from_id_source("pipe_dn")
+                        .width(ui.available_width() - 4.0)
+                        .selected_text(cur_name)
+                        .show_ui(ui, |ui| {
+                            for (i, spec) in specs.iter().enumerate() {
+                                let label = format!("{} (Ø{:.1})", spec.spec_name, spec.outer_diameter);
+                                if ui.selectable_label(
+                                    self.editor.piping.current_spec_idx == i,
+                                    &label,
+                                ).clicked() {
+                                    self.editor.piping.current_spec_idx = i;
+                                }
+                            }
+                        });
+                });
+                // 管徑資訊
+                if let Some(spec) = cur_spec {
+                    ui.label(egui::RichText::new(
+                        format!("Ø{:.1} × {:.1}mm", spec.outer_diameter, spec.wall_thickness)
+                    ).size(10.0).color(egui::Color32::GRAY));
+                }
+                // 繪製高度
+                ui.add(egui::DragValue::new(&mut self.editor.piping.draw_height)
+                    .speed(10.0).prefix("高度: ").suffix(" mm").range(0.0..=20000.0));
+
+                ui.separator();
+                // 管件種類（常駐顯示，不只在 PipeFitting 模式）
+                section_header(ui, "管件類型");
+                let fittings = [
+                    (kolibri_piping::FittingKind::Elbow90, "90° 彎頭"),
+                    (kolibri_piping::FittingKind::Elbow45, "45° 彎頭"),
+                    (kolibri_piping::FittingKind::Tee, "三通"),
+                    (kolibri_piping::FittingKind::Cross, "四通"),
+                    (kolibri_piping::FittingKind::Reducer, "大小頭"),
+                    (kolibri_piping::FittingKind::Valve, "閘閥"),
+                    (kolibri_piping::FittingKind::Flange, "法蘭"),
+                    (kolibri_piping::FittingKind::Cap, "管帽"),
+                    (kolibri_piping::FittingKind::Coupling, "接頭"),
+                ];
+                for (kind, label) in &fittings {
+                    let selected = self.editor.piping.current_fitting == *kind;
+                    if ui.selectable_label(selected, egui::RichText::new(*label).size(11.0)).clicked() {
+                        self.editor.piping.current_fitting = *kind;
+                        self.editor.tool = Tool::PipeFitting;
+                    }
+                }
 
                 // 管線統計
                 let total_len = self.editor.piping.store.total_length(None);

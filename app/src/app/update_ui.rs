@@ -504,9 +504,14 @@ impl KolibriApp {
 
         // （左側工具列已移除 — Ribbon 已包含所有功能）
 
-        // ── Left panel (toolbar only) — 出圖模式時完全不顯示 ──
-        if !self.viewer.layout_mode {
-            let toolbar_w = if self.viewer.show_toolbar { 124.0 } else { 0.0 };
+        // ── Left panel (toolbar only) — 出圖模式/AI模式時完全不顯示 ──
+        if !self.viewer.layout_mode && !self.viewer.ai_mode {
+            // 管線/鋼構模式需要更寬的面板（放下 ComboBox + 參數）
+            let is_wide_mode = matches!(self.editor.work_mode,
+                crate::editor::WorkMode::Piping | crate::editor::WorkMode::Steel);
+            let toolbar_w = if self.viewer.show_toolbar {
+                if is_wide_mode { 164.0 } else { 124.0 }
+            } else { 0.0 };
             egui::SidePanel::left("left_panel")
                 .exact_width(toolbar_w).resizable(false)
                 .show_separator_line(false)
