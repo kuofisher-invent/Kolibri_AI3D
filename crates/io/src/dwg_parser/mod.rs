@@ -155,27 +155,46 @@ fn parse_r2018(data: &[u8], source_path: &str, ver: &version::DwgVersionInfo) ->
 }
 
 /// 嘗試用外部工具將 DWG 轉 DXF
-/// 回傳轉換後 DXF 路徑，失敗回傳 None
+/// 優先順序：內建 dwg2dxf → PATH dwg2dxf → ODA → ZWCAD COM（最後備援）
 pub fn try_convert_dwg_to_dxf(dwg_path: &str) -> Option<String> {
     let dxf_path = format!("{}.tmp.dxf", dwg_path);
 
-    // 策略 1: ZWCAD COM Automation（透過 PowerShell）
-    if let Some(result) = try_zwcad_com(dwg_path, &dxf_path) {
-        return Some(result);
+    // ── 策略 1: 內建 LibreDWG dwg2dxf（APP 目錄下的 tools/libredwg/）──
+    // 搜尋 exe 旁的 tools/libredwg/dwg2dxf.exe
+    let bundled = find_bundled_dwg2dxf();
+    if let Some(ref exe) = bundled {
+        tracing::info!("嘗試內建 dwg2dxf: {}", exe);
+        if let Ok(output) = std::process::Command::new(exe)
+            .arg("-o").arg(&dxf_path).arg(dwg_path)
+            .output()
+        {
+            if output.status.success() && std::path::Path::new(&dxf_path).exists() {
+                let size = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
+                if size > 100 {
+                    tracing::info!("DWG→DXF via 內建 LibreDWG ({} bytes)", size);
+                    return Some(dxf_path);
+                }
+            }
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stderr.is_empty() { tracing::warn!("dwg2dxf stderr: {}", stderr.chars().take(200).collect::<String>()); }
+        }
     }
 
-    // 策略 2: LibreDWG dwg2dxf
+    // ── 策略 2: 系統 PATH 上的 dwg2dxf（使用者自行安裝的 LibreDWG）──
     if let Ok(output) = std::process::Command::new("dwg2dxf")
         .arg("-o").arg(&dxf_path).arg(dwg_path)
         .output()
     {
         if output.status.success() && std::path::Path::new(&dxf_path).exists() {
-            tracing::info!("DWG→DXF via LibreDWG dwg2dxf");
-            return Some(dxf_path);
+            let size = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
+            if size > 100 {
+                tracing::info!("DWG→DXF via PATH LibreDWG ({} bytes)", size);
+                return Some(dxf_path);
+            }
         }
     }
 
-    // 策略 3: ODA File Converter
+    // ── 策略 3: ODA File Converter ──
     let oda_paths = [
         "C:/Program Files/ODA/ODAFileConverter.exe",
         "C:/Program Files (x86)/ODA/ODAFileConverter/ODAFileConverter.exe",
@@ -203,6 +222,45 @@ pub fn try_convert_dwg_to_dxf(dwg_path: &str) -> Option<String> {
         }
     }
 
+    // ── 策略 4: ZWCAD COM Automation（最後備援，需要安裝 ZWCAD）──
+    if let Some(result) = try_zwcad_com(dwg_path, &dxf_path) {
+        return Some(result);
+    }
+
+    tracing::warn!("DWG→DXF: 所有轉換工具均失敗");
+    None
+}
+
+/// 尋找 APP 目錄下內建的 dwg2dxf.exe
+fn find_bundled_dwg2dxf() -> Option<String> {
+    // 方法 1: 從 exe 所在目錄找 tools/libredwg/dwg2dxf.exe
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let candidate = exe_dir.join("tools/libredwg/dwg2dxf.exe");
+            if candidate.exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+            // 也檢查上一層（exe 可能在 target/release/ 下）
+            if let Some(parent) = exe_dir.parent() {
+                let candidate = parent.join("tools/libredwg/dwg2dxf.exe");
+                if candidate.exists() {
+                    return Some(candidate.to_string_lossy().to_string());
+                }
+                // 再上一層（workspace root）
+                if let Some(root) = parent.parent() {
+                    let candidate = root.join("tools/libredwg/dwg2dxf.exe");
+                    if candidate.exists() {
+                        return Some(candidate.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+    // 方法 2: 從 CWD 找
+    let cwd = std::path::Path::new("tools/libredwg/dwg2dxf.exe");
+    if cwd.exists() {
+        return Some(cwd.to_string_lossy().to_string());
+    }
     None
 }
 
@@ -575,28 +633,34 @@ try {{
 pub fn available_dwg_tools() -> Vec<String> {
     let mut tools = Vec::new();
 
-    if std::path::Path::new("C:/Program Files/ZWCAD/ZWCAD.exe").exists() {
-        tools.push("ZWCAD COM Automation".into());
+    // 1. 內建 LibreDWG
+    if find_bundled_dwg2dxf().is_some() {
+        tools.push("LibreDWG (內建 dwg2dxf)".into());
     }
 
-    // LibreDWG
+    // 2. PATH LibreDWG
     if std::process::Command::new("dwg2dxf").arg("--version").output().is_ok() {
-        tools.push("LibreDWG (dwg2dxf)".into());
+        tools.push("LibreDWG (PATH dwg2dxf)".into());
     }
     if std::process::Command::new("dxf2dwg").arg("--version").output().is_ok() {
-        tools.push("LibreDWG (dxf2dwg)".into());
+        tools.push("LibreDWG (PATH dxf2dwg)".into());
     }
 
-    // ODA
+    // 3. ODA
     let oda_paths = [
         "C:/Program Files/ODA/ODAFileConverter.exe",
         "C:/Program Files (x86)/ODA/ODAFileConverter/ODAFileConverter.exe",
     ];
     for oda in &oda_paths {
         if std::path::Path::new(oda).exists() {
-            tools.push(format!("ODA File Converter ({})", oda));
+            tools.push("ODA File Converter".into());
             break;
         }
+    }
+
+    // 4. ZWCAD（最後）
+    if std::path::Path::new("C:/Program Files/ZWCAD/ZWCAD.exe").exists() {
+        tools.push("ZWCAD COM (備援)".into());
     }
 
     tools

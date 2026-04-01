@@ -38,6 +38,12 @@ Source: "app\icon.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "docs\CAD_icons\*.svg"; DestDir: "{app}\docs\CAD_icons"; Flags: ignoreversion
 ; SketchUp API DLL (optional, for SKP import/export)
 Source: "SketchUpAPI.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; LibreDWG (DWG↔DXF conversion, bundled — no external dependency needed)
+Source: "tools\libredwg\dwg2dxf.exe"; DestDir: "{app}\tools\libredwg"; Flags: ignoreversion
+Source: "tools\libredwg\dxf2dwg.exe"; DestDir: "{app}\tools\libredwg"; Flags: ignoreversion
+Source: "tools\libredwg\libredwg-0.dll"; DestDir: "{app}\tools\libredwg"; Flags: ignoreversion
+Source: "tools\libredwg\libiconv-2.dll"; DestDir: "{app}\tools\libredwg"; Flags: ignoreversion
+Source: "tools\libredwg\libpcre2-8-0.dll"; DestDir: "{app}\tools\libredwg"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Kolibri Ai3D"; Filename: "{app}\kolibri-cad.exe"; IconFilename: "{app}\icon.ico"

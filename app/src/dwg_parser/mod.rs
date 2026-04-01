@@ -166,69 +166,88 @@ fn parse_r2018(data: &[u8], source_path: &str, ver: &version::DwgVersionInfo) ->
 //  DWG → DXF 外部轉換
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// 嘗試用外部工具將 DWG 轉 DXF（與 crate 版同步）
+/// 嘗試用外部工具將 DWG 轉 DXF
+/// 優先順序：內建 dwg2dxf → PATH dwg2dxf → ODA → ZWCAD COM
 pub fn try_convert_dwg_to_dxf(dwg_path: &str) -> Option<String> {
     let dxf_path = format!("{}.tmp.dxf", dwg_path);
 
-    // 策略 1: ZWCAD COM
-    if std::path::Path::new("C:/Program Files/ZWCAD/ZWCAD.exe").exists() {
-        let ps_script = format!(
-            r#"
-try {{
-    $zwcad = New-Object -ComObject 'ZWCAD.Application'
-    $zwcad.Visible = $false
-    $doc = $zwcad.Documents.Open('{}')
-    $doc.SaveAs('{}', 1)
-    $doc.Close($false)
-    if ($zwcad.Documents.Count -eq 0) {{ $zwcad.Quit() }}
-    Write-Host 'OK'
-}} catch {{
-    Write-Host "ERR: $_"
-}}
-"#,
-            dwg_path.replace('\\', "\\\\").replace('\'', "\\'"),
-            dxf_path.replace('\\', "\\\\").replace('\'', "\\'"),
-        );
-        if let Ok(output) = std::process::Command::new("powershell")
-            .arg("-NoProfile").arg("-NonInteractive").arg("-Command").arg(&ps_script)
-            .output()
+    // ── 策略 1: 內建 LibreDWG dwg2dxf ──
+    if let Some(exe) = find_bundled_dwg2dxf() {
+        tracing::info!("嘗試內建 dwg2dxf: {}", exe);
+        if let Ok(output) = std::process::Command::new(&exe)
+            .arg("-o").arg(&dxf_path).arg(dwg_path).output()
         {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if stdout.contains("OK") && std::path::Path::new(&dxf_path).exists() {
-                tracing::info!("DWG→DXF via ZWCAD COM: success");
-                return Some(dxf_path);
-            }
-        }
-    }
-
-    // 策略 2: LibreDWG dwg2dxf
-    if let Ok(output) = std::process::Command::new("dwg2dxf")
-        .arg("-o").arg(&dxf_path).arg(dwg_path).output()
-    {
-        if output.status.success() && std::path::Path::new(&dxf_path).exists() {
-            tracing::info!("DWG→DXF via LibreDWG dwg2dxf");
-            return Some(dxf_path);
-        }
-    }
-
-    // 策略 3: ODA File Converter
-    for oda in &["C:/Program Files/ODA/ODAFileConverter.exe", "C:/Program Files (x86)/ODA/ODAFileConverter/ODAFileConverter.exe"] {
-        if std::path::Path::new(oda).exists() {
-            let input_dir = std::path::Path::new(dwg_path).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or(".".into());
-            let file_name = std::path::Path::new(dwg_path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-            if let Ok(_) = std::process::Command::new(oda)
-                .arg(&input_dir).arg(&input_dir).arg("ACAD2018").arg("DXF").arg("0").arg("1").arg("*.dwg")
-                .output()
-            {
-                let oda_dxf = format!("{}/{}.dxf", input_dir, file_name);
-                if std::path::Path::new(&oda_dxf).exists() {
-                    tracing::info!("DWG→DXF via ODA FileConverter");
-                    return Some(oda_dxf);
+            if output.status.success() && std::path::Path::new(&dxf_path).exists() {
+                let size = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
+                if size > 100 {
+                    tracing::info!("DWG→DXF via 內建 LibreDWG ({} bytes)", size);
+                    return Some(dxf_path);
                 }
             }
         }
     }
 
+    // ── 策略 2: PATH dwg2dxf ──
+    if let Ok(output) = std::process::Command::new("dwg2dxf")
+        .arg("-o").arg(&dxf_path).arg(dwg_path).output()
+    {
+        if output.status.success() && std::path::Path::new(&dxf_path).exists() {
+            let size = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
+            if size > 100 { return Some(dxf_path); }
+        }
+    }
+
+    // ── 策略 3: ODA ──
+    for oda in &["C:/Program Files/ODA/ODAFileConverter.exe", "C:/Program Files (x86)/ODA/ODAFileConverter/ODAFileConverter.exe"] {
+        if std::path::Path::new(oda).exists() {
+            let input_dir = std::path::Path::new(dwg_path).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or(".".into());
+            let file_name = std::path::Path::new(dwg_path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            if let Ok(_) = std::process::Command::new(oda)
+                .arg(&input_dir).arg(&input_dir).arg("ACAD2018").arg("DXF").arg("0").arg("1").arg("*.dwg").output()
+            {
+                let oda_dxf = format!("{}/{}.dxf", input_dir, file_name);
+                if std::path::Path::new(&oda_dxf).exists() { return Some(oda_dxf); }
+            }
+        }
+    }
+
+    // ── 策略 4: ZWCAD COM（最後備援）──
+    if std::path::Path::new("C:/Program Files/ZWCAD/ZWCAD.exe").exists() {
+        let ps_script = format!(
+            "try {{ $z=New-Object -ComObject 'ZWCAD.Application'; $z.Visible=$false; $d=$z.Documents.Open('{}'); $d.SaveAs('{}',1); $d.Close($false); if($z.Documents.Count -eq 0){{$z.Quit()}}; Write-Host 'OK' }} catch {{ Write-Host \"ERR: $_\" }}",
+            dwg_path.replace('\\', "\\\\").replace('\'', "\\'"),
+            dxf_path.replace('\\', "\\\\").replace('\'', "\\'"),
+        );
+        if let Ok(output) = std::process::Command::new("powershell")
+            .arg("-NoProfile").arg("-NonInteractive").arg("-Command").arg(&ps_script).output()
+        {
+            if String::from_utf8_lossy(&output.stdout).contains("OK") && std::path::Path::new(&dxf_path).exists() {
+                return Some(dxf_path);
+            }
+        }
+    }
+
+    None
+}
+
+/// 尋找 APP 內建的 dwg2dxf.exe
+fn find_bundled_dwg2dxf() -> Option<String> {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(dir) = exe_path.parent() {
+            let c = dir.join("tools/libredwg/dwg2dxf.exe");
+            if c.exists() { return Some(c.to_string_lossy().to_string()); }
+            if let Some(p) = dir.parent() {
+                let c = p.join("tools/libredwg/dwg2dxf.exe");
+                if c.exists() { return Some(c.to_string_lossy().to_string()); }
+                if let Some(r) = p.parent() {
+                    let c = r.join("tools/libredwg/dwg2dxf.exe");
+                    if c.exists() { return Some(c.to_string_lossy().to_string()); }
+                }
+            }
+        }
+    }
+    let cwd = std::path::Path::new("tools/libredwg/dwg2dxf.exe");
+    if cwd.exists() { return Some(cwd.to_string_lossy().to_string()); }
     None
 }
 
