@@ -100,6 +100,7 @@ pub enum ComponentKind {
     Generic,
     Beam,
     Column,
+    Brace,
     Plate,
     Bolt,
     Weld,

@@ -134,6 +134,74 @@ fn make_elbow_90(position: [f32; 3], radius: f32, pipe_radius: f32, segments: u3
     mesh
 }
 
+/// 產生 45° 彎頭的 HeMesh
+fn make_elbow_45(position: [f32; 3], radius: f32, pipe_radius: f32, segments: u32) -> HeMesh {
+    let mut mesh = HeMesh::new();
+    let seg = segments.max(8) as usize;
+    let bend_seg = 6;
+    let bend_r = radius * 1.5;
+
+    let mut rings: Vec<Vec<u32>> = Vec::new();
+
+    for b in 0..=bend_seg {
+        let bend_angle = std::f32::consts::FRAC_PI_4 * b as f32 / bend_seg as f32; // 45° = PI/4
+        let center_x = -bend_r * bend_angle.cos() + bend_r;
+        let center_z = bend_r * bend_angle.sin();
+        let ax_x = bend_angle.sin();
+        let ax_z = bend_angle.cos();
+
+        let mut ring = Vec::with_capacity(seg);
+        for i in 0..seg {
+            let a = std::f32::consts::TAU * i as f32 / seg as f32;
+            let (sin_a, cos_a) = a.sin_cos();
+            let px = center_x + cos_a * (-ax_z) * pipe_radius;
+            let py = sin_a * pipe_radius;
+            let pz = center_z + cos_a * ax_x * pipe_radius;
+            let vid = mesh.add_vertex([px, py, pz]);
+            ring.push(vid);
+        }
+        rings.push(ring);
+    }
+
+    for b in 0..bend_seg {
+        for i in 0..seg {
+            let j = (i + 1) % seg;
+            mesh.add_face(&[rings[b][i], rings[b][j], rings[b + 1][j], rings[b + 1][i]]);
+        }
+    }
+    let first: Vec<u32> = rings[0].iter().rev().copied().collect();
+    mesh.add_face(&first);
+    mesh.add_face(&rings[bend_seg]);
+    mesh
+}
+
+/// 產生錐形大小頭 (reducer) 的 HeMesh
+fn make_reducer(start: [f32; 3], r_large: f32, r_small: f32, length: f32, segments: u32) -> HeMesh {
+    let mut mesh = HeMesh::new();
+    let seg = segments.max(8) as usize;
+
+    let mut bottom_vids = Vec::with_capacity(seg);
+    let mut top_vids = Vec::with_capacity(seg);
+
+    for i in 0..seg {
+        let angle = std::f32::consts::TAU * i as f32 / seg as f32;
+        let (sin_a, cos_a) = angle.sin_cos();
+        let bv = mesh.add_vertex([start[0], start[1] + cos_a * r_large, start[2] + sin_a * r_large]);
+        bottom_vids.push(bv);
+        let tv = mesh.add_vertex([start[0] + length, start[1] + cos_a * r_small, start[2] + sin_a * r_small]);
+        top_vids.push(tv);
+    }
+
+    for i in 0..seg {
+        let j = (i + 1) % seg;
+        mesh.add_face(&[bottom_vids[i], bottom_vids[j], top_vids[j], top_vids[i]]);
+    }
+    let bottom_ring: Vec<u32> = bottom_vids.iter().rev().copied().collect();
+    mesh.add_face(&bottom_ring);
+    mesh.add_face(&top_vids);
+    mesh
+}
+
 /// 建立直管段（任意方向圓柱）
 pub fn create_pipe_segment(
     scene: &mut Scene,
@@ -188,32 +256,79 @@ pub fn create_fitting(
             make_elbow_90([0.0, 0.0, 0.0], r, r, segments)
         }
         FittingKind::Elbow45 => {
-            // 45° 用較短的 elbow 近似
-            make_elbow_90([0.0, 0.0, 0.0], r, r * 0.7, segments)
+            make_elbow_45([0.0, 0.0, 0.0], r, r, segments)
         }
         FittingKind::Tee => {
-            // T 形：主管 + 分支管
-            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [r * 6.0, 0.0, 0.0], r, segments);
-            let branch = make_oriented_cylinder([r * 3.0, 0.0, 0.0], [r * 3.0, r * 3.0, 0.0], r, segments);
-            // 合併
+            // T 形三通：主管 + 90° 分支管
+            let main_len = r * 8.0;
+            let branch_len = r * 4.0;
+            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [main_len, 0.0, 0.0], r, segments);
+            // 分支管從中間往上
+            let branch = make_oriented_cylinder(
+                [main_len * 0.5, 0.0, 0.0],
+                [main_len * 0.5, branch_len, 0.0],
+                r, segments);
             merge_mesh(&mut m, &branch);
             m
         }
         FittingKind::Valve => {
-            // 閥門：粗圓柱 + 手輪（細圓柱）
-            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [r * 4.0, 0.0, 0.0], r * 1.3, segments);
-            let handle = make_oriented_cylinder([r * 2.0, 0.0, 0.0], [r * 2.0, r * 3.0, 0.0], r * 0.4, 8);
-            merge_mesh(&mut m, &handle);
+            // 閘閥：入口管 + 閥體（粗圓柱）+ 出口管 + 手輪桿
+            let pipe_len = r * 2.0;
+            let body_r = r * 1.6;
+            let body_len = r * 2.5;
+            let stem_r = r * 0.3;
+            let stem_h = r * 4.0;
+
+            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [pipe_len, 0.0, 0.0], r, segments);
+            let body = make_oriented_cylinder([pipe_len, 0.0, 0.0], [pipe_len + body_len, 0.0, 0.0], body_r, segments);
+            merge_mesh(&mut m, &body);
+            let outlet = make_oriented_cylinder([pipe_len + body_len, 0.0, 0.0], [pipe_len * 2.0 + body_len, 0.0, 0.0], r, segments);
+            merge_mesh(&mut m, &outlet);
+            // 手輪桿（往上）
+            let stem_x = pipe_len + body_len * 0.5;
+            let stem = make_oriented_cylinder([stem_x, 0.0, 0.0], [stem_x, stem_h, 0.0], stem_r, 8);
+            merge_mesh(&mut m, &stem);
+            // 手輪（水平圓環近似為短粗圓柱）
+            let wheel = make_oriented_cylinder([stem_x, stem_h, -r * 1.2], [stem_x, stem_h, r * 1.2], stem_r * 2.5, 8);
+            merge_mesh(&mut m, &wheel);
             m
         }
         FittingKind::Reducer => {
-            // 大小頭：錐形近似（兩端不同半徑）
-            make_oriented_cylinder([0.0, 0.0, 0.0], [r * 3.0, 0.0, 0.0], r, segments)
+            make_reducer([0.0, 0.0, 0.0], r, r * 0.7, r * 3.0, segments)
+        }
+        FittingKind::Cross => {
+            // 十字四通
+            let main_len = r * 8.0;
+            let branch_len = r * 4.0;
+            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [main_len, 0.0, 0.0], r, segments);
+            let up = make_oriented_cylinder([main_len * 0.5, 0.0, 0.0], [main_len * 0.5, branch_len, 0.0], r, segments);
+            merge_mesh(&mut m, &up);
+            let down = make_oriented_cylinder([main_len * 0.5, 0.0, 0.0], [main_len * 0.5, -branch_len, 0.0], r, segments);
+            merge_mesh(&mut m, &down);
+            m
+        }
+        FittingKind::Flange => {
+            // 法蘭：寬短圓柱 + 管段
+            let flange_r = r * 1.8;
+            let flange_t = r * 0.4;
+            let pipe_len = r * 2.0;
+            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [flange_t, 0.0, 0.0], flange_r, segments);
+            let pipe = make_oriented_cylinder([flange_t, 0.0, 0.0], [flange_t + pipe_len, 0.0, 0.0], r, segments);
+            merge_mesh(&mut m, &pipe);
+            m
+        }
+        FittingKind::Cap => {
+            // 管帽：半球近似（短錐 + 圓柱）
+            let cap_len = r * 1.5;
+            let mut m = make_oriented_cylinder([0.0, 0.0, 0.0], [cap_len * 0.7, 0.0, 0.0], r, segments);
+            let tip = make_reducer([cap_len * 0.7, 0.0, 0.0], r, r * 0.1, cap_len * 0.3, segments);
+            merge_mesh(&mut m, &tip);
+            m
         }
         _ => {
-            // 其他管件用短圓柱
-            let fitting_len = r * 2.5;
-            make_oriented_cylinder([0.0, 0.0, 0.0], [fitting_len, 0.0, 0.0], r * 1.2, segments)
+            // Coupling 等：短加厚圓柱
+            let fitting_len = r * 3.0;
+            make_oriented_cylinder([0.0, 0.0, 0.0], [fitting_len, 0.0, 0.0], r * 1.15, segments)
         }
     };
 

@@ -607,6 +607,27 @@ impl KolibriApp {
                     }
                 }
             }
+            // ── BOM 料表匯出 ──
+            MenuAction::ExportBom => {
+                let file = rfd::FileDialog::new()
+                    .set_title("匯出 BOM 料表 (CSV)")
+                    .add_filter("CSV", &["csv"])
+                    .set_file_name("bom.csv")
+                    .save_file();
+                if let Some(p) = file {
+                    let ps = p.to_string_lossy().to_string();
+                    match self.export_bom_csv(&ps) {
+                        Ok(count) => {
+                            self.console_push("ACTION", format!("BOM 匯出: {} 個構件 → {}", count, ps));
+                            self.file_message = Some((format!("已匯出 BOM: {} 個構件", count), std::time::Instant::now()));
+                        }
+                        Err(e) => {
+                            self.console_push("ERROR", format!("BOM 匯出失敗: {}", e));
+                            self.file_message = Some((format!("BOM 匯出失敗: {}", e), std::time::Instant::now()));
+                        }
+                    }
+                }
+            }
             MenuAction::SplitObject => {
                 if let Some(id) = self.editor.selected_ids.first().cloned() {
                     if let Some(obj) = self.scene.objects.get(&id) {
@@ -651,5 +672,70 @@ impl KolibriApp {
             // Camera/view actions handled in app.rs update() before dispatch
             _ => {}
         }
+    }
+
+    /// 匯出 BOM 料表到 CSV
+    pub(crate) fn export_bom_csv(&self, path: &str) -> Result<usize, String> {
+        use std::io::Write;
+        let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+
+        // CSV BOM header (UTF-8 BOM for Excel compatibility)
+        write!(file, "\u{FEFF}").map_err(|e| e.to_string())?;
+        writeln!(file, "編號,類型,名稱,規格,長度(mm),寬度(mm),高度(mm),材料,標籤,數量,單重(kg/m),備註")
+            .map_err(|e| e.to_string())?;
+
+        let mut count = 0;
+        // 統計相同規格的構件數量
+        let mut bom_map: std::collections::HashMap<String, (String, String, String, f32, f32, f32, String, String, usize, f32)>
+            = std::collections::HashMap::new();
+
+        for obj in self.scene.objects.values() {
+            if !obj.visible { continue; }
+            let tag = &obj.tag;
+            if tag.is_empty() { continue; }
+
+            let (w, h, d) = match &obj.shape {
+                crate::scene::Shape::Box { width, height, depth } => (*width, *height, *depth),
+                crate::scene::Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+                crate::scene::Shape::Line { points, .. } => {
+                    if points.len() >= 2 {
+                        let dx = points.last().unwrap()[0] - points[0][0];
+                        let dy = points.last().unwrap()[1] - points[0][1];
+                        let dz = points.last().unwrap()[2] - points[0][2];
+                        ((dx*dx+dy*dy+dz*dz).sqrt(), 0.0, 0.0)
+                    } else { (0.0, 0.0, 0.0) }
+                }
+                _ => (0.0, 0.0, 0.0),
+            };
+
+            let cat = if tag.starts_with("管線") { "管線" }
+                else if tag.starts_with("管件") { "管件" }
+                else if tag.contains("鋼構") || obj.component_kind != Default::default() { "鋼構" }
+                else { "其他" };
+
+            let spec = &obj.name;
+            let mat = format!("{:?}", obj.material);
+            let key = format!("{}|{}|{}", cat, spec, tag);
+
+            let entry = bom_map.entry(key).or_insert_with(|| {
+                (cat.to_string(), spec.clone(), tag.clone(), w, h, d, mat.clone(), String::new(), 0, 0.0)
+            });
+            entry.8 += 1;
+            // 累加長度（管線）
+            if cat == "管線" { entry.9 += w; }
+        }
+
+        let mut entries: Vec<_> = bom_map.into_values().collect();
+        entries.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+        for (idx, (cat, name, tag, w, h, d, mat, note, qty, total_len)) in entries.iter().enumerate() {
+            let len_str = if *total_len > 0.0 { format!("{:.0}", total_len) } else { format!("{:.0}", w) };
+            writeln!(file, "{},{},{},{},{},{:.0},{:.0},{},{},{},{},",
+                idx + 1, cat, name, tag, len_str, h, d, mat, tag, qty, "")
+                .map_err(|e| e.to_string())?;
+            count += 1;
+        }
+
+        Ok(count)
     }
 }

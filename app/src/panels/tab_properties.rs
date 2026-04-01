@@ -563,6 +563,7 @@ impl KolibriApp {
                 let kind_name = match obj.component_kind {
                     crate::collision::ComponentKind::Column => "柱",
                     crate::collision::ComponentKind::Beam => "梁",
+                    crate::collision::ComponentKind::Brace => "斜撐",
                     crate::collision::ComponentKind::Plate => "板",
                     crate::collision::ComponentKind::Bolt => "螺栓",
                     crate::collision::ComponentKind::Weld => "焊接",

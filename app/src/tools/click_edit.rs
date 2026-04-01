@@ -450,13 +450,85 @@ impl KolibriApp {
                     }
                     DrawState::LineFrom { p1 } => {
                         let p1 = *p1;
-                        if let Some(p2) = self.ground_snapped() {
+                        if let Some(p2_raw) = self.ground_snapped() {
+                            let p2 = [p2_raw[0], self.editor.steel_height, p2_raw[2]];
+                            let dx = p2[0] - p1[0];
+                            let dy = p2[1] - p1[1];
+                            let dz = p2[2] - p1[2];
+                            let length = (dx * dx + dy * dy + dz * dz).sqrt();
+                            if length < 10.0 { return; }
+
                             self.scene.snapshot();
-                            let name = self.next_name("BR");
-                            let id = self.scene.add_line(name, vec![p1, [p2[0], self.editor.steel_height, p2[2]]], 50.0, MaterialKind::Steel);
-                            self.editor.selected_ids = vec![id.clone()];
+                            let (h_sec, b_sec, tw, tf) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                            let name_base = self.next_name("BR");
+
+                            // 斜撐沿主水平方向放置 H 型鋼（簡化為水平投影方向）
+                            let is_x_dir = dx.abs() > dz.abs();
+
+                            let ids = if is_x_dir {
+                                let min_x = p1[0].min(p2[0]);
+                                let cz = p1[2];
+                                let base_y = p1[1].min(p2[1]);
+                                let horiz_len = (dx * dx + dz * dz).sqrt();
+                                let f1 = self.scene.insert_box_raw(
+                                    format!("{}_TF", name_base),
+                                    [min_x, base_y + h_sec - tf, cz - b_sec / 2.0],
+                                    horiz_len, tf, b_sec, MaterialKind::Steel,
+                                );
+                                let f2 = self.scene.insert_box_raw(
+                                    format!("{}_BF", name_base),
+                                    [min_x, base_y, cz - b_sec / 2.0],
+                                    horiz_len, tf, b_sec, MaterialKind::Steel,
+                                );
+                                let w = self.scene.insert_box_raw(
+                                    format!("{}_W", name_base),
+                                    [min_x, base_y + tf, cz - tw / 2.0],
+                                    horiz_len, h_sec - 2.0 * tf, tw, MaterialKind::Steel,
+                                );
+                                vec![f1, f2, w]
+                            } else {
+                                let min_z = p1[2].min(p2[2]);
+                                let cx = p1[0];
+                                let base_y = p1[1].min(p2[1]);
+                                let horiz_len = (dx * dx + dz * dz).sqrt();
+                                let f1 = self.scene.insert_box_raw(
+                                    format!("{}_TF", name_base),
+                                    [cx - b_sec / 2.0, base_y + h_sec - tf, min_z],
+                                    b_sec, tf, horiz_len, MaterialKind::Steel,
+                                );
+                                let f2 = self.scene.insert_box_raw(
+                                    format!("{}_BF", name_base),
+                                    [cx - b_sec / 2.0, base_y, min_z],
+                                    b_sec, tf, horiz_len, MaterialKind::Steel,
+                                );
+                                let w = self.scene.insert_box_raw(
+                                    format!("{}_W", name_base),
+                                    [cx - tw / 2.0, base_y + tf, min_z],
+                                    tw, h_sec - 2.0 * tf, horiz_len, MaterialKind::Steel,
+                                );
+                                vec![f1, f2, w]
+                            };
+
+                            for id in &ids {
+                                if let Some(obj) = self.scene.objects.get_mut(id) {
+                                    obj.component_kind = crate::collision::ComponentKind::Brace;
+                                }
+                            }
+
+                            self.scene.create_group(name_base.clone(), ids.clone());
+                            self.scene.version += 1;
+
+                            self.editor.selected_ids = ids.clone();
                             self.editor.draw_state = DrawState::Idle;
-                            self.ai_log.log(&self.current_actor, "建立斜撐", "", vec![id]);
+                            self.ai_log.log(
+                                &self.current_actor, "建立斜撐",
+                                &format!("{} L={:.0}", self.editor.steel_profile, length),
+                                ids,
+                            );
+                            self.file_message = Some((
+                                format!("斜撐已建立: {} L={:.0}mm", self.editor.steel_profile, length),
+                                std::time::Instant::now(),
+                            ));
                         }
                     }
                     _ => {}

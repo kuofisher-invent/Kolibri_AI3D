@@ -65,6 +65,7 @@ pub enum MenuAction {
     ExportDwg,          // 3D Scene → DWG (via DXF→DWG conversion)
     #[cfg(feature = "drafting")]
     ExportDraftDwg,     // 2D DraftDocument → DWG (via DXF→DWG conversion)
+    ExportBom,          // BOM 料表匯出 (CSV)
     ToggleConsole,
     ToggleGrid,
     ToggleAxes,
@@ -121,6 +122,9 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
                 if ui.button("PNG 截圖").clicked() { action = MenuAction::ExportPng; ui.close_menu(); }
                 if ui.button("JPG 截圖").clicked() { action = MenuAction::ExportJpg; ui.close_menu(); }
                 if ui.button("PDF 文件").clicked() { action = MenuAction::ExportPdf; ui.close_menu(); }
+                ui.separator();
+                ui.label("料表");
+                if ui.button("BOM 料表 (CSV)").on_hover_text("匯出管線/鋼構材料統計表").clicked() { action = MenuAction::ExportBom; ui.close_menu(); }
             });
             ui.menu_button("匯入", |ui| {
                 if ui.button("OBJ 模型").clicked() { action = MenuAction::ImportObj; ui.close_menu(); }
