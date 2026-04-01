@@ -544,6 +544,13 @@ pub(crate) struct EditorState {
     pub(crate) draft_offset: egui::Vec2,  // 畫布偏移（像素）
     #[cfg(feature = "drafting")]
     pub(crate) draft_pan_drag: Option<egui::Pos2>,  // 中鍵拖曳起始點
+    // ── Grip editing ──
+    #[cfg(feature = "drafting")]
+    pub(crate) grip_edit_mode: GripEditMode,  // Space 循環模式
+    #[cfg(feature = "drafting")]
+    pub(crate) grip_hot_idx: Option<usize>,   // 被拖曳的 grip 點 index
+    #[cfg(feature = "drafting")]
+    pub(crate) grip_base_point: Option<[f64; 2]>,  // grip editing 基準點
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────
@@ -570,6 +577,42 @@ pub(crate) enum DraftDrawState {
 #[cfg(feature = "drafting")]
 impl Default for DraftDrawState {
     fn default() -> Self { Self::Idle }
+}
+
+// ─── Grip edit mode（Space 循環）──────────────────────────────────────────────
+
+#[cfg(feature = "drafting")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum GripEditMode {
+    Stretch,    // 預設：拉伸 grip 點
+    Move,       // 移動選取物件
+    Rotate,     // 旋轉
+    Scale,      // 比例
+    Mirror,     // 鏡射
+}
+
+#[cfg(feature = "drafting")]
+impl GripEditMode {
+    /// Space 循環到下一個模式
+    pub fn next(self) -> Self {
+        match self {
+            Self::Stretch => Self::Move,
+            Self::Move => Self::Rotate,
+            Self::Rotate => Self::Scale,
+            Self::Scale => Self::Mirror,
+            Self::Mirror => Self::Stretch,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Stretch => "** 拉伸 **",
+            Self::Move => "** 移動 **",
+            Self::Rotate => "** 旋轉 **",
+            Self::Scale => "** 比例 **",
+            Self::Mirror => "** 鏡射 **",
+        }
+    }
 }
 
 // ─── Ribbon tab ─────────────────────────────────────────────────────────────

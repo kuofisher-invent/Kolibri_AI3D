@@ -774,6 +774,19 @@ impl KolibriApp {
             }
         }
 
+        // ── Grip edit mode 提示（選取物件時在右下角顯示）──
+        if !self.editor.draft_selected.is_empty() {
+            let mode = self.editor.grip_edit_mode;
+            if mode != crate::editor::GripEditMode::Stretch {
+                // 非預設模式時，在命令列附近顯示提示
+                let mode_text = format!("{} (Space 切換)", mode.label());
+                let mode_pos = egui::pos2(rect.left() + 10.0, rect.bottom() - 55.0);
+                painter.text(mode_pos, egui::Align2::LEFT_BOTTOM, &mode_text,
+                    egui::FontId::proportional(12.0),
+                    egui::Color32::from_rgb(255, 200, 60));
+            }
+        }
+
         // ── 繪製進行中的繪製狀態 ──
         self.draw_draft_preview(&painter, &to_screen, scale, &response, canvas_hover_pos);
 
@@ -990,6 +1003,19 @@ impl KolibriApp {
                 } else if !self.editor.draft_selected.is_empty() {
                     // 清除選取
                     self.editor.draft_selected.clear();
+                    self.editor.grip_edit_mode = crate::editor::GripEditMode::Stretch;
+                }
+            }
+        }
+
+        // Space 鍵：Grip editing 模式循環（Stretch → Move → Rotate → Scale → Mirror）
+        if ui.input(|i| i.key_pressed(egui::Key::Space)) {
+            #[cfg(feature = "drafting")]
+            {
+                if !self.editor.draft_selected.is_empty() {
+                    // 有選取的物件時，Space 循環 grip edit 模式
+                    self.editor.grip_edit_mode = self.editor.grip_edit_mode.next();
+                    self.console_push("GRIP", format!("{}", self.editor.grip_edit_mode.label()));
                 }
             }
         }
@@ -1174,8 +1200,9 @@ impl KolibriApp {
                     "RAY" => Some(crate::editor::Tool::DraftRay),        // RAY = ray
                     "LEN" => Some(crate::editor::Tool::DraftLengthen),   // LEN = lengthen
                     "DCE" => Some(crate::editor::Tool::DraftCenterMark), // DCE = center mark
-                    "AR" => Some(crate::editor::Tool::DraftArrayRect),   // AR = array rect
-                    "AP" => Some(crate::editor::Tool::DraftArrayPolar),  // AP = array polar
+                    "AR" | "ARRAYRECT" => Some(crate::editor::Tool::DraftArrayRect),   // AR = array rect
+                    "AP" | "ARRAYPOLAR" => Some(crate::editor::Tool::DraftArrayPolar),  // AP = array polar
+                    "ARRAYPATH" => Some(crate::editor::Tool::DraftArrayPath),   // path array
                     "P" => Some(crate::editor::Tool::DraftPan),          // P = pan
                     "ZA" => Some(crate::editor::Tool::DraftZoomAll),     // ZA = zoom all
                     "ZW" => Some(crate::editor::Tool::DraftZoomWindow),  // ZW = zoom window
@@ -3258,7 +3285,6 @@ impl KolibriApp {
                     let ids: Vec<_> = self.editor.draft_selected.clone();
                     let count = 6;
                     let angle_step = std::f64::consts::TAU / count as f64;
-                    // 先收集所有要新增的 entity，避免借用衝突
                     let mut new_entities = Vec::new();
                     for &id in &ids {
                         if let Some(obj) = self.editor.draft_doc.objects.iter().find(|o| o.id == id) {
@@ -3279,6 +3305,96 @@ impl KolibriApp {
                     self.editor.draft_selected.clear();
                 } else {
                     self.console_push("INFO", "請先選取要陣列的圖元".into());
+                }
+            }
+
+            // ── 路徑陣列（ARRAYPATH）──
+            // 沿選取的第一條線/多段線路徑，均勻分布複製選取的圖元
+            Tool::DraftArrayPath => {
+                if self.editor.draft_selected.len() >= 2 {
+                    // 第一個選取物件是要陣列的來源，最後一個選取物件是路徑
+                    let ids: Vec<_> = self.editor.draft_selected.clone();
+                    let path_id = *ids.last().unwrap();
+                    let source_ids: Vec<_> = ids[..ids.len()-1].to_vec();
+
+                    // 從路徑取得點列表
+                    let path_points: Vec<[f64; 2]> = if let Some(path_obj) = self.editor.draft_doc.objects.iter().find(|o| o.id == path_id) {
+                        match &path_obj.entity {
+                            kolibri_drafting::DraftEntity::Line { start, end } => vec![*start, *end],
+                            kolibri_drafting::DraftEntity::Polyline { points, .. } => points.clone(),
+                            _ => {
+                                // 用 grip points 作為路徑點
+                                self.entity_grip_points(&path_obj.entity)
+                            }
+                        }
+                    } else { vec![] };
+
+                    if path_points.len() >= 2 {
+                        // 計算路徑總長度
+                        let mut total_len = 0.0_f64;
+                        let mut seg_lens: Vec<f64> = Vec::new();
+                        for i in 1..path_points.len() {
+                            let dx = path_points[i][0] - path_points[i-1][0];
+                            let dy = path_points[i][1] - path_points[i-1][1];
+                            let len = (dx * dx + dy * dy).sqrt();
+                            seg_lens.push(len);
+                            total_len += len;
+                        }
+
+                        let count = 6_usize; // 預設 6 份
+                        let spacing = total_len / count as f64;
+                        let mut new_entities = Vec::new();
+
+                        // 取得來源圖元的中心
+                        let source_centers: Vec<[f64; 2]> = source_ids.iter().filter_map(|&id| {
+                            self.editor.draft_doc.objects.iter().find(|o| o.id == id).map(|obj| {
+                                let grips = self.entity_grip_points(&obj.entity);
+                                let cx = grips.iter().map(|g| g[0]).sum::<f64>() / grips.len().max(1) as f64;
+                                let cy = grips.iter().map(|g| g[1]).sum::<f64>() / grips.len().max(1) as f64;
+                                [cx, cy]
+                            })
+                        }).collect();
+
+                        for ci in 1..count {
+                            let target_dist = ci as f64 * spacing;
+                            // 在路徑上找到對應位置
+                            let mut accum = 0.0;
+                            let mut pt = path_points[0];
+                            for (si, &seg_len) in seg_lens.iter().enumerate() {
+                                if accum + seg_len >= target_dist {
+                                    let t = (target_dist - accum) / seg_len.max(0.001);
+                                    pt = [
+                                        path_points[si][0] + t * (path_points[si+1][0] - path_points[si][0]),
+                                        path_points[si][1] + t * (path_points[si+1][1] - path_points[si][1]),
+                                    ];
+                                    break;
+                                }
+                                accum += seg_len;
+                            }
+
+                            // 對每個來源圖元做位移
+                            for (si, &source_id) in source_ids.iter().enumerate() {
+                                if let Some(obj) = self.editor.draft_doc.objects.iter().find(|o| o.id == source_id) {
+                                    let center = source_centers.get(si).unwrap_or(&[0.0, 0.0]);
+                                    let dx = pt[0] - center[0];
+                                    let dy = pt[1] - center[1];
+                                    new_entities.push(kolibri_drafting::geometry::translate_entity(
+                                        &obj.entity, dx, dy));
+                                }
+                            }
+                        }
+
+                        let added = new_entities.len();
+                        for e in new_entities {
+                            self.editor.draft_doc.add(e);
+                        }
+                        self.console_push("ACTION", format!("路徑陣列：{} 個副本沿路徑排列", added));
+                    } else {
+                        self.console_push("WARN", "路徑圖元需要至少 2 個控制點".into());
+                    }
+                    self.editor.draft_selected.clear();
+                } else {
+                    self.console_push("INFO", "請先選取要陣列的圖元，然後再選取路徑線".into());
                 }
             }
 

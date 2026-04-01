@@ -238,26 +238,10 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn ribbon_home(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-            // ── 繪圖：直線/聚合線/圓/弧 = 4大, 其餘 = 小 ──
-            self.ribbon_group_n(ui, "繪圖", &[
-                ToolBtn { tool: Tool::DraftLine, label: "直線", tooltip: "直線 (L)" },
-                ToolBtn { tool: Tool::DraftPolyline, label: "聚合線", tooltip: "聚合線 (PL)" },
-                ToolBtn { tool: Tool::DraftCircle, label: "圓", tooltip: "圓 (C)" },
-                ToolBtn { tool: Tool::DraftArc, label: "弧", tooltip: "弧 (A)" },
-                ToolBtn { tool: Tool::DraftRectangle, label: "矩形", tooltip: "矩形 (REC)" },
-                ToolBtn { tool: Tool::DraftEllipse, label: "橢圓", tooltip: "橢圓 (EL)" },
-                ToolBtn { tool: Tool::DraftPolygon, label: "多邊形", tooltip: "正多邊形 (POL)" },
-                ToolBtn { tool: Tool::DraftSpline, label: "雲形線", tooltip: "雲形線 (SPL)" },
-                ToolBtn { tool: Tool::DraftCircle2P, label: "圓2P", tooltip: "兩點圓" },
-                ToolBtn { tool: Tool::DraftCircle3P, label: "圓3P", tooltip: "三點圓" },
-                ToolBtn { tool: Tool::DraftArc3P, label: "弧3P", tooltip: "三點弧" },
-                ToolBtn { tool: Tool::DraftArcSCE, label: "弧SCE", tooltip: "起點-圓心-終點弧" },
-                ToolBtn { tool: Tool::DraftXline, label: "建構線", tooltip: "建構線 (XL)" },
-                ToolBtn { tool: Tool::DraftPoint, label: "點", tooltip: "點 (PO)" },
-                ToolBtn { tool: Tool::DraftRevcloud, label: "雲形", tooltip: "修訂雲形 (REVCLOUD)" },
-            ], 4);
+            // ── 繪圖：直線/聚合線 = 2大, 圓▼/弧▼ = 2大+dropdown, 其餘 = 小 ──
+            self.ribbon_group_draw(ui);
             self.ribbon_vsep(ui);
-            // ── 修改：移動/旋轉/鏡射/偏移 = 4大 ──
+            // ── 修改：移動/旋轉/鏡射/偏移 = 4大, 陣列▼ = dropdown ──
             self.ribbon_group_n(ui, "修改", &[
                 ToolBtn { tool: Tool::DraftMove, label: "移動", tooltip: "移動 (M)" },
                 ToolBtn { tool: Tool::DraftRotate, label: "旋轉", tooltip: "旋轉 (RO)" },
@@ -266,7 +250,6 @@ impl KolibriApp {
                 ToolBtn { tool: Tool::DraftCopy, label: "複製", tooltip: "複製 (CO)" },
                 ToolBtn { tool: Tool::DraftScale, label: "比例", tooltip: "比例 (SC)" },
                 ToolBtn { tool: Tool::DraftStretch, label: "拉伸", tooltip: "拉伸 (S)" },
-                ToolBtn { tool: Tool::DraftArray, label: "陣列", tooltip: "陣列 (AR)" },
                 ToolBtn { tool: Tool::DraftTrim, label: "修剪", tooltip: "修剪 (TR)" },
                 ToolBtn { tool: Tool::DraftExtend, label: "延伸", tooltip: "延伸 (EX)" },
                 ToolBtn { tool: Tool::DraftFillet, label: "圓角", tooltip: "圓角 (F)" },
@@ -275,7 +258,14 @@ impl KolibriApp {
                 ToolBtn { tool: Tool::DraftErase, label: "刪除", tooltip: "刪除 (E)" },
                 ToolBtn { tool: Tool::DraftBreak, label: "打斷", tooltip: "打斷 (BR)" },
                 ToolBtn { tool: Tool::DraftJoin, label: "接合", tooltip: "接合 (J)" },
+                ToolBtn { tool: Tool::DraftLengthen, label: "拉長", tooltip: "拉長 (LEN)" },
             ], 4);
+            // ── 陣列 dropdown ──
+            self.ribbon_dropdown_btn(ui, "陣列", Tool::DraftArrayRect, "array", &[
+                ("矩形陣列", Tool::DraftArrayRect, "矩形陣列 (ARRAYRECT)"),
+                ("環形陣列", Tool::DraftArrayPolar, "環形陣列 (ARRAYPOLAR)"),
+                ("路徑陣列", Tool::DraftArrayPath, "路徑陣列 (ARRAYPATH)"),
+            ]);
             self.ribbon_vsep(ui);
             // ── 註解（對標 ZWCAD：多行文字/標註/表格 = 3大 + 線性/引線/欄位 = 小）──
             self.ribbon_group_n(ui, "註解", &[
@@ -509,6 +499,244 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn ribbon_group(&mut self, ui: &mut egui::Ui, title: &str, tools: &[ToolBtn]) {
         self.ribbon_group_n(ui, title, tools, 1);
+    }
+
+    /// 繪圖群組（ZWCAD 風格：直線/聚合線/圓▼/弧▼ = 4大按鈕，圓和弧有 dropdown）
+    #[cfg(feature = "drafting")]
+    fn ribbon_group_draw(&mut self, ui: &mut egui::Ui) {
+        let total_h = RIBBON_CONTENT_H;
+        let btn_area_h = total_h - GROUP_LABEL_H;
+        let small_btn_h: f32 = btn_area_h / 3.0;
+
+        // 大按鈕定義（前4個）
+        let big_tools: [(Tool, &str, &str); 4] = [
+            (Tool::DraftLine, "直線", "直線 (L)"),
+            (Tool::DraftPolyline, "聚合線", "聚合線 (PL)"),
+            (Tool::DraftCircle, "圓", "圓 (C) ▼"),
+            (Tool::DraftArc, "弧", "弧 (A) ▼"),
+        ];
+        // 小按鈕
+        let small_tools: &[ToolBtn] = &[
+            ToolBtn { tool: Tool::DraftRectangle, label: "矩形", tooltip: "矩形 (REC)" },
+            ToolBtn { tool: Tool::DraftEllipse, label: "橢圓", tooltip: "橢圓 (EL)" },
+            ToolBtn { tool: Tool::DraftPolygon, label: "多邊形", tooltip: "正多邊形 (POL)" },
+            ToolBtn { tool: Tool::DraftSpline, label: "雲形線", tooltip: "雲形線 (SPL)" },
+            ToolBtn { tool: Tool::DraftXline, label: "建構線", tooltip: "建構線 (XL)" },
+            ToolBtn { tool: Tool::DraftPoint, label: "點", tooltip: "點 (PO)" },
+            ToolBtn { tool: Tool::DraftRevcloud, label: "雲形", tooltip: "修訂雲形 (REVCLOUD)" },
+            ToolBtn { tool: Tool::DraftRay, label: "射線", tooltip: "射線 (RAY)" },
+        ];
+
+        let small_cols = (small_tools.len() + 2) / 3;
+        let group_w = 4.0 * BIG_BTN_W + small_cols as f32 * SMALL_BTN_W + 4.0;
+
+        let (group_rect, _) = ui.allocate_exact_size(egui::vec2(group_w, total_h), egui::Sense::hover());
+        if !ui.is_rect_visible(group_rect) { return; }
+        let p = ui.painter();
+
+        // 底部標籤
+        let label_rect = egui::Rect::from_min_size(
+            egui::pos2(group_rect.left(), group_rect.bottom() - GROUP_LABEL_H),
+            egui::vec2(group_w, GROUP_LABEL_H));
+        p.rect_filled(label_rect, 0.0, GROUP_LABEL_BG);
+        p.text(label_rect.center(), egui::Align2::CENTER_CENTER, "繪圖",
+            egui::FontId::proportional(FONT_LABEL), TEXT_DIM);
+
+        // ── 大按鈕（4 個）──
+        for (bi, (tool, label, tooltip)) in big_tools.iter().enumerate() {
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left() + 2.0 + bi as f32 * BIG_BTN_W, group_rect.top()),
+                egui::vec2(BIG_BTN_W, btn_area_h));
+
+            // 圓和弧：分上下兩區域（上=主工具，下=dropdown 三角形）
+            let is_dropdown = bi >= 2; // 圓和弧
+            let main_rect = if is_dropdown {
+                egui::Rect::from_min_size(btn_rect.min, egui::vec2(BIG_BTN_W, btn_area_h - 16.0))
+            } else {
+                btn_rect
+            };
+
+            let main_resp = ui.interact(main_rect, ui.id().with(("draw_big", bi)), egui::Sense::click());
+            let active = self.editor.tool == *tool
+                || (bi == 2 && matches!(self.editor.tool, Tool::DraftCircle | Tool::DraftCircle2P | Tool::DraftCircle3P))
+                || (bi == 3 && matches!(self.editor.tool, Tool::DraftArc | Tool::DraftArc3P | Tool::DraftArcSCE));
+
+            if active { p.rect_filled(btn_rect, 2.0, ACTIVE_BG); }
+            else if main_resp.hovered() { p.rect_filled(btn_rect, 2.0, HOVER_BG); }
+            let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
+
+            // Icon
+            let icon_name = crate::svg_icons::tool_icon_name(*tool);
+            if let Some(name) = icon_name {
+                if let Some(tex_id) = self.svg_icons.get(ui.ctx(), name) {
+                    let ir = egui::Rect::from_center_size(
+                        egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.30),
+                        egui::vec2(ICON_SIZE, ICON_SIZE));
+                    p.image(tex_id, ir,
+                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        egui::Color32::WHITE);
+                }
+            }
+
+            // 文字（如果有 dropdown，顯示目前選的子模式名稱）
+            let display_label = if bi == 2 {
+                match self.editor.tool {
+                    Tool::DraftCircle2P => "圓2P",
+                    Tool::DraftCircle3P => "圓3P",
+                    _ => "圓",
+                }
+            } else if bi == 3 {
+                match self.editor.tool {
+                    Tool::DraftArc3P => "弧3P",
+                    Tool::DraftArcSCE => "弧SCE",
+                    _ => "弧",
+                }
+            } else {
+                label
+            };
+            p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.68),
+                egui::Align2::CENTER_TOP, display_label,
+                egui::FontId::proportional(FONT_BIG), tc);
+
+            // Dropdown 三角形
+            if is_dropdown {
+                let arrow_y = btn_rect.bottom() - GROUP_LABEL_H - 10.0;
+                let arrow_cx = btn_rect.center().x;
+                let s = 3.5;
+                p.add(egui::Shape::convex_polygon(
+                    vec![
+                        egui::pos2(arrow_cx - s, arrow_y - 1.0),
+                        egui::pos2(arrow_cx + s, arrow_y - 1.0),
+                        egui::pos2(arrow_cx, arrow_y + s),
+                    ],
+                    TEXT_DIM, egui::Stroke::NONE,
+                ));
+
+                // Dropdown 區域
+                let dd_rect = egui::Rect::from_min_size(
+                    egui::pos2(btn_rect.left(), btn_rect.bottom() - GROUP_LABEL_H - 16.0),
+                    egui::vec2(BIG_BTN_W, 16.0));
+                let dd_resp = ui.interact(dd_rect, ui.id().with(("draw_dd", bi)), egui::Sense::click());
+                if dd_resp.hovered() {
+                    p.rect_filled(dd_rect, 1.0, egui::Color32::from_rgb(85, 85, 90));
+                }
+
+                // 點擊 dropdown 區域 → 顯示子選單
+                let popup_id = ui.id().with(("draw_popup", bi));
+                if dd_resp.clicked() {
+                    ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+                }
+
+                // Popup 選單
+                egui::popup_below_widget(ui, popup_id, &dd_resp, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+                    ui.set_min_width(120.0);
+                    if bi == 2 {
+                        // 圓子模式
+                        if ui.button("圓 (中心-半徑)").clicked() { self.editor.tool = Tool::DraftCircle; }
+                        if ui.button("圓 2P (直徑)").clicked() { self.editor.tool = Tool::DraftCircle2P; }
+                        if ui.button("圓 3P (三點)").clicked() { self.editor.tool = Tool::DraftCircle3P; }
+                    } else {
+                        // 弧子模式
+                        if ui.button("弧 (中心-半徑)").clicked() { self.editor.tool = Tool::DraftArc; }
+                        if ui.button("弧 3P (三點)").clicked() { self.editor.tool = Tool::DraftArc3P; }
+                        if ui.button("弧 SCE (起-中-終)").clicked() { self.editor.tool = Tool::DraftArcSCE; }
+                    }
+                });
+            }
+
+            if main_resp.on_hover_text(*tooltip).clicked() {
+                self.editor.tool = *tool;
+            }
+        }
+
+        // ── 小按鈕（3 行排列）──
+        let small_x = group_rect.left() + 2.0 + 4.0 * BIG_BTN_W;
+        for (si, btn_def) in small_tools.iter().enumerate() {
+            let col = si / 3;
+            let row = si % 3;
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(small_x + col as f32 * SMALL_BTN_W,
+                           group_rect.top() + row as f32 * small_btn_h),
+                egui::vec2(SMALL_BTN_W, small_btn_h));
+            let resp = ui.interact(btn_rect, ui.id().with(("draw_sm", si)), egui::Sense::click());
+            let active = self.editor.tool == btn_def.tool;
+            if active { p.rect_filled(btn_rect, 1.0, ACTIVE_BG); }
+            else if resp.hovered() { p.rect_filled(btn_rect, 1.0, HOVER_BG); }
+            let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
+            if let Some(name) = crate::svg_icons::tool_icon_name(btn_def.tool) {
+                if let Some(tex_id) = self.svg_icons.get(ui.ctx(), name) {
+                    let ir = egui::Rect::from_center_size(
+                        egui::pos2(btn_rect.left() + 12.0, btn_rect.center().y),
+                        egui::vec2(ICON_SM, ICON_SM));
+                    p.image(tex_id, ir,
+                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                        egui::Color32::WHITE);
+                }
+            }
+            p.text(egui::pos2(btn_rect.left() + 26.0, btn_rect.center().y),
+                egui::Align2::LEFT_CENTER, btn_def.label,
+                egui::FontId::proportional(FONT_SM), tc);
+            if resp.on_hover_text(btn_def.tooltip).clicked() {
+                self.editor.tool = btn_def.tool;
+            }
+        }
+    }
+
+    /// ZWCAD 風格 dropdown 按鈕（用於陣列等有子模式的工具）
+    #[cfg(feature = "drafting")]
+    fn ribbon_dropdown_btn(&mut self, ui: &mut egui::Ui, label: &str, default_tool: Tool, popup_key: &str, items: &[(&str, Tool, &str)]) {
+        let total_h = RIBBON_CONTENT_H;
+        let btn_area_h = total_h - GROUP_LABEL_H;
+        let w = 46.0;
+
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(w, total_h), egui::Sense::hover());
+        if !ui.is_rect_visible(rect) { return; }
+        let p = ui.painter();
+
+        let active = items.iter().any(|(_, t, _)| self.editor.tool == *t);
+        let btn_rect = egui::Rect::from_min_size(rect.min, egui::vec2(w, btn_area_h));
+        let resp = ui.interact(btn_rect, ui.id().with(("dd_main", popup_key)), egui::Sense::click());
+        if active { p.rect_filled(btn_rect, 2.0, ACTIVE_BG); }
+        else if resp.hovered() { p.rect_filled(btn_rect, 2.0, HOVER_BG); }
+        let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
+
+        // 顯示目前選中的子模式名稱
+        let current_label = items.iter().find(|(_, t, _)| self.editor.tool == *t)
+            .map(|(l, _, _)| *l).unwrap_or(label);
+        p.text(egui::pos2(rect.center().x, rect.top() + btn_area_h * 0.35),
+            egui::Align2::CENTER_CENTER, current_label,
+            egui::FontId::proportional(11.0), tc);
+
+        // Dropdown 三角
+        let arrow_y = rect.top() + btn_area_h * 0.65;
+        let s = 3.0;
+        p.add(egui::Shape::convex_polygon(
+            vec![
+                egui::pos2(rect.center().x - s, arrow_y),
+                egui::pos2(rect.center().x + s, arrow_y),
+                egui::pos2(rect.center().x, arrow_y + s + 1.0),
+            ],
+            TEXT_DIM, egui::Stroke::NONE,
+        ));
+
+        // 點擊 → popup
+        let popup_id = ui.id().with(("dd_popup", popup_key));
+        if resp.clicked() {
+            // 如果沒有展開，先設定預設工具
+            if !ui.memory(|mem| mem.is_popup_open(popup_id)) {
+                self.editor.tool = default_tool;
+            }
+            ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+        }
+
+        egui::popup_below_widget(ui, popup_id, &resp, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+            ui.set_min_width(130.0);
+            for (item_label, tool, tooltip) in items {
+                if ui.button(*item_label).on_hover_text(*tooltip).clicked() {
+                    self.editor.tool = *tool;
+                }
+            }
+        });
     }
 
     /// ZWCAD 風格垂直分隔線

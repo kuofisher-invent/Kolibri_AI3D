@@ -440,6 +440,12 @@ impl KolibriApp {
                 draft_offset: egui::Vec2::ZERO,
                 #[cfg(feature = "drafting")]
                 draft_pan_drag: None,
+                #[cfg(feature = "drafting")]
+                grip_edit_mode: crate::editor::GripEditMode::Stretch,
+                #[cfg(feature = "drafting")]
+                grip_hot_idx: None,
+                #[cfg(feature = "drafting")]
+                grip_base_point: None,
             },
 
             right_tab: RightTab::Properties,
