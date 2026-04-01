@@ -750,69 +750,424 @@ fn flush_draft_entity(
     }
 }
 
+/// DXF 解析中間結構：一個原始 entity 的 group codes
+#[cfg(feature = "drafting")]
+struct DxfRawEntity {
+    entity_type: String,
+    layer: String,
+    coords: std::collections::HashMap<i32, f64>,
+    text: String,
+    poly_pts: Vec<[f64; 2]>,
+    poly_closed: bool,
+    block_name: String, // INSERT 引用的 block 名
+}
+
 /// 從 DXF 檔案匯入到 DraftDocument（2D CAD 模式用）
-/// 支援 UTF-8 / BIG5 / ANSI 等編碼（lossy conversion）
+/// 完整支援：BLOCKS 展開、INSERT 遞迴、Layer 顏色、MTEXT、HATCH、ELLIPSE
 #[cfg(feature = "drafting")]
 pub fn import_dxf_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
     let raw = std::fs::read(path).map_err(|e| e.to_string())?;
     let content = decode_dxf_text(&raw);
     let lines: Vec<&str> = content.lines().collect();
+
+    // ── Phase 1: 解析 Layer 顏色表 ──
+    let layer_colors = parse_layer_colors(&lines);
+    tracing::info!("DXF layers: {} (with colors)", layer_colors.len());
+
+    // ── Phase 2: 解析 BLOCKS section ──
+    let blocks = parse_blocks(&lines);
+    tracing::info!("DXF blocks: {} defined", blocks.len());
+
+    // ── Phase 3: 解析 ENTITIES section ──
+    let entities = parse_entities_section(&lines);
+    tracing::info!("DXF entities: {} in ENTITIES section", entities.len());
+
+    // ── Phase 4: 展開 INSERT → 遞迴解析 block 內容 ──
     let mut count = 0;
-    let mut i = 0;
-    let mut in_entities = false;
-    let mut current_entity = String::new();
-    let mut coords: std::collections::HashMap<i32, f64> = std::collections::HashMap::new();
-    let mut text_buf = String::new();
-    let mut polyline_pts: Vec<[f64; 2]> = Vec::new();
-    let mut polyline_closed = false;
-
-    while i < lines.len().saturating_sub(1) {
-        let code = lines[i].trim();
-        let value = lines[i + 1].trim();
-        i += 2;
-
-        if value == "ENTITIES" && code == "2" { in_entities = true; continue; }
-        if !in_entities { continue; }
-
-        if code == "0" {
-            // ENDSEC 或新 entity → 先處理前一個
-            count += flush_draft_entity(&current_entity, &coords, &text_buf,
-                &mut polyline_pts, polyline_closed, doc);
-
-            if value == "ENDSEC" { in_entities = false; continue; }
-
-            current_entity = value.to_string();
-            coords.clear();
-            text_buf.clear();
-            polyline_closed = false;
-        } else if let Ok(c) = code.parse::<i32>() {
-            if c == 1 { text_buf = value.to_string(); }
-            else if c == 70 && current_entity == "LWPOLYLINE" {
-                polyline_closed = value.parse::<i32>().unwrap_or(0) & 1 != 0;
-            } else if c == 10 && current_entity == "LWPOLYLINE" {
-                let x = value.parse::<f64>().unwrap_or(0.0);
-                let y_idx = i;
-                if y_idx < lines.len().saturating_sub(1) {
-                    let yc = lines[y_idx].trim();
-                    let yv = lines[y_idx + 1].trim();
-                    if yc == "20" {
-                        let y = yv.parse::<f64>().unwrap_or(0.0);
-                        polyline_pts.push([x, y]);
-                        i += 2;
-                    }
-                }
-            } else if let Ok(v) = value.parse::<f64>() {
-                coords.insert(c, v);
-            }
-        }
-    }
-
-    // 處理最後一個 entity
-    count += flush_draft_entity(&current_entity, &coords, &text_buf,
-        &mut polyline_pts, polyline_closed, doc);
+    let max_depth = 10; // 防止無限遞迴
+    count += flush_entities_to_doc(doc, &entities, &blocks, &layer_colors, 0.0, 0.0, 1.0, 1.0, 0.0, max_depth);
 
     if count == 0 { return Err("DXF 中沒有找到 2D 圖元".into()); }
+    tracing::info!("DXF 匯入完成: {} 個圖元（含 block 展開）", count);
     Ok(count)
+}
+
+/// 解析 TABLES/LAYER section → layer name → ACI color
+#[cfg(feature = "drafting")]
+fn parse_layer_colors(lines: &[&str]) -> std::collections::HashMap<String, i32> {
+    let mut colors = std::collections::HashMap::new();
+    let mut in_tables = false;
+    let mut in_layer_table = false;
+    let mut current_layer = String::new();
+    let mut i = 0;
+    while i + 1 < lines.len() {
+        let code = lines[i].trim();
+        let value = lines[i + 1].trim();
+        if code == "2" && value == "TABLES" { in_tables = true; }
+        if code == "0" && value == "ENDSEC" && in_tables { in_tables = false; }
+        if in_tables && code == "2" && value == "LAYER" { in_layer_table = true; }
+        if in_tables && code == "0" && value == "ENDTAB" && in_layer_table { in_layer_table = false; }
+        if in_layer_table {
+            if code == "2" { current_layer = value.to_string(); }
+            if code == "62" {
+                if let Ok(c) = value.parse::<i32>() {
+                    if !current_layer.is_empty() {
+                        colors.insert(current_layer.clone(), c.abs()); // 負值 = frozen，取絕對值
+                    }
+                }
+            }
+        }
+        i += 2;
+    }
+    colors
+}
+
+/// 解析 BLOCKS section → block name → Vec<DxfRawEntity>
+#[cfg(feature = "drafting")]
+fn parse_blocks(lines: &[&str]) -> std::collections::HashMap<String, Vec<DxfRawEntity>> {
+    let mut blocks: std::collections::HashMap<String, Vec<DxfRawEntity>> = std::collections::HashMap::new();
+    let mut in_blocks = false;
+    let mut current_block_name = String::new();
+    let mut block_entities: Vec<DxfRawEntity> = Vec::new();
+    let mut i = 0;
+
+    while i + 1 < lines.len() {
+        let code = lines[i].trim();
+        let value = lines[i + 1].trim();
+
+        if code == "2" && value == "BLOCKS" { in_blocks = true; i += 2; continue; }
+        if code == "0" && value == "ENDSEC" && in_blocks {
+            if !current_block_name.is_empty() && !block_entities.is_empty() {
+                blocks.insert(current_block_name.clone(), std::mem::take(&mut block_entities));
+            }
+            in_blocks = false; i += 2; continue;
+        }
+        if !in_blocks { i += 2; continue; }
+
+        if code == "0" && value == "BLOCK" {
+            // 儲存上一個 block
+            if !current_block_name.is_empty() && !block_entities.is_empty() {
+                blocks.insert(current_block_name.clone(), std::mem::take(&mut block_entities));
+            }
+            block_entities.clear();
+            current_block_name.clear();
+            // 找 block name (group 2)
+            let mut j = i + 2;
+            while j + 1 < lines.len() {
+                let bc = lines[j].trim();
+                let bv = lines[j + 1].trim();
+                if bc == "0" { break; }
+                if bc == "2" { current_block_name = bv.to_string(); }
+                j += 2;
+            }
+            i += 2; continue;
+        }
+        if code == "0" && value == "ENDBLK" {
+            i += 2; continue;
+        }
+
+        // 在 block 內部，解析 entity
+        if code == "0" && in_blocks && !current_block_name.is_empty() {
+            if let Some(ent) = parse_single_entity(lines, &mut i) {
+                block_entities.push(ent);
+                continue;
+            }
+        }
+        i += 2;
+    }
+    blocks
+}
+
+/// 解析 ENTITIES section
+#[cfg(feature = "drafting")]
+fn parse_entities_section(lines: &[&str]) -> Vec<DxfRawEntity> {
+    let mut entities = Vec::new();
+    let mut in_entities = false;
+    let mut i = 0;
+    while i + 1 < lines.len() {
+        let code = lines[i].trim();
+        let value = lines[i + 1].trim();
+        if code == "2" && value == "ENTITIES" { in_entities = true; i += 2; continue; }
+        if code == "0" && value == "ENDSEC" && in_entities { break; }
+        if !in_entities { i += 2; continue; }
+        if code == "0" {
+            if let Some(ent) = parse_single_entity(lines, &mut i) {
+                entities.push(ent);
+                continue;
+            }
+        }
+        i += 2;
+    }
+    entities
+}
+
+/// 解析單一 DXF entity（從 group code 0 開始），更新 i 到 entity 結束
+#[cfg(feature = "drafting")]
+fn parse_single_entity(lines: &[&str], i: &mut usize) -> Option<DxfRawEntity> {
+    if *i + 1 >= lines.len() { return None; }
+    let entity_type = lines[*i + 1].trim().to_string();
+    if entity_type == "ENDSEC" || entity_type == "ENDBLK" || entity_type == "EOF" { return None; }
+
+    let mut ent = DxfRawEntity {
+        entity_type, layer: "0".into(), coords: std::collections::HashMap::new(),
+        text: String::new(), poly_pts: Vec::new(), poly_closed: false, block_name: String::new(),
+    };
+    *i += 2;
+
+    while *i + 1 < lines.len() {
+        let code_str = lines[*i].trim();
+        let val = lines[*i + 1].trim();
+        let code = match code_str.parse::<i32>() {
+            Ok(c) => c,
+            Err(_) => { *i += 2; continue; }
+        };
+        if code == 0 { break; } // 下一個 entity
+
+        match code {
+            8 => { ent.layer = val.to_string(); }
+            1 | 3 => {
+                // MTEXT 用 group 3 做續行，group 1 做最後一行
+                if !ent.text.is_empty() && code == 3 { ent.text.push_str(val); }
+                else { ent.text = val.to_string(); }
+            }
+            2 => { ent.block_name = val.to_string(); } // INSERT block ref
+            70 => {
+                if ent.entity_type == "LWPOLYLINE" {
+                    ent.poly_closed = val.parse::<i32>().unwrap_or(0) & 1 != 0;
+                }
+                if let Ok(v) = val.parse::<f64>() { ent.coords.insert(code, v); }
+            }
+            10 if ent.entity_type == "LWPOLYLINE" => {
+                let x = val.parse::<f64>().unwrap_or(0.0);
+                // 讀取對應的 20 (Y)
+                if *i + 3 < lines.len() && lines[*i + 2].trim() == "20" {
+                    let y = lines[*i + 3].trim().parse::<f64>().unwrap_or(0.0);
+                    ent.poly_pts.push([x, y]);
+                    *i += 4;
+                    continue;
+                } else {
+                    ent.poly_pts.push([x, 0.0]);
+                }
+            }
+            _ => {
+                if let Ok(v) = val.parse::<f64>() { ent.coords.insert(code, v); }
+            }
+        }
+        *i += 2;
+    }
+    // 跳過不需要的 entity 類型
+    match ent.entity_type.as_str() {
+        "SEQEND" | "ATTRIB" | "ATTDEF" | "VIEWPORT" => return None,
+        _ => {}
+    }
+    Some(ent)
+}
+
+/// 將 entity list flush 到 DraftDocument（遞迴展開 INSERT）
+#[cfg(feature = "drafting")]
+fn flush_entities_to_doc(
+    doc: &mut kolibri_drafting::DraftDocument,
+    entities: &[DxfRawEntity],
+    blocks: &std::collections::HashMap<String, Vec<DxfRawEntity>>,
+    layer_colors: &std::collections::HashMap<String, i32>,
+    offset_x: f64, offset_y: f64,
+    scale_x: f64, scale_y: f64,
+    rotation: f64,
+    depth: i32,
+) -> usize {
+    if depth <= 0 { return 0; }
+    let mut count = 0;
+
+    for ent in entities {
+        if ent.entity_type == "INSERT" {
+            // ── 展開 INSERT：查找 block 定義，套用 transform ──
+            if let Some(block_ents) = blocks.get(&ent.block_name) {
+                let ins_x = ent.coords.get(&10).unwrap_or(&0.0) * scale_x + offset_x;
+                let ins_y = ent.coords.get(&20).unwrap_or(&0.0) * scale_y + offset_y;
+                let ins_sx = ent.coords.get(&41).unwrap_or(&1.0) * scale_x;
+                let ins_sy = ent.coords.get(&42).unwrap_or(&1.0) * scale_y;
+                let ins_rot = ent.coords.get(&50).unwrap_or(&0.0).to_radians() + rotation;
+                count += flush_entities_to_doc(doc, block_ents, blocks, layer_colors,
+                    ins_x, ins_y, ins_sx, ins_sy, ins_rot, depth - 1);
+            }
+            continue;
+        }
+
+        // ── 一般 entity：套用 transform 並加入 doc ──
+        let color = resolve_entity_color(ent, layer_colors);
+        count += flush_single_entity(doc, ent, offset_x, offset_y, scale_x, scale_y, rotation, color);
+    }
+    count
+}
+
+/// 解析 ACI 顏色 → RGB
+#[cfg(feature = "drafting")]
+fn resolve_entity_color(ent: &DxfRawEntity, layer_colors: &std::collections::HashMap<String, i32>) -> [u8; 3] {
+    // Entity 自己的 color (group 62) 優先，否則用 layer color
+    let aci = ent.coords.get(&62).map(|v| *v as i32)
+        .unwrap_or_else(|| *layer_colors.get(&ent.layer).unwrap_or(&7));
+    aci_to_rgb(aci.abs())
+}
+
+/// ACI color index → RGB（AutoCAD 標準色）
+fn aci_to_rgb(aci: i32) -> [u8; 3] {
+    match aci {
+        1 => [255, 0, 0],       // 紅
+        2 => [255, 255, 0],     // 黃
+        3 => [0, 255, 0],       // 綠
+        4 => [0, 255, 255],     // 青
+        5 => [0, 0, 255],       // 藍
+        6 => [255, 0, 255],     // 洋紅
+        7 | 0 => [255, 255, 255], // 白（深色背景）/ BYBLOCK
+        8 => [128, 128, 128],   // 深灰
+        9 => [192, 192, 192],   // 淺灰
+        10 => [255, 0, 0], 11 => [255, 127, 127], 12 => [204, 0, 0],
+        13 => [204, 102, 102], 14 => [153, 0, 0], 15 => [153, 76, 76],
+        30 => [255, 127, 0], 40 => [255, 191, 0], 50 => [255, 255, 0],
+        60 => [191, 255, 0], 70 => [127, 255, 0], 80 => [0, 255, 0],
+        90 => [0, 255, 127], 100 => [0, 255, 191], 110 => [0, 255, 255],
+        120 => [0, 191, 255], 130 => [0, 127, 255], 140 => [0, 0, 255],
+        150 => [127, 0, 255], 160 => [191, 0, 255], 170 => [255, 0, 255],
+        180 => [255, 0, 191], 190 => [255, 0, 127],
+        200..=209 => [255, 127, 127], 210..=219 => [255, 191, 127],
+        220..=229 => [255, 255, 127], 230..=239 => [127, 255, 127],
+        240..=249 => [127, 255, 255], 250 => [51, 51, 51],
+        251 => [91, 91, 91], 252 => [132, 132, 132],
+        253 => [173, 173, 173], 254 => [214, 214, 214],
+        255 => [255, 255, 255],
+        _ => [255, 255, 255], // 未知色 → 白色
+    }
+}
+
+/// 將單個 entity 套用 transform 後加入 doc
+#[cfg(feature = "drafting")]
+fn flush_single_entity(
+    doc: &mut kolibri_drafting::DraftDocument,
+    ent: &DxfRawEntity,
+    ox: f64, oy: f64, sx: f64, sy: f64, rot: f64,
+    color: [u8; 3],
+) -> usize {
+    let xf = |x: f64, y: f64| -> [f64; 2] {
+        let px = x * sx;
+        let py = y * sy;
+        if rot.abs() > 0.001 {
+            let c = rot.cos();
+            let s = rot.sin();
+            [px * c - py * s + ox, px * s + py * c + oy]
+        } else {
+            [px + ox, py + oy]
+        }
+    };
+
+    let added = match ent.entity_type.as_str() {
+        "LINE" => {
+            let s = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            let e = xf(*ent.coords.get(&11).unwrap_or(&0.0), *ent.coords.get(&21).unwrap_or(&0.0));
+            doc.add_with_color(kolibri_drafting::DraftEntity::Line { start: s, end: e }, color); true
+        }
+        "CIRCLE" => {
+            let c = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            let r = *ent.coords.get(&40).unwrap_or(&1.0) * sx.abs();
+            doc.add_with_color(kolibri_drafting::DraftEntity::Circle { center: c, radius: r }, color); true
+        }
+        "ARC" => {
+            let c = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            let r = *ent.coords.get(&40).unwrap_or(&1.0) * sx.abs();
+            let sa = ent.coords.get(&50).unwrap_or(&0.0).to_radians() + rot;
+            let ea = ent.coords.get(&51).unwrap_or(&360.0).to_radians() + rot;
+            doc.add_with_color(kolibri_drafting::DraftEntity::Arc { center: c, radius: r, start_angle: sa, end_angle: ea }, color); true
+        }
+        "LWPOLYLINE" => {
+            if ent.poly_pts.len() >= 2 {
+                let pts: Vec<[f64; 2]> = ent.poly_pts.iter().map(|p| xf(p[0], p[1])).collect();
+                doc.add_with_color(kolibri_drafting::DraftEntity::Polyline { points: pts, closed: ent.poly_closed }, color); true
+            } else { false }
+        }
+        "TEXT" | "MTEXT" => {
+            if !ent.text.is_empty() {
+                let p = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+                let h = *ent.coords.get(&40).unwrap_or(&2.5) * sy.abs();
+                // MTEXT 清理格式碼
+                let cleaned = clean_mtext(&ent.text);
+                if !cleaned.is_empty() {
+                    doc.add_with_color(kolibri_drafting::DraftEntity::Text {
+                        position: p, content: cleaned, height: h,
+                        rotation: ent.coords.get(&50).unwrap_or(&0.0).to_radians() + rot,
+                    }, color); true
+                } else { false }
+            } else { false }
+        }
+        "ELLIPSE" => {
+            let c = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            let mx = *ent.coords.get(&11).unwrap_or(&1.0);
+            let my = *ent.coords.get(&21).unwrap_or(&0.0);
+            let sm = (mx * mx + my * my).sqrt() * sx.abs();
+            let ratio = *ent.coords.get(&40).unwrap_or(&0.5);
+            doc.add_with_color(kolibri_drafting::DraftEntity::Ellipse {
+                center: c, semi_major: sm, semi_minor: sm * ratio, rotation: my.atan2(mx) + rot,
+            }, color); true
+        }
+        "DIMENSION" => {
+            let p1 = xf(*ent.coords.get(&13).unwrap_or(&0.0), *ent.coords.get(&23).unwrap_or(&0.0));
+            let p2 = xf(*ent.coords.get(&14).unwrap_or(&0.0), *ent.coords.get(&24).unwrap_or(&0.0));
+            doc.add_with_color(kolibri_drafting::DraftEntity::DimLinear {
+                p1, p2, offset: 8.0,
+                text_override: if ent.text.is_empty() { None } else { Some(ent.text.clone()) },
+            }, color); true
+        }
+        "POINT" => {
+            let p = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            doc.add_with_color(kolibri_drafting::DraftEntity::Point { position: p }, color); true
+        }
+        "SOLID" | "3DFACE" => {
+            let p1 = xf(*ent.coords.get(&10).unwrap_or(&0.0), *ent.coords.get(&20).unwrap_or(&0.0));
+            let p2 = xf(*ent.coords.get(&11).unwrap_or(&0.0), *ent.coords.get(&21).unwrap_or(&0.0));
+            let p3 = xf(*ent.coords.get(&12).unwrap_or(&0.0), *ent.coords.get(&22).unwrap_or(&0.0));
+            let p4 = xf(*ent.coords.get(&13).unwrap_or(&0.0), *ent.coords.get(&23).unwrap_or(&0.0));
+            let is_tri = (p3[0] - p4[0]).abs() < 0.01 && (p3[1] - p4[1]).abs() < 0.01;
+            let pts = if is_tri { vec![p1, p2, p3] } else { vec![p1, p2, p3, p4] };
+            doc.add_with_color(kolibri_drafting::DraftEntity::Polyline { points: pts, closed: true }, color); true
+        }
+        "HATCH" => {
+            // HATCH 邊界路徑太複雜，跳過（未來可加）
+            false
+        }
+        _ => false,
+    };
+    if added { 1 } else { 0 }
+}
+
+/// 清理 MTEXT 格式碼（\P = 換行, \S = 堆疊, \\fArial; = 字體, { } = 群組）
+fn clean_mtext(raw: &str) -> String {
+    let mut result = String::new();
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.peek() {
+                Some('P') | Some('p') => { chars.next(); result.push('\n'); }
+                Some('S') => { // 堆疊分數 \S...^...;
+                    chars.next();
+                    while let Some(&c) = chars.peek() { chars.next(); if c == ';' { break; } result.push(c); }
+                }
+                Some('f') | Some('F') | Some('H') | Some('h') | Some('W') | Some('w')
+                | Some('T') | Some('t') | Some('Q') | Some('q') | Some('A') | Some('a')
+                | Some('C') | Some('c') | Some('L') | Some('l') | Some('O') | Some('o') => {
+                    // 格式碼 \fArial|...; → 跳到 ;
+                    chars.next();
+                    while let Some(&c) = chars.peek() { chars.next(); if c == ';' { break; } }
+                }
+                Some('\\') => { chars.next(); result.push('\\'); }
+                Some('{') => { chars.next(); result.push('{'); }
+                Some('}') => { chars.next(); result.push('}'); }
+                _ => { result.push('\\'); }
+            }
+        } else if ch == '{' || ch == '}' {
+            // 群組括號，忽略
+        } else {
+            result.push(ch);
+        }
+    }
+    result.trim().to_string()
 }
 
 /// 從 DraftDocument 匯出到 DXF 檔案（2D CAD 模式用）

@@ -256,6 +256,16 @@ impl DraftDocument {
         id
     }
 
+    /// 新增實體並指定顏色
+    pub fn add_with_color(&mut self, entity: DraftEntity, color: [u8; 3]) -> DraftId {
+        let id = self.next_id;
+        self.next_id += 1;
+        let mut obj = DraftObject::new(id, entity);
+        obj.color = color;
+        self.objects.push(obj);
+        id
+    }
+
     /// 刪除實體
     pub fn remove(&mut self, id: DraftId) -> bool {
         if let Some(pos) = self.objects.iter().position(|o| o.id == id) {
