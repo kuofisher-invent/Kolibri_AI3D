@@ -62,6 +62,9 @@ pub enum MenuAction {
     ImportDxfToDraft,   // DXF → 2D DraftDocument
     #[cfg(feature = "drafting")]
     ExportDraftDxf,     // 2D DraftDocument → DXF
+    ExportDwg,          // 3D Scene → DWG (via DXF→DWG conversion)
+    #[cfg(feature = "drafting")]
+    ExportDraftDwg,     // 2D DraftDocument → DWG (via DXF→DWG conversion)
     ToggleConsole,
     ToggleGrid,
     ToggleAxes,
@@ -106,9 +109,13 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
                 if ui.button("STL 模型").clicked() { action = MenuAction::ExportStl; ui.close_menu(); }
                 if ui.button("GLTF 模型").clicked() { action = MenuAction::ExportGltf; ui.close_menu(); }
                 if ui.button("DXF 圖面 (3D)").clicked() { action = MenuAction::ExportDxf; ui.close_menu(); }
+                if ui.button("DWG 圖面 (3D)").on_hover_text("匯出 DWG（需要 LibreDWG / ODA / ZWCAD）").clicked() { action = MenuAction::ExportDwg; ui.close_menu(); }
                 ui.separator();
                 #[cfg(feature = "drafting")]
-                if ui.button("DXF 圖面 (2D CAD)").clicked() { action = MenuAction::ExportDraftDxf; ui.close_menu(); }
+                {
+                    if ui.button("DXF 圖面 (2D CAD)").clicked() { action = MenuAction::ExportDraftDxf; ui.close_menu(); }
+                    if ui.button("DWG 圖面 (2D CAD)").on_hover_text("匯出 DWG（需要 LibreDWG / ODA / ZWCAD）").clicked() { action = MenuAction::ExportDraftDwg; ui.close_menu(); }
+                }
                 ui.separator();
                 ui.label("2D 截圖");
                 if ui.button("PNG 截圖").clicked() { action = MenuAction::ExportPng; ui.close_menu(); }

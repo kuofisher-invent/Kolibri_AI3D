@@ -72,69 +72,197 @@ fn parse_sections_r2000(data: &[u8], _ver: &DwgVersionInfo) -> Result<Vec<DwgSec
 }
 
 /// R2004+: page-based section system with compression
-fn parse_sections_r2004(data: &[u8], _ver: &DwgVersionInfo) -> Result<Vec<DwgSection>, ImportError> {
-    // R2004+ has a complex section page system:
-    // 1. Encrypted file header (0x100 bytes at offset 0x80)
-    // 2. Section page map (at offset stored in file header)
-    // 3. Each section page is optionally compressed
-
+fn parse_sections_r2004(data: &[u8], ver: &DwgVersionInfo) -> Result<Vec<DwgSection>, ImportError> {
     let mut sections = Vec::new();
 
-    // For R2004+, try to find sections by scanning for known patterns
-    // This is a simplified approach — full implementation needs the encrypted header
-
-    // Read the section map pointer from the encrypted header area
     if data.len() < 0x100 {
         return Err(ImportError::InvalidFormat("File too small for R2004 header".into()));
     }
 
-    // The encrypted header starts at offset 0x80
-    // We need to decrypt it with a simple XOR pattern
+    // ── 解密 R2004 File Header（0x80 起始，XOR 加密）──
     let header_start = 0x80;
     if header_start + 0x6C > data.len() {
         return Err(ImportError::InvalidFormat("R2004 header area truncated".into()));
     }
 
-    // Decrypt the header (XOR with magic seed derived from version)
     let encrypted = &data[header_start..header_start + 0x6C];
     let decrypted = decrypt_r2004_header(encrypted);
 
-    // Parse decrypted header fields
-    // Offset 0x00 in decrypted: file header size
-    // Offset 0x04: unknown
-    // Offset 0x0C: section page map offset
-    // Offset 0x14: section page map size
-    // Offset 0x2C: section page data offset
-
     if decrypted.len() >= 0x30 {
-        let _page_map_offset = u64::from_le_bytes(
+        // Section Page Map offset & size
+        let page_map_offset = u64::from_le_bytes(
             decrypted[0x0C..0x14].try_into().unwrap_or([0; 8])
         ) as usize;
-        let _page_map_size = u32::from_le_bytes(
+        let page_map_size = u32::from_le_bytes(
             decrypted[0x14..0x18].try_into().unwrap_or([0; 4])
         ) as usize;
+        // Section Info offset（section 描述表）
+        let section_info_id = i32::from_le_bytes(
+            decrypted[0x2C..0x30].try_into().unwrap_or([0; 4])
+        );
 
-        tracing::info!("R2004 section page map at offset {:#X}, size {}", _page_map_offset, _page_map_size);
+        tracing::info!("R2004: page_map offset={:#X} size={} info_id={}",
+            page_map_offset, page_map_size, section_info_id);
 
-        // For now, create a single "objects" section from the entire data body
-        // A full implementation would parse the page map and decompress each page
+        // ── 解析 Section Page Map ──
+        // Page map 告訴我們每一頁的 offset + size
+        let pages = parse_r2004_page_map(data, page_map_offset, page_map_size);
+        tracing::info!("R2004: parsed {} section pages", pages.len());
+
+        // ── 收集所有頁面的原始資料 ──
+        let mut all_page_data = Vec::new();
+        for page in &pages {
+            if page.offset + page.size <= data.len() {
+                let page_data = &data[page.offset..page.offset + page.size];
+                // 嘗試解壓（檢查 18CF magic）
+                if page_data.len() >= 4 && page_data[0] == 0x18 && page_data[1] == 0xCF {
+                    // 壓縮頁面：header(32 bytes) + compressed data
+                    if page_data.len() >= 32 {
+                        let decomp_size = u32::from_le_bytes(
+                            page_data[4..8].try_into().unwrap_or([0; 4])
+                        ) as usize;
+                        let comp_size = u32::from_le_bytes(
+                            page_data[8..12].try_into().unwrap_or([0; 4])
+                        ) as usize;
+                        if comp_size > 0 && decomp_size > 0 && 32 + comp_size <= page_data.len() {
+                            match decompress::decompress_r2004(&page_data[32..32 + comp_size], decomp_size) {
+                                Ok(decompressed) => {
+                                    all_page_data.extend_from_slice(&decompressed);
+                                    continue;
+                                }
+                                Err(e) => {
+                                    tracing::warn!("R2004 解壓失敗 offset={:#X}: {}", page.offset, e);
+                                }
+                            }
+                        }
+                    }
+                }
+                // 非壓縮（或解壓失敗）：直接使用
+                all_page_data.extend_from_slice(page_data);
+            }
+        }
+
+        if !all_page_data.is_empty() {
+            // 嘗試在合併資料中找到 Header / Classes / ObjectMap 區段
+            // 先整體作為 Objects section（entity scan 會處理）
+            sections.push(DwgSection {
+                section_type: SectionType::Objects,
+                data: all_page_data,
+            });
+        }
+    }
+
+    // ── 備援：如果 page map 解析失敗，用整個檔案體做 scan ──
+    if sections.is_empty() {
+        tracing::warn!("R2004: page map 解析失敗，使用全檔掃描");
+        // 跳過 header 區域（0x100），其餘都當資料區
         if data.len() > 0x100 {
             sections.push(DwgSection {
                 section_type: SectionType::Objects,
                 data: data[0x100..].to_vec(),
             });
+        } else {
+            sections.push(DwgSection {
+                section_type: SectionType::Objects,
+                data: data.to_vec(),
+            });
         }
     }
 
-    // If we couldn't parse the section map, fall back to whole-file scanning
-    if sections.is_empty() {
-        sections.push(DwgSection {
-            section_type: SectionType::Objects,
-            data: data.to_vec(),
-        });
+    Ok(sections)
+}
+
+/// R2004 Section Page 描述
+#[derive(Debug, Clone)]
+struct R2004Page {
+    offset: usize,
+    size: usize,
+    _page_id: i32,
+}
+
+/// 解析 R2004 Section Page Map
+fn parse_r2004_page_map(data: &[u8], map_offset: usize, map_size: usize) -> Vec<R2004Page> {
+    let mut pages = Vec::new();
+
+    if map_offset >= data.len() || map_offset + map_size > data.len() {
+        return pages;
     }
 
-    Ok(sections)
+    // Page Map 格式：每個 entry = page_number(4) + size(4) + offset(8) 或類似
+    // 實際上 Page Map 本身也可能是壓縮的，先嘗試直接解析
+    let map_data = &data[map_offset..map_offset + map_size.min(data.len() - map_offset)];
+
+    // 每個 page map entry 約 16 bytes: page_id(4) + size(4) + parent(4) + unused(4)
+    // 但 offset 通常是隱含的（連續排列從 0x100 開始）
+    let mut pos = 0;
+    let page_start_offset = 0x100_usize; // R2004 資料頁從 0x100 開始
+
+    // 簡化做法：掃描已知結構標記
+    // Section Page Map 的每個 section 以 2-byte size 開頭
+    while pos + 8 <= map_data.len() {
+        let section_size = u16::from_le_bytes(
+            [map_data[pos], map_data[pos + 1]]
+        ) as usize;
+
+        if section_size <= 2 || section_size > 0x10000 { break; }
+
+        let section_end = (pos + section_size).min(map_data.len());
+        let mut entry_pos = pos + 2;
+
+        while entry_pos + 8 <= section_end {
+            // 每個 entry: page_number(MC) + size(MC)
+            // 簡化：讀取兩個 i32 作為 page_id 和 page_size
+            let page_id = i32::from_le_bytes(
+                map_data[entry_pos..entry_pos+4].try_into().unwrap_or([0; 4])
+            );
+            let page_size = i32::from_le_bytes(
+                map_data[entry_pos+4..entry_pos+8].try_into().unwrap_or([0; 4])
+            ) as usize;
+
+            if page_id > 0 && page_size > 0 && page_size < data.len() {
+                pages.push(R2004Page {
+                    offset: page_start_offset + pages.len() * 0x1000, // 估算偏移
+                    size: page_size.min(data.len()),
+                    _page_id: page_id,
+                });
+            }
+            entry_pos += 8;
+        }
+
+        pos = section_end + 2; // skip CRC
+    }
+
+    // 如果 page map 解析結果太少，用另一種啟發式方法
+    if pages.is_empty() && data.len() > 0x100 {
+        // 掃描整個檔案找 18CF 壓縮頁面標記
+        let mut scan_pos = 0x100;
+        while scan_pos + 32 < data.len() {
+            if data[scan_pos] == 0x18 && data[scan_pos + 1] == 0xCF {
+                let decomp_size = u32::from_le_bytes(
+                    data[scan_pos + 4..scan_pos + 8].try_into().unwrap_or([0; 4])
+                ) as usize;
+                let comp_size = u32::from_le_bytes(
+                    data[scan_pos + 8..scan_pos + 12].try_into().unwrap_or([0; 4])
+                ) as usize;
+
+                if comp_size > 0 && comp_size < 1_000_000 && decomp_size > 0 && decomp_size < 10_000_000 {
+                    let page_total = 32 + comp_size;
+                    if scan_pos + page_total <= data.len() {
+                        pages.push(R2004Page {
+                            offset: scan_pos,
+                            size: page_total,
+                            _page_id: pages.len() as i32 + 1,
+                        });
+                        scan_pos += page_total;
+                        continue;
+                    }
+                }
+            }
+            scan_pos += 1;
+        }
+    }
+
+    pages
 }
 
 /// Decrypt R2004+ file header (simple XOR cipher)

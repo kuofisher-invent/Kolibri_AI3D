@@ -73,65 +73,77 @@ fn parse_sections_r2000(data: &[u8], _ver: &DwgVersionInfo) -> Result<Vec<DwgSec
 
 /// R2004+: page-based section system with compression
 fn parse_sections_r2004(data: &[u8], _ver: &DwgVersionInfo) -> Result<Vec<DwgSection>, ImportError> {
-    // R2004+ has a complex section page system:
-    // 1. Encrypted file header (0x100 bytes at offset 0x80)
-    // 2. Section page map (at offset stored in file header)
-    // 3. Each section page is optionally compressed
-
     let mut sections = Vec::new();
 
-    // For R2004+, try to find sections by scanning for known patterns
-    // This is a simplified approach — full implementation needs the encrypted header
-
-    // Read the section map pointer from the encrypted header area
     if data.len() < 0x100 {
         return Err(ImportError::InvalidFormat("File too small for R2004 header".into()));
     }
 
-    // The encrypted header starts at offset 0x80
-    // We need to decrypt it with a simple XOR pattern
     let header_start = 0x80;
     if header_start + 0x6C > data.len() {
         return Err(ImportError::InvalidFormat("R2004 header area truncated".into()));
     }
 
-    // Decrypt the header (XOR with magic seed derived from version)
     let encrypted = &data[header_start..header_start + 0x6C];
     let decrypted = decrypt_r2004_header(encrypted);
 
-    // Parse decrypted header fields
-    // Offset 0x00 in decrypted: file header size
-    // Offset 0x04: unknown
-    // Offset 0x0C: section page map offset
-    // Offset 0x14: section page map size
-    // Offset 0x2C: section page data offset
-
     if decrypted.len() >= 0x30 {
-        let _page_map_offset = u64::from_le_bytes(
+        let page_map_offset = u64::from_le_bytes(
             decrypted[0x0C..0x14].try_into().unwrap_or([0; 8])
         ) as usize;
         let _page_map_size = u32::from_le_bytes(
             decrypted[0x14..0x18].try_into().unwrap_or([0; 4])
         ) as usize;
 
-        tracing::info!("R2004 section page map at offset {:#X}, size {}", _page_map_offset, _page_map_size);
+        tracing::info!("R2004: page_map offset={:#X}", page_map_offset);
 
-        // For now, create a single "objects" section from the entire data body
-        // A full implementation would parse the page map and decompress each page
+        // 掃描 18CF 壓縮頁面標記
+        let mut all_page_data = Vec::new();
+        let mut scan_pos = 0x100;
+        while scan_pos + 32 < data.len() {
+            if data[scan_pos] == 0x18 && data[scan_pos + 1] == 0xCF {
+                let decomp_size = u32::from_le_bytes(
+                    data[scan_pos + 4..scan_pos + 8].try_into().unwrap_or([0; 4])
+                ) as usize;
+                let comp_size = u32::from_le_bytes(
+                    data[scan_pos + 8..scan_pos + 12].try_into().unwrap_or([0; 4])
+                ) as usize;
+                if comp_size > 0 && comp_size < 1_000_000 && decomp_size > 0 && decomp_size < 10_000_000 {
+                    let page_total = 32 + comp_size;
+                    if scan_pos + page_total <= data.len() {
+                        match decompress::decompress_r2004(&data[scan_pos + 32..scan_pos + 32 + comp_size], decomp_size) {
+                            Ok(decompressed) => { all_page_data.extend_from_slice(&decompressed); }
+                            Err(_) => { all_page_data.extend_from_slice(&data[scan_pos..scan_pos + page_total]); }
+                        }
+                        scan_pos += page_total;
+                        continue;
+                    }
+                }
+            }
+            scan_pos += 1;
+        }
+
+        if !all_page_data.is_empty() {
+            sections.push(DwgSection {
+                section_type: SectionType::Objects,
+                data: all_page_data,
+            });
+        }
+    }
+
+    // 備援：用整個檔案體做 scan
+    if sections.is_empty() {
         if data.len() > 0x100 {
             sections.push(DwgSection {
                 section_type: SectionType::Objects,
                 data: data[0x100..].to_vec(),
             });
+        } else {
+            sections.push(DwgSection {
+                section_type: SectionType::Objects,
+                data: data.to_vec(),
+            });
         }
-    }
-
-    // If we couldn't parse the section map, fall back to whole-file scanning
-    if sections.is_empty() {
-        sections.push(DwgSection {
-            section_type: SectionType::Objects,
-            data: data.to_vec(),
-        });
     }
 
     Ok(sections)

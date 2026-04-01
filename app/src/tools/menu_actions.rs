@@ -533,6 +533,95 @@ impl KolibriApp {
                     }
                 }
             }
+            // ── DWG 匯出（3D Scene → DWG via DXF 中繼轉換）──
+            MenuAction::ExportDwg => {
+                let file = rfd::FileDialog::new()
+                    .set_title("匯出 DWG")
+                    .add_filter("DWG 圖面", &["dwg", "DWG"])
+                    .set_file_name("export.dwg")
+                    .save_file();
+                if let Some(p) = file {
+                    let dwg_path = p.to_string_lossy().to_string();
+                    // 檢查可用工具
+                    let tools = crate::dwg_parser::available_dwg_tools();
+                    if tools.is_empty() {
+                        // 沒有轉換工具，匯出 DXF 作為替代
+                        let dxf_fallback = dwg_path.replace(".dwg", ".dxf").replace(".DWG", ".dxf");
+                        match crate::dxf_io::export_dxf(&self.scene, &dxf_fallback) {
+                            Ok(()) => {
+                                self.console_push("WARN", "無 DWG 轉換工具（LibreDWG/ODA/ZWCAD），已改匯出 DXF".into());
+                                self.file_message = Some((format!("已匯出 DXF（無 DWG 工具）: {}", dxf_fallback), std::time::Instant::now()));
+                            }
+                            Err(e) => self.file_message = Some((format!("匯出失敗: {}", e), std::time::Instant::now())),
+                        }
+                    } else {
+                        let scene_ref = &self.scene;
+                        match crate::dwg_parser::export_dwg_via_dxf(
+                            |tmp_dxf| crate::dxf_io::export_dxf(scene_ref, tmp_dxf),
+                            &dwg_path,
+                        ) {
+                            Ok(path) => {
+                                self.console_push("ACTION", format!("DWG 匯出成功: {}", path));
+                                self.file_message = Some((format!("已匯出 DWG: {}", path), std::time::Instant::now()));
+                            }
+                            Err(e) => {
+                                self.console_push("ERROR", format!("DWG 匯出失敗: {}", e));
+                                // 自動匯出 DXF 作為替代
+                                let dxf_fallback = dwg_path.replace(".dwg", ".dxf").replace(".DWG", ".dxf");
+                                if crate::dxf_io::export_dxf(&self.scene, &dxf_fallback).is_ok() {
+                                    self.file_message = Some((format!("DWG 轉換失敗，已改匯出 DXF: {}", dxf_fallback), std::time::Instant::now()));
+                                } else {
+                                    self.file_message = Some((format!("匯出失敗: {}", e), std::time::Instant::now()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // ── DWG 匯出（2D DraftDocument → DWG via DXF 中繼轉換）──
+            #[cfg(feature = "drafting")]
+            MenuAction::ExportDraftDwg => {
+                let file = rfd::FileDialog::new()
+                    .set_title("匯出 2D CAD → DWG")
+                    .add_filter("DWG 圖面", &["dwg", "DWG"])
+                    .set_file_name("drawing.dwg")
+                    .save_file();
+                if let Some(p) = file {
+                    let dwg_path = p.to_string_lossy().to_string();
+                    let tools = crate::dwg_parser::available_dwg_tools();
+                    if tools.is_empty() {
+                        // 匯出 DXF 替代
+                        let dxf_fallback = dwg_path.replace(".dwg", ".dxf").replace(".DWG", ".dxf");
+                        match crate::dxf_io::export_draft_to_dxf(&self.editor.draft_doc, &dxf_fallback) {
+                            Ok(count) => {
+                                self.console_push("WARN", format!("無 DWG 轉換工具，已匯出 {} 個圖元到 DXF", count));
+                                self.file_message = Some((format!("已匯出 DXF（無 DWG 工具）: {}", dxf_fallback), std::time::Instant::now()));
+                            }
+                            Err(e) => self.file_message = Some((format!("匯出失敗: {}", e), std::time::Instant::now())),
+                        }
+                    } else {
+                        let doc_ref = &self.editor.draft_doc;
+                        match crate::dwg_parser::export_dwg_via_dxf(
+                            |tmp_dxf| crate::dxf_io::export_draft_to_dxf(doc_ref, tmp_dxf).map(|_| ()),
+                            &dwg_path,
+                        ) {
+                            Ok(path) => {
+                                self.console_push("ACTION", format!("[2D] DWG 匯出成功: {}", path));
+                                self.file_message = Some((format!("已匯出 2D DWG: {}", path), std::time::Instant::now()));
+                            }
+                            Err(e) => {
+                                self.console_push("ERROR", format!("[2D] DWG 匯出失敗: {}", e));
+                                let dxf_fallback = dwg_path.replace(".dwg", ".dxf").replace(".DWG", ".dxf");
+                                if let Ok(count) = crate::dxf_io::export_draft_to_dxf(&self.editor.draft_doc, &dxf_fallback) {
+                                    self.file_message = Some((format!("DWG 轉換失敗，已匯出 {} 個圖元到 DXF: {}", count, dxf_fallback), std::time::Instant::now()));
+                                } else {
+                                    self.file_message = Some((format!("匯出失敗: {}", e), std::time::Instant::now()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             MenuAction::SplitObject => {
                 if let Some(id) = self.editor.selected_ids.first().cloned() {
                     if let Some(obj) = self.scene.objects.get(&id) {

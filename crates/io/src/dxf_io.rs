@@ -395,14 +395,27 @@ pub fn import_dwg_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str
         }
     }
 
+    // 偵測 DWG 版本資訊
+    let dwg_version = if data.len() >= 6 {
+        std::str::from_utf8(&data[0..6]).unwrap_or("?").to_string()
+    } else { "?".into() };
+
     if is_r2018_plus {
+        tracing::info!("DWG {} (R2018+): 嘗試外部轉換", dwg_version);
         // 嘗試外部轉換（ZWCAD COM / LibreDWG / ODA）
         if let Some(dxf_path) = crate::dwg_parser::try_convert_dwg_to_dxf(path) {
-            let result = import_dxf_to_draft(doc, &dxf_path);
-            return result;
+            tracing::info!("R2018 DWG 已轉換為 DXF: {}", dxf_path);
+            return import_dxf_to_draft(doc, &dxf_path);
         }
-        // 沒有外部工具 — 繼續用 native parser（精確度有限）
-        tracing::warn!("R2018 DWG 無法用外部工具轉換。建議在 ZWCAD 中另存為 DXF 後匯入。");
+        // 列出可用工具
+        let tools = crate::dwg_parser::available_dwg_tools();
+        if tools.is_empty() {
+            tracing::warn!("R2018 DWG: 無轉換工具可用（LibreDWG/ODA/ZWCAD 均未安裝）");
+        } else {
+            tracing::warn!("R2018 DWG: 有工具但轉換失敗: {:?}", tools);
+        }
+        // 繼續用 native parser（精確度有限）
+        tracing::warn!("R2018 DWG: 使用 native heuristic scan（精確度有限）。建議在 ZWCAD 中另存為 DXF 後匯入。");
     }
 
     // 解析 DWG → GeometryIr（native parser）
@@ -477,11 +490,30 @@ pub fn import_dwg_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str
     }
 
     if count == 0 {
+        let tools = crate::dwg_parser::available_dwg_tools();
+        let tool_info = if tools.is_empty() {
+            "目前系統無 DWG 轉換工具。\n安裝方法（任選一）：\n• LibreDWG: https://www.gnu.org/software/libredwg/\n• ODA File Converter: https://www.opendesign.com/guestfiles/oda_file_converter\n• ZWCAD: 安裝後自動啟用 COM Automation".to_string()
+        } else {
+            format!("已偵測到工具: {}，但轉換未成功", tools.join(", "))
+        };
         if is_r2018_plus {
-            return Err("DWG R2018+ 格式使用加密區段，無法完整解析。\n請在 ZWCAD/AutoCAD 中開啟此檔案，另存為 DXF 格式後再匯入。\n（檔案 → 另存為 → 檔案類型: DXF）".into());
+            return Err(format!(
+                "DWG {} (R2018+) 使用加密區段，無法完整解析。\n\n\
+                 解決方法：\n\
+                 1. 在 ZWCAD/AutoCAD 中開啟此 DWG\n\
+                 2. 另存為 → DXF 格式\n\
+                 3. 在 Kolibri 中匯入該 DXF\n\n\
+                 {}", dwg_version, tool_info
+            ));
         }
-        return Err("DWG 中沒有找到 2D 圖元（建議存為 DXF 後匯入）".into());
+        return Err(format!(
+            "DWG {} 中沒有找到 2D 圖元。\n建議存為 DXF 後匯入。\n\n{}",
+            dwg_version, tool_info
+        ));
     }
+
+    tracing::info!("DWG {} 匯入完成: {} 個圖元（{} curves, {} texts, {} dims）",
+        dwg_version, count, ir.curves.len(), ir.texts.len(), ir.dimensions.len());
     Ok(count)
 }
 
