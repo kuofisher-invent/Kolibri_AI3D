@@ -22,10 +22,17 @@ impl KolibriApp {
         let bg_color = egui::Color32::from_rgb(33, 40, 48);
         painter.rect_filled(rect, 0.0, bg_color);
 
-        // ── 匯入後自動 Zoom All ──
+        // ── 匯入後自動 Zoom All（延遲 2 幀，等 layout 穩定後再執行）──
         if self.editor.draft_needs_zoom_all {
-            self.editor.draft_needs_zoom_all = false;
-            self.draft_zoom_all(rect);
+            if rect.width() > 100.0 && rect.height() > 100.0 {
+                // 用 zoom_all_delay 做 2 幀延遲
+                self.editor.draft_zoom_all_delay = self.editor.draft_zoom_all_delay.saturating_sub(1);
+                if self.editor.draft_zoom_all_delay == 0 {
+                    self.editor.draft_needs_zoom_all = false;
+                    self.draft_zoom_all(rect);
+                }
+                ui.ctx().request_repaint(); // 確保下一幀也會觸發
+            }
         }
 
         // 座標系統：原點 = 畫布中央 + offset，scale = zoom（像素/mm）
@@ -3897,38 +3904,52 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn draft_zoom_all(&mut self, canvas_rect: egui::Rect) {
         if self.editor.draft_doc.objects.is_empty() {
-            // 沒有圖元，重置到預設
             self.editor.draft_zoom = 2.0;
             self.editor.draft_offset = egui::Vec2::ZERO;
             return;
         }
-        // 計算所有圖元的 bounding box（mm 座標）
-        let mut min_x = f64::MAX;
-        let mut min_y = f64::MAX;
-        let mut max_x = f64::MIN;
-        let mut max_y = f64::MIN;
+        // 收集所有 grip 點的 X, Y 座標
+        let mut all_x: Vec<f64> = Vec::new();
+        let mut all_y: Vec<f64> = Vec::new();
         for obj in &self.editor.draft_doc.objects {
             if !obj.visible { continue; }
             let grips = self.entity_grip_points(&obj.entity);
             for gp in &grips {
-                if gp[0] < min_x { min_x = gp[0]; }
-                if gp[1] < min_y { min_y = gp[1]; }
-                if gp[0] > max_x { max_x = gp[0]; }
-                if gp[1] > max_y { max_y = gp[1]; }
+                all_x.push(gp[0]);
+                all_y.push(gp[1]);
             }
-            // 圓/弧需要考慮半徑
             match &obj.entity {
                 kolibri_drafting::DraftEntity::Circle { center, radius } => {
-                    min_x = min_x.min(center[0] - radius);
-                    min_y = min_y.min(center[1] - radius);
-                    max_x = max_x.max(center[0] + radius);
-                    max_y = max_y.max(center[1] + radius);
+                    all_x.push(center[0] - radius);
+                    all_x.push(center[0] + radius);
+                    all_y.push(center[1] - radius);
+                    all_y.push(center[1] + radius);
                 }
                 _ => {}
             }
         }
-        if min_x >= max_x || min_y >= max_y {
-            // 只有點狀圖元
+        if all_x.is_empty() || all_y.is_empty() {
+            self.editor.draft_zoom = 2.0;
+            self.editor.draft_offset = egui::Vec2::ZERO;
+            return;
+        }
+        all_x.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        all_y.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        // 使用 5%~95% 百分位排除離群值（圖框、原點標記等）
+        let n = all_x.len();
+        let lo = (n as f64 * 0.03).floor() as usize;
+        let hi = (n as f64 * 0.97).ceil() as usize;
+        let lo = lo.min(n.saturating_sub(1));
+        let hi = hi.min(n.saturating_sub(1)).max(lo);
+
+        let min_x = all_x[lo];
+        let max_x = all_x[hi];
+        let min_y = all_y[lo];
+        let max_y = all_y[hi];
+
+        if max_x - min_x < 1.0 && max_y - min_y < 1.0 {
+            // 幾乎所有點重疊
             self.editor.draft_zoom = 2.0;
             self.editor.draft_offset = egui::Vec2::ZERO;
             return;
@@ -3948,14 +3969,20 @@ impl KolibriApp {
 
         self.editor.draft_zoom = new_zoom;
         // offset 使得 center_mm 映射到 canvas 中央
-        // screen_center = canvas_center + offset + center_mm * zoom → offset = -center_mm * zoom
-        self.editor.draft_offset = egui::vec2(
-            -(center_mm_x as f32) * new_zoom,
-            (center_mm_y as f32) * new_zoom, // Y 翻轉
-        );
+        // 座標系統：screen = canvas_center + offset + (mm_x * zoom, -mm_y * zoom)
+        // 要 center_mm 在 canvas_center：offset = (-center_mm_x * zoom, center_mm_y * zoom)
+        // offset 使得 center_mm 映射到 canvas 中央
+        // to_screen: screen_x = (rect.center().x + offset_x) + mm_x * zoom
+        //            screen_y = (rect.center().y + offset_y) - mm_y * zoom
+        // 要 center_mm 到 canvas center:
+        //   offset_x = -center_mm_x * zoom
+        //   offset_y = +center_mm_y * zoom  (注意 Y 翻轉)
+        let offset_x = -(center_mm_x as f32) * new_zoom;
+        let offset_y = (center_mm_y as f32) * new_zoom;
+        self.editor.draft_offset = egui::vec2(offset_x, offset_y);
         self.console_push("INFO", format!(
-            "縮放全部：{:.1}x（範圍 {:.0}×{:.0} mm）",
-            new_zoom, extent_w, extent_h
+            "ZoomAll: extent={:.0}x{:.0} center=({:.0},{:.0}) zoom={:.4}",
+            extent_w, extent_h, center_mm_x, center_mm_y, new_zoom
         ));
     }
 }

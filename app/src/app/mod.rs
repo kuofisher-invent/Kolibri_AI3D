@@ -449,6 +449,8 @@ impl KolibriApp {
                 #[cfg(feature = "drafting")]
                 draft_needs_zoom_all: false,
                 #[cfg(feature = "drafting")]
+                draft_zoom_all_delay: 0,
+                #[cfg(feature = "drafting")]
                 grip_edit_mode: crate::editor::GripEditMode::Stretch,
                 #[cfg(feature = "drafting")]
                 grip_hot_idx: None,
@@ -530,6 +532,16 @@ impl KolibriApp {
         #[cfg(feature = "drafting")]
         {
             self.editor.tool = Tool::DraftSelect;
+            // 清空 2D 畫布（新的 Drawing 分頁）
+            self.editor.draft_doc = kolibri_drafting::DraftDocument::new();
+            self.editor.draft_selected.clear();
+            self.editor.draft_state = crate::editor::DraftDrawState::Idle;
+            self.editor.draft_zoom = 2.0;
+            self.editor.draft_offset = egui::Vec2::ZERO;
+            self.editor.grip_edit_mode = crate::editor::GripEditMode::Stretch;
+            // 重設分頁：只保留一個空白 Drawing
+            self.editor.draft_sheets = vec![("Drawing1".to_string(), kolibri_drafting::DraftDocument::new())];
+            self.editor.draft_active_sheet = 0;
         }
     }
 
@@ -579,8 +591,9 @@ impl KolibriApp {
             self.editor.tool = Tool::DraftSelect;
         }
 
-        // 自動 Zoom All — 讓匯入的圖元馬上可見
+        // 自動 Zoom All — 延遲 3 幀，等 layout 穩定
         self.editor.draft_needs_zoom_all = true;
+        self.editor.draft_zoom_all_delay = 3;
 
         self.console_push("ACTION", format!("[2D] 已匯入 {} 個圖元到分頁「{}」", count, file_name));
         Ok(count)

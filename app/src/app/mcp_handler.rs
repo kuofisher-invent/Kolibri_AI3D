@@ -201,7 +201,18 @@ impl KolibriApp {
                         #[cfg(not(feature = "drafting"))]
                         { Err("drafting feature not enabled".to_string()) }
                     }
-                    "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n, "mode": "3d"})),
+                    "dxf" | "dwg" => {
+                        // 非 2D 模式：DWG/DXF 匯入到 2D 畫布（自動切換）
+                        #[cfg(feature = "drafting")]
+                        {
+                            self.import_cad_to_2d_tab(&path)
+                                .map(|n| json!({"imported": n, "mode": "2d", "auto_switch": true}))
+                        }
+                        #[cfg(not(feature = "drafting"))]
+                        {
+                            crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n, "mode": "3d"}))
+                        }
+                    }
                     "skp" => {
                         // SKP SDK 匯入（子進程隔離，避免 DLL 崩潰影響主 APP）
                         if kolibri_skp::sdk_available() {

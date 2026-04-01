@@ -547,6 +547,8 @@ pub(crate) struct EditorState {
     // ── 匯入後自動 Zoom All ──
     #[cfg(feature = "drafting")]
     pub(crate) draft_needs_zoom_all: bool,
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_zoom_all_delay: u8, // 延遲幀數
     // ── Grip editing ──
     #[cfg(feature = "drafting")]
     pub(crate) grip_edit_mode: GripEditMode,  // Space 循環模式
