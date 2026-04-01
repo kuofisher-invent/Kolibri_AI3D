@@ -23,17 +23,13 @@ impl eframe::App for KolibriApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // ── 全域主題：2D/AI 模式用深色，3D 模式用淺色 ──
-        if self.viewer.layout_mode || self.viewer.ai_mode {
-            let mut style = (*ctx.style()).clone();
-            if !style.visuals.dark_mode {
-                style.visuals = egui::Visuals::dark();
-                ctx.set_style(style);
-            }
-        } else {
-            let mut style = (*ctx.style()).clone();
-            if style.visuals.dark_mode {
-                style.visuals = egui::Visuals::light();
+        // ── 全域主題：只在模式切換時變更（避免每幀 set_style 開銷）──
+        {
+            let need_dark = self.viewer.layout_mode || self.viewer.ai_mode;
+            let is_dark = ctx.style().visuals.dark_mode;
+            if need_dark != is_dark {
+                let mut style = (*ctx.style()).clone();
+                style.visuals = if need_dark { egui::Visuals::dark() } else { egui::Visuals::light() };
                 ctx.set_style(style);
             }
         }

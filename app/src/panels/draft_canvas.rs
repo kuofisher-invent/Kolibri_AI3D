@@ -337,20 +337,43 @@ impl KolibriApp {
             );
         }
 
+        // ── 效能：根據圖元數量決定繪製策略 ──
+        let total_entities = self.editor.draft_doc.objects.len();
+        let is_heavy = total_entities > 5000;
+        // 小於 min_px 像素的圖元跳過（太小看不到）
+        let min_px = if is_heavy { 1.5_f32 } else { 0.5 };
+
         let mut rendered_count = 0_usize;
         for obj in &self.editor.draft_doc.objects {
             if !obj.visible { continue; }
             // ── Frustum culling: 跳過完全不在螢幕內的圖元 ──
             let in_view = Self::entity_in_view(&obj.entity, vis_left, vis_right, vis_bottom, vis_top);
             if !in_view { continue; }
+
+            // ── LOD: 太小的圖元在縮小時跳過 ──
+            if is_heavy {
+                let skip = match &obj.entity {
+                    kolibri_drafting::DraftEntity::Line { start, end } => {
+                        let dx = ((end[0] - start[0]) as f32 * scale).abs();
+                        let dy = ((end[1] - start[1]) as f32 * scale).abs();
+                        dx < min_px && dy < min_px
+                    }
+                    kolibri_drafting::DraftEntity::Circle { radius, .. } => {
+                        (*radius as f32 * scale) < min_px
+                    }
+                    kolibri_drafting::DraftEntity::Point { .. } => scale < 0.5,
+                    _ => false,
+                };
+                if skip { continue; }
+            }
+
             rendered_count += 1;
             // 深色背景：黑色線改白色，其他保留
             let color = if obj.color == [0, 0, 0] {
-                egui::Color32::from_rgb(230, 230, 230) // 白色線條
+                egui::Color32::from_rgb(230, 230, 230)
             } else {
                 egui::Color32::from_rgb(obj.color[0], obj.color[1], obj.color[2])
             };
-            // 統一細線（1px），ZWCAD 預設模式不顯示線寬差異
             let lw = 1.0_f32;
             let st = egui::Stroke::new(lw, color);
 
@@ -361,13 +384,23 @@ impl KolibriApp {
                 kolibri_drafting::DraftEntity::Circle { center, radius } => {
                     let c = to_screen(center[0], center[1]);
                     let r = *radius as f32 * scale;
-                    painter.circle_stroke(c, r, st);
+                    // 小圓用少段數
+                    if is_heavy && r < 5.0 {
+                        // 太小的圓用菱形近似（4 段）
+                        let pts = [
+                            egui::pos2(c.x, c.y - r), egui::pos2(c.x + r, c.y),
+                            egui::pos2(c.x, c.y + r), egui::pos2(c.x - r, c.y),
+                        ];
+                        for i in 0..4 { painter.line_segment([pts[i], pts[(i+1)%4]], st); }
+                    } else {
+                        painter.circle_stroke(c, r, st);
+                    }
                 }
                 kolibri_drafting::DraftEntity::Arc { center, radius, start_angle, end_angle } => {
                     let c = to_screen(center[0], center[1]);
                     let r = *radius as f32 * scale;
-                    // 用折線近似圓弧
-                    let n = 32;
+                    // 效能：大量圖元時弧段數降低
+                    let n = if is_heavy { if r < 10.0 { 8 } else { 16 } } else { 32 };
                     let mut points = Vec::with_capacity(n + 1);
                     for i in 0..=n {
                         let t = *start_angle + (*end_angle - *start_angle) * i as f64 / n as f64;
@@ -1453,9 +1486,16 @@ impl KolibriApp {
             }
         }
 
-        // 持續 repaint（十字游標需要跟隨滑鼠）
-        if canvas_hover_pos.is_some() {
-            ui.ctx().request_repaint();
+        // 按需 repaint（只在滑鼠移動、繪圖中、動畫中才重繪，靜止時不重繪）
+        {
+            let is_drawing = !matches!(self.editor.draft_state, crate::editor::DraftDrawState::Idle);
+            let mouse_moved = ui.input(|i| i.pointer.delta().length() > 0.5);
+            if is_drawing || mouse_moved {
+                ui.ctx().request_repaint();
+            } else if canvas_hover_pos.is_some() {
+                // 靜止但在畫布上：低頻重繪（座標顯示更新）
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+            }
         }
 
         // ── 動態輸入 (DYN) — 游標旁顯示距離/角度 tooltip ──
