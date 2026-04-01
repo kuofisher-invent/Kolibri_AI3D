@@ -925,12 +925,25 @@ fn parse_single_entity(lines: &[&str], i: &mut usize) -> Option<DxfRawEntity> {
 
         match code {
             8 => { ent.layer = val.to_string(); }
-            1 | 3 => {
-                // MTEXT 用 group 3 做續行，group 1 做最後一行
-                if !ent.text.is_empty() && code == 3 { ent.text.push_str(val); }
-                else { ent.text = val.to_string(); }
+            1 => {
+                // Group 1: 文字內容（TEXT/MTEXT/DIMENSION 覆寫文字）
+                // DIMENSION 的 group 1 = 標註覆寫文字（可能為空 = 自動計算）
+                if ent.entity_type == "TEXT" || ent.entity_type == "MTEXT"
+                    || ent.entity_type == "DIMENSION" || ent.entity_type == "ATTRIB" || ent.entity_type == "ATTDEF" {
+                    ent.text = val.to_string();
+                }
             }
-            2 => { ent.block_name = val.to_string(); } // INSERT block ref
+            3 => {
+                // Group 3: 只有 MTEXT 用做續行文字
+                // 其他 entity（如 DIMENSION）的 group 3 是 dimension style name，不是文字
+                if ent.entity_type == "MTEXT" {
+                    ent.text.push_str(val);
+                }
+            }
+            2 => {
+                // Group 2: INSERT/DIMENSION 的 block reference name
+                ent.block_name = val.to_string();
+            }
             70 => {
                 if ent.entity_type == "LWPOLYLINE" {
                     ent.poly_closed = val.parse::<i32>().unwrap_or(0) & 1 != 0;
@@ -955,10 +968,22 @@ fn parse_single_entity(lines: &[&str], i: &mut usize) -> Option<DxfRawEntity> {
         }
         *i += 2;
     }
-    // 跳過不需要的 entity 類型
+    // 跳過非幾何 entity（TABLES 裡的定義、ATTRIB 等）
     match ent.entity_type.as_str() {
-        "SEQEND" | "ATTRIB" | "ATTDEF" | "VIEWPORT" => return None,
+        "SEQEND" | "ATTRIB" | "ATTDEF" | "VIEWPORT"
+        | "LAYER" | "LTYPE" | "STYLE" | "DIMSTYLE" | "TABLE" | "ENDTAB"
+        | "VPORT" | "UCS" | "APPID" | "BLOCK_RECORD"
+        | "DICTIONARY" | "ACDBDICTIONARYWDFLT" | "XRECORD"
+        | "MATERIAL" | "MLINESTYLE" | "TABLESTYLE"
+        | "VISUALSTYLE" | "SECTION" | "ACDBPLACEHOLDER"
+        | "LAYOUT" | "PLOTSETTINGS" | "SCALE" | "SORTENTSTABLE"
+        | "CLASS" => return None,
         _ => {}
+    }
+    // 額外過濾：如果 entity 沒有座標也沒有文字，跳過
+    if ent.coords.is_empty() && ent.text.is_empty() && ent.poly_pts.is_empty()
+        && !matches!(ent.entity_type.as_str(), "INSERT") {
+        return None;
     }
     Some(ent)
 }
@@ -1168,6 +1193,21 @@ fn clean_mtext(raw: &str) -> String {
         }
     }
     result.trim().to_string()
+}
+
+/// 從 DXF 檔案解析圖層定義（名稱+顏色），用於匯入後建立 LayerManager
+#[cfg(feature = "drafting")]
+pub fn parse_dxf_layers(path: &str) -> Vec<(String, [u8; 3])> {
+    let raw = match std::fs::read(path) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let content = decode_dxf_text(&raw);
+    let lines: Vec<&str> = content.lines().collect();
+    let colors = parse_layer_colors(&lines);
+    colors.iter().map(|(name, &aci)| {
+        (name.clone(), aci_to_rgb(aci.abs()))
+    }).collect()
 }
 
 /// 從 DraftDocument 匯出到 DXF 檔案（2D CAD 模式用）

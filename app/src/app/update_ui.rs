@@ -269,74 +269,142 @@ impl KolibriApp {
             self.draw_text_editor(ctx);
         }
 
-        // ── 圖層管理員對話框 ──
+        // ── 圖層管理員對話框（ZWCAD 風格：表格式、可見/凍結/鎖定/顏色/線型/線寬）──
         #[cfg(feature = "drafting")]
         if self.viewer.layout_mode && self.editor.show_layer_manager {
             let mut open = self.editor.show_layer_manager;
-            egui::Window::new("圖層管理員")
+            egui::Window::new("圖層特性管理員")
                 .open(&mut open)
-                .default_size([320.0, 280.0])
+                .default_size([680.0, 420.0])
+                .min_size([500.0, 200.0])
                 .resizable(true)
                 .show(ctx, |ui| {
-                    // 工具列
+                    // ── 工具列 ──
                     ui.horizontal(|ui| {
-                        if ui.button("+ 新增").clicked() {
-                            let name = format!("圖層{}", self.editor.draft_layers.layers.len());
+                        if ui.button("➕ 新增圖層").clicked() {
+                            let n = self.editor.draft_layers.layers.len();
+                            let name = format!("新圖層{}", n);
                             self.editor.draft_layers.add(kolibri_drafting::DraftLayer::new(&name, [255, 255, 255]));
                         }
-                        ui.label(egui::RichText::new(format!("目前: {}", self.editor.draft_layers.current)).size(11.0));
+                        if ui.button("🗑 刪除").clicked() {
+                            // 刪除非目前圖層中最後選的
+                        }
+                        ui.separator();
+                        ui.label(egui::RichText::new(format!("目前圖層: {}", self.editor.draft_layers.current)).size(12.0).strong());
+                        ui.separator();
+                        ui.label(egui::RichText::new(format!("{} 個圖層", self.editor.draft_layers.layers.len())).size(11.0).color(egui::Color32::GRAY));
                     });
                     ui.separator();
 
-                    // 圖層列表
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        let layer_data: Vec<(String, [u8; 3], bool, bool, bool)> = self.editor.draft_layers.layers.iter()
-                            .map(|l| (l.name.clone(), l.color, l.visible, l.locked, l.frozen))
+                    // ── 表頭 ──
+                    let row_h = 22.0;
+                    ui.horizontal(|ui| {
+                        ui.set_min_height(row_h);
+                        let header_color = egui::Color32::from_rgb(180, 180, 190);
+                        let hf = egui::FontId::proportional(11.0);
+                        ui.add_space(4.0);
+                        ui.label(egui::RichText::new("").size(11.0)); // checkbox space
+                        ui.add_sized([28.0, row_h], egui::Label::new(egui::RichText::new("狀態").font(hf.clone()).color(header_color)));
+                        ui.add_sized([160.0, row_h], egui::Label::new(egui::RichText::new("名稱").font(hf.clone()).color(header_color)));
+                        ui.add_sized([28.0, row_h], egui::Label::new(egui::RichText::new("開").font(hf.clone()).color(header_color)));
+                        ui.add_sized([28.0, row_h], egui::Label::new(egui::RichText::new("凍").font(hf.clone()).color(header_color)));
+                        ui.add_sized([28.0, row_h], egui::Label::new(egui::RichText::new("鎖").font(hf.clone()).color(header_color)));
+                        ui.add_sized([40.0, row_h], egui::Label::new(egui::RichText::new("顏色").font(hf.clone()).color(header_color)));
+                        ui.add_sized([80.0, row_h], egui::Label::new(egui::RichText::new("線型").font(hf.clone()).color(header_color)));
+                        ui.add_sized([50.0, row_h], egui::Label::new(egui::RichText::new("線寬").font(hf.clone()).color(header_color)));
+                    });
+                    ui.separator();
+
+                    // ── 圖層列表（scroll）──
+                    egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+                        let layer_data: Vec<(String, [u8; 3], bool, bool, bool, String, f64)> = self.editor.draft_layers.layers.iter()
+                            .map(|l| (l.name.clone(), l.color, l.visible, l.frozen, l.locked, format!("{:?}", l.line_type), l.line_weight))
                             .collect();
 
-                        for (name, color, visible, locked, frozen) in &layer_data {
-                            ui.horizontal(|ui| {
-                                let is_current = *name == self.editor.draft_layers.current;
+                        for (idx, (name, color, visible, frozen, locked, line_type, line_weight)) in layer_data.iter().enumerate() {
+                            let is_current = *name == self.editor.draft_layers.current;
+                            let bg = if is_current {
+                                egui::Color32::from_rgba_unmultiplied(0, 122, 204, 40)
+                            } else if idx % 2 == 0 {
+                                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 5)
+                            } else {
+                                egui::Color32::TRANSPARENT
+                            };
 
-                                // 可見 toggle
-                                let vis_icon = if *visible { "👁" } else { "  " };
-                                if ui.small_button(vis_icon).on_hover_text("可見/隱藏").clicked() {
-                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
-                                        l.visible = !l.visible;
-                                    }
+                            let (row_rect, _) = ui.allocate_exact_size(
+                                egui::vec2(ui.available_width(), row_h),
+                                egui::Sense::hover());
+                            ui.painter().rect_filled(row_rect, 0.0, bg);
+
+                            // 用 child_ui 在 row_rect 中排列
+                            let mut child = ui.child_ui(row_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+                            child.set_min_height(row_h);
+                            child.add_space(4.0);
+
+                            // 目前圖層標記
+                            let status = if is_current { "✓" } else { " " };
+                            child.add_sized([28.0, row_h], egui::Label::new(
+                                egui::RichText::new(status).size(12.0).color(egui::Color32::from_rgb(0, 200, 0))));
+
+                            // 名稱（可點擊設為目前）
+                            let name_text = if is_current {
+                                egui::RichText::new(name).size(12.0).strong().color(egui::Color32::WHITE)
+                            } else {
+                                egui::RichText::new(name).size(12.0).color(egui::Color32::from_rgb(220, 220, 220))
+                            };
+                            if child.add_sized([160.0, row_h], egui::Label::new(name_text).sense(egui::Sense::click())).clicked() {
+                                self.editor.draft_layers.current = name.clone();
+                            }
+
+                            // 可見 toggle (燈泡)
+                            let vis_icon = if *visible { "💡" } else { "⚫" };
+                            let vis_color = if *visible { egui::Color32::YELLOW } else { egui::Color32::GRAY };
+                            if child.add_sized([28.0, row_h], egui::Label::new(
+                                egui::RichText::new(vis_icon).size(13.0).color(vis_color))
+                                .sense(egui::Sense::click())).clicked() {
+                                if let Some(l) = self.editor.draft_layers.layers.get_mut(idx) {
+                                    l.visible = !l.visible;
                                 }
+                            }
 
-                                // 鎖定 toggle
-                                let lock_icon = if *locked { "🔒" } else { "🔓" };
-                                if ui.small_button(lock_icon).on_hover_text("鎖定/解鎖").clicked() {
-                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
-                                        l.locked = !l.locked;
-                                    }
+                            // 凍結 toggle
+                            let frz_icon = if *frozen { "❄" } else { "☀" };
+                            let frz_color = if *frozen { egui::Color32::from_rgb(100, 180, 255) } else { egui::Color32::from_rgb(200, 200, 200) };
+                            if child.add_sized([28.0, row_h], egui::Label::new(
+                                egui::RichText::new(frz_icon).size(13.0).color(frz_color))
+                                .sense(egui::Sense::click())).clicked() {
+                                if let Some(l) = self.editor.draft_layers.layers.get_mut(idx) {
+                                    l.frozen = !l.frozen;
                                 }
+                            }
 
-                                // 凍結 toggle
-                                let freeze_icon = if *frozen { "❄" } else { "☀" };
-                                if ui.small_button(freeze_icon).on_hover_text("凍結/解凍").clicked() {
-                                    if let Some(l) = self.editor.draft_layers.get_mut(name) {
-                                        l.frozen = !l.frozen;
-                                    }
+                            // 鎖定 toggle
+                            let lock_icon = if *locked { "🔒" } else { "🔓" };
+                            if child.add_sized([28.0, row_h], egui::Label::new(
+                                egui::RichText::new(lock_icon).size(13.0))
+                                .sense(egui::Sense::click())).clicked() {
+                                if let Some(l) = self.editor.draft_layers.layers.get_mut(idx) {
+                                    l.locked = !l.locked;
                                 }
+                            }
 
-                                // 色塊
-                                let (cr, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
-                                ui.painter().rect_filled(cr, 2.0,
-                                    egui::Color32::from_rgb(color[0], color[1], color[2]));
+                            // 顏色方塊
+                            let color_rect = egui::Rect::from_min_size(
+                                egui::pos2(child.cursor().min.x + 8.0, row_rect.center().y - 6.0),
+                                egui::vec2(24.0, 12.0));
+                            child.painter().rect_filled(color_rect, 2.0,
+                                egui::Color32::from_rgb(color[0], color[1], color[2]));
+                            child.painter().rect_stroke(color_rect, 2.0,
+                                egui::Stroke::new(0.5, egui::Color32::from_rgb(100, 100, 100)));
+                            child.add_space(40.0);
 
-                                // 名稱（可點擊設為目前）
-                                let label = if is_current {
-                                    egui::RichText::new(name).strong()
-                                } else {
-                                    egui::RichText::new(name)
-                                };
-                                if ui.selectable_label(is_current, label).clicked() {
-                                    self.editor.draft_layers.current = name.clone();
-                                }
-                            });
+                            // 線型
+                            child.add_sized([80.0, row_h], egui::Label::new(
+                                egui::RichText::new(line_type).size(10.0).color(egui::Color32::from_rgb(180, 180, 180))));
+
+                            // 線寬
+                            child.add_sized([50.0, row_h], egui::Label::new(
+                                egui::RichText::new(format!("{:.2}", line_weight)).size(10.0).color(egui::Color32::from_rgb(180, 180, 180))));
                         }
                     });
                 });
