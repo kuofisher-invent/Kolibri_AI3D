@@ -1,13 +1,13 @@
 [Setup]
 AppName=Kolibri Ai3D
-AppVersion=1.0.0
+AppVersion=1.1.0
 AppPublisher=Kolibri
 AppPublisherURL=https://github.com/kuofisher-invent/Kolibri_AI3D
 DefaultDirName={autopf}\Kolibri Ai3D
 DefaultGroupName=Kolibri Ai3D
 UninstallDisplayIcon={app}\kolibri-cad.exe
 OutputDir=dist
-OutputBaseFilename=KolibriAi3D_Setup_v1.0.0
+OutputBaseFilename=KolibriAi3D_Setup_v1.1.0
 SetupIconFile=app\icon.ico
 Compression=lzma2
 SolidCompression=yes
@@ -18,10 +18,9 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 
 [Languages]
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
