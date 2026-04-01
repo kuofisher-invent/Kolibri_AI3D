@@ -3,6 +3,140 @@
 use kolibri_core::scene::{Scene, Shape};
 use std::io::Write;
 
+/// 自動偵測 DXF 文字編碼並轉換為 UTF-8
+/// 支援：UTF-8、Big5/CP950（繁體中文）、GBK（簡體中文）、Shift-JIS（日文）、Latin-1
+pub fn decode_dxf_text(raw: &[u8]) -> String {
+    // 1. 先嘗試 UTF-8（最常見）
+    if let Ok(s) = String::from_utf8(raw.to_vec()) {
+        return s;
+    }
+
+    // 2. 檢查 DXF header 中的 $DWGCODEPAGE 提示
+    let header_hint = detect_codepage_from_header(raw);
+
+    // 3. 根據提示或啟發式偵測選擇編碼
+    let encoding = header_hint.unwrap_or_else(|| detect_encoding_heuristic(raw));
+
+    match encoding.as_str() {
+        "big5" | "cp950" | "ansi_950" => decode_big5(raw),
+        "gbk" | "gb2312" | "ansi_936" | "gb18030" => decode_gbk(raw),
+        "shift_jis" | "ansi_932" => decode_shift_jis(raw),
+        _ => {
+            // 預設：嘗試 Big5（台灣 CAD 最常見），失敗則 lossy UTF-8
+            let big5_result = decode_big5(raw);
+            // 如果 Big5 解碼產生了 CJK 字元，就用 Big5
+            if big5_result.chars().any(|c| ('\u{4E00}'..='\u{9FFF}').contains(&c)) {
+                big5_result
+            } else {
+                String::from_utf8_lossy(raw).into_owned()
+            }
+        }
+    }
+}
+
+/// 從 DXF header 偵測 $DWGCODEPAGE
+fn detect_codepage_from_header(raw: &[u8]) -> Option<String> {
+    // 在 header 前 5000 bytes 中搜索 $DWGCODEPAGE
+    let search_len = raw.len().min(5000);
+    let header = &raw[..search_len];
+
+    // 搜索 "$DWGCODEPAGE" 然後讀取後面的 group code 3 的值
+    if let Some(pos) = header.windows(13).position(|w| w == b"$DWGCODEPAGE\n" || w == b"$DWGCODEPAGE\r") {
+        // 跳到 value（通常在後面 2-4 行）
+        let after = &raw[pos + 13..raw.len().min(pos + 100)];
+        // 找 group code 3 的值
+        for line in after.split(|&b| b == b'\n') {
+            let trimmed = line.strip_suffix(b"\r").unwrap_or(line);
+            let trimmed = trimmed.iter().copied().collect::<Vec<u8>>();
+            let s = String::from_utf8_lossy(&trimmed).trim().to_lowercase();
+            if s.contains("ansi_950") || s.contains("big5") || s.contains("chinese_big5") {
+                return Some("big5".into());
+            }
+            if s.contains("ansi_936") || s.contains("gbk") || s.contains("gb2312") {
+                return Some("gbk".into());
+            }
+            if s.contains("ansi_932") || s.contains("shift_jis") || s.contains("japanese") {
+                return Some("shift_jis".into());
+            }
+            if s.contains("ansi_1252") || s.contains("latin") {
+                return Some("latin1".into());
+            }
+        }
+    }
+    None
+}
+
+/// 啟發式偵測：掃描 non-ASCII bytes 判斷最可能的編碼
+fn detect_encoding_heuristic(raw: &[u8]) -> String {
+    let mut big5_score = 0i32;
+    let mut gbk_score = 0i32;
+    let mut i = 0;
+    let scan_len = raw.len().min(50000); // 掃描前 50KB
+
+    while i < scan_len {
+        let b = raw[i];
+        if b > 127 && i + 1 < scan_len {
+            let b2 = raw[i + 1];
+            // Big5 範圍: high 0xA1-0xF9, low 0x40-0x7E or 0xA1-0xFE
+            if (0xA1..=0xF9).contains(&b) && ((0x40..=0x7E).contains(&b2) || (0xA1..=0xFE).contains(&b2)) {
+                big5_score += 1;
+            }
+            // GBK 範圍: high 0x81-0xFE, low 0x40-0xFE (not 0x7F)
+            if (0x81..=0xFE).contains(&b) && (0x40..=0xFE).contains(&b2) && b2 != 0x7F {
+                gbk_score += 1;
+            }
+            i += 2;
+            continue;
+        }
+        i += 1;
+    }
+
+    if big5_score > 5 && big5_score >= gbk_score {
+        "big5".into()
+    } else if gbk_score > 5 {
+        "gbk".into()
+    } else {
+        "latin1".into()
+    }
+}
+
+/// 用 Windows MultiByteToWideChar 批量轉換整個 buffer（Big5/GBK/Shift-JIS 共用）
+fn decode_with_codepage(raw: &[u8], codepage: u32) -> String {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::raw::c_int;
+        extern "system" {
+            fn MultiByteToWideChar(
+                code_page: u32, flags: u32,
+                src: *const u8, src_len: c_int,
+                dst: *mut u16, dst_len: c_int,
+            ) -> c_int;
+        }
+        // 先取得需要的 buffer 大小
+        let needed = unsafe {
+            MultiByteToWideChar(codepage, 0, raw.as_ptr(), raw.len() as c_int, std::ptr::null_mut(), 0)
+        };
+        if needed > 0 {
+            let mut wbuf = vec![0u16; needed as usize];
+            let result = unsafe {
+                MultiByteToWideChar(codepage, 0, raw.as_ptr(), raw.len() as c_int, wbuf.as_mut_ptr(), needed)
+            };
+            if result > 0 {
+                return String::from_utf16_lossy(&wbuf[..result as usize]);
+            }
+        }
+    }
+    // Non-Windows fallback
+    String::from_utf8_lossy(raw).into_owned()
+}
+
+/// Big5/CP950 → UTF-8
+fn decode_big5(raw: &[u8]) -> String { decode_with_codepage(raw, 950) }
+/// GBK → UTF-8
+fn decode_gbk(raw: &[u8]) -> String { decode_with_codepage(raw, 936) }
+/// Shift-JIS → UTF-8
+fn decode_shift_jis(raw: &[u8]) -> String { decode_with_codepage(raw, 932) }
+
 pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
     let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
 
@@ -132,8 +266,7 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
     use kolibri_core::halfedge::HeMesh;
 
     let raw = std::fs::read(path).map_err(|e| e.to_string())?;
-    let content = String::from_utf8(raw.clone())
-        .unwrap_or_else(|_| String::from_utf8_lossy(&raw).into_owned());
+    let content = decode_dxf_text(&raw);
     let lines: Vec<&str> = content.lines().collect();
 
     let mut line_segments: Vec<([f32; 3], [f32; 3])> = Vec::new();
@@ -621,10 +754,8 @@ fn flush_draft_entity(
 /// 支援 UTF-8 / BIG5 / ANSI 等編碼（lossy conversion）
 #[cfg(feature = "drafting")]
 pub fn import_dxf_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
-    // 先嘗試 UTF-8，失敗則用 lossy（非 UTF-8 字元替換為 ?）
     let raw = std::fs::read(path).map_err(|e| e.to_string())?;
-    let content = String::from_utf8(raw.clone())
-        .unwrap_or_else(|_| String::from_utf8_lossy(&raw).into_owned());
+    let content = decode_dxf_text(&raw);
     let lines: Vec<&str> = content.lines().collect();
     let mut count = 0;
     let mut i = 0;

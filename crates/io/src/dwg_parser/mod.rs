@@ -262,8 +262,9 @@ try {{
 fn parse_dxf_as_geometry_ir(dxf_path: &str) -> ImportResult<GeometryIr> {
     use crate::cad_import::dxf_importer::*;
 
-    let content = std::fs::read_to_string(dxf_path)
+    let raw = std::fs::read(dxf_path)
         .map_err(|e| ImportError::Io(format!("讀取 DXF 失敗: {}", e)))?;
+    let content = crate::dxf_io::decode_dxf_text(&raw);
 
     let mut ir = GeometryIr::new(
         std::path::PathBuf::from(dxf_path),
