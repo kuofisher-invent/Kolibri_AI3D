@@ -58,6 +58,12 @@ pub struct KolibriApp {
     pub(crate) last_saved_version: u64,
     pub(crate) pending_action: Option<crate::menu::MenuAction>,
 
+    // DXF/DWG 匯入模式選擇對話框
+    #[cfg(feature = "drafting")]
+    pub(crate) pending_import_path: Option<String>,
+    #[cfg(feature = "drafting")]
+    pub(crate) show_import_mode_dialog: bool,
+
     // AI Audit Log
     pub(crate) ai_log: crate::ai_log::AiLog,
     pub(crate) current_actor: crate::ai_log::ActorId,
@@ -441,6 +447,8 @@ impl KolibriApp {
                 #[cfg(feature = "drafting")]
                 draft_pan_drag: None,
                 #[cfg(feature = "drafting")]
+                draft_needs_zoom_all: false,
+                #[cfg(feature = "drafting")]
                 grip_edit_mode: crate::editor::GripEditMode::Stretch,
                 #[cfg(feature = "drafting")]
                 grip_hot_idx: None,
@@ -459,6 +467,10 @@ impl KolibriApp {
             auto_save_version: 0,
             last_saved_version: 0,
             pending_action: None,
+            #[cfg(feature = "drafting")]
+            pending_import_path: None,
+            #[cfg(feature = "drafting")]
+            show_import_mode_dialog: false,
             ai_log: crate::ai_log::AiLog::new(),
             current_actor: crate::ai_log::ActorId::user(),
             mcp_bridge: None,
@@ -566,6 +578,9 @@ impl KolibriApp {
             self.viewer.layout_mode = true;
             self.editor.tool = Tool::DraftSelect;
         }
+
+        // 自動 Zoom All — 讓匯入的圖元馬上可見
+        self.editor.draft_needs_zoom_all = true;
 
         self.console_push("ACTION", format!("[2D] 已匯入 {} 個圖元到分頁「{}」", count, file_name));
         Ok(count)

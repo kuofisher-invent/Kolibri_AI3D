@@ -343,6 +343,71 @@ impl KolibriApp {
             self.editor.show_layer_manager = open;
         }
 
+        // ── DXF/DWG 匯入模式選擇對話框 ──
+        #[cfg(feature = "drafting")]
+        if self.show_import_mode_dialog {
+            let mut close = false;
+            egui::Window::new("匯入模式選擇")
+                .collapsible(false)
+                .resizable(false)
+                .default_size([320.0, 150.0])
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    let file_name = self.pending_import_path.as_ref()
+                        .map(|p| p.rsplit(['\\', '/']).next().unwrap_or(p).to_string())
+                        .unwrap_or_default();
+                    ui.label(egui::RichText::new(format!("匯入: {}", file_name)).size(14.0).strong());
+                    ui.add_space(8.0);
+                    ui.label("請選擇匯入目標：");
+                    ui.add_space(12.0);
+                    ui.horizontal(|ui| {
+                        // 2D 出圖畫布按鈕
+                        let btn_2d = ui.add_sized([130.0, 40.0],
+                            egui::Button::new(egui::RichText::new("📐 2D 出圖畫布").size(14.0)));
+                        if btn_2d.on_hover_text("匯入到 2D CAD 出圖模式（推薦）\n自動切換到出圖模式，建立新分頁").clicked() {
+                            if let Some(path) = self.pending_import_path.take() {
+                                match self.import_cad_to_2d_tab(&path) {
+                                    Ok(count) => {
+                                        self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                                    }
+                                    Err(e) => {
+                                        self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                                        self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                                    }
+                                }
+                            }
+                            close = true;
+                        }
+
+                        ui.add_space(8.0);
+
+                        // 3D 場景按鈕
+                        let btn_3d = ui.add_sized([130.0, 40.0],
+                            egui::Button::new(egui::RichText::new("🧊 3D 場景").size(14.0)));
+                        if btn_3d.on_hover_text("匯入到 3D 建模場景\n線段/弧/圓 轉為 3D 物件").clicked() {
+                            if let Some(path) = self.pending_import_path.take() {
+                                match crate::dxf_io::import_dxf(&mut self.scene, &path) {
+                                    Ok(count) => {
+                                        self.editor.selected_ids.clear();
+                                        self.file_message = Some((format!("已匯入 {} 個 3D 物件", count), std::time::Instant::now()));
+                                    }
+                                    Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
+                                }
+                            }
+                            close = true;
+                        }
+                    });
+                    ui.add_space(8.0);
+                    if ui.button("取消").clicked() {
+                        self.pending_import_path = None;
+                        close = true;
+                    }
+                });
+            if close {
+                self.show_import_mode_dialog = false;
+            }
+        }
+
         // （左側工具列已移除 — Ribbon 已包含所有功能）
 
         // ── Left panel (toolbar only) — 出圖模式時完全不顯示 ──

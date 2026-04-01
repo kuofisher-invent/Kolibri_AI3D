@@ -22,6 +22,12 @@ impl KolibriApp {
         let bg_color = egui::Color32::from_rgb(33, 40, 48);
         painter.rect_filled(rect, 0.0, bg_color);
 
+        // ── 匯入後自動 Zoom All ──
+        if self.editor.draft_needs_zoom_all {
+            self.editor.draft_needs_zoom_all = false;
+            self.draft_zoom_all(rect);
+        }
+
         // 座標系統：原點 = 畫布中央 + offset，scale = zoom（像素/mm）
         let scale = self.editor.draft_zoom;
         let origin = rect.center() + self.editor.draft_offset;

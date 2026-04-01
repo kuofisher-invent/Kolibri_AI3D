@@ -544,6 +544,9 @@ pub(crate) struct EditorState {
     pub(crate) draft_offset: egui::Vec2,  // 畫布偏移（像素）
     #[cfg(feature = "drafting")]
     pub(crate) draft_pan_drag: Option<egui::Pos2>,  // 中鍵拖曳起始點
+    // ── 匯入後自動 Zoom All ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_needs_zoom_all: bool,
     // ── Grip editing ──
     #[cfg(feature = "drafting")]
     pub(crate) grip_edit_mode: GripEditMode,  // Space 循環模式

@@ -342,26 +342,11 @@ impl KolibriApp {
                     .pick_file();
                 if let Some(p) = file {
                     let ps = p.to_string_lossy().to_string();
-                    // 根據目前模式自動路由：2D 模式 → DraftDocument, 3D 模式 → Scene
+                    // 儲存路徑，顯示選擇對話框讓使用者決定匯入到 2D 還是 3D
                     #[cfg(feature = "drafting")]
-                    if self.viewer.layout_mode {
-                        match self.import_cad_to_2d_tab(&ps) {
-                            Ok(count) => {
-                                self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
-                            }
-                            Err(e) => {
-                                self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
-                                self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
-                            }
-                        }
-                    } else {
-                        match crate::dxf_io::import_dxf(&mut self.scene, &ps) {
-                            Ok(count) => {
-                                self.editor.selected_ids.clear();
-                                self.file_message = Some((format!("已匯入 {} 個 3D 物件: {}", count, ps), std::time::Instant::now()));
-                            }
-                            Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
-                        }
+                    {
+                        self.pending_import_path = Some(ps);
+                        self.show_import_mode_dialog = true;
                     }
                     #[cfg(not(feature = "drafting"))]
                     {
