@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Baseline extension line -->
+  <path d="M4 6V20"/>
+  <!-- First dimension line -->
+  <path d="M4 16H16"/>
+  <path d="M16 13V19"/>
+  <path d="M4 16L7 14.5M4 16L7 17.5"/>
+  <path d="M16 16L13 14.5M16 16L13 17.5"/>
+  <!-- Second dimension line (from same baseline) -->
+  <path d="M4 9H21"/>
+  <path d="M21 6V12"/>
+  <path d="M4 9L7 7.5M4 9L7 10.5"/>
+  <path d="M21 9L18 7.5M21 9L18 10.5"/>
+</svg>

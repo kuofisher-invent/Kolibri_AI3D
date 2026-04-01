@@ -74,8 +74,9 @@ pub enum MenuAction {
 pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can_redo: bool, _obj_count: usize, recent_files: &[String], has_current_file: bool, use_ortho: bool, saved_camera_count: usize) -> MenuAction {
     let mut action = MenuAction::None;
 
+    let menu_font = 15.0; // 與 Ribbon tab 字體大小一致
     egui::menu::bar(ui, |ui| {
-        ui.menu_button("檔案", |ui| {
+        ui.menu_button(egui::RichText::new("檔案").size(menu_font), |ui| {
             if ui.button("新建場景").clicked() { action = MenuAction::NewScene; ui.close_menu(); }
             if ui.button("開啟 (Ctrl+O)").clicked() { action = MenuAction::OpenScene; ui.close_menu(); }
             ui.menu_button("最近檔案", |ui| {
@@ -117,27 +118,27 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
             ui.menu_button("匯入", |ui| {
                 if ui.button("OBJ 模型").clicked() { action = MenuAction::ImportObj; ui.close_menu(); }
                 if ui.button("STL 模型").clicked() { action = MenuAction::ImportStl; ui.close_menu(); }
-                if ui.button("DXF 圖面 (3D)").clicked() { action = MenuAction::ImportDxf; ui.close_menu(); }
+                if ui.button("DXF/DWG 圖面 (自動偵測模式)").on_hover_text("3D 模式匯入到場景, 2D 模式匯入到出圖畫布").clicked() { action = MenuAction::ImportDxf; ui.close_menu(); }
                 if ui.button("GLTF 模型").clicked() { action = MenuAction::ImportGltf; ui.close_menu(); }
                 ui.separator();
                 #[cfg(feature = "drafting")]
-                if ui.button("DXF/DWG → 2D CAD").clicked() { action = MenuAction::ImportDxfToDraft; ui.close_menu(); }
+                if ui.button("DXF/DWG → 強制 2D CAD").on_hover_text("不論目前模式，強制匯入到 2D 出圖畫布").clicked() { action = MenuAction::ImportDxfToDraft; ui.close_menu(); }
                 ui.separator();
-                if ui.button("DXF 智慧匯入 (解析軸線/柱梁)").clicked() { action = MenuAction::ImportDxfSmart; ui.close_menu(); }
+                if ui.button("智慧匯入 (解析軸線/柱梁)").on_hover_text("DXF/DWG/PDF 結構解析, 2D 模式自動到畫布").clicked() { action = MenuAction::ImportDxfSmart; ui.close_menu(); }
                 ui.separator();
-                if ui.button("智慧匯入 (DXF/DWG/SKP/OBJ/PDF)").clicked() { action = MenuAction::SmartImport; ui.close_menu(); }
+                if ui.button("智慧匯入 (全格式)").on_hover_text("DXF/DWG/SKP/OBJ/PDF/STL, 2D 模式 DXF/DWG 自動到畫布").clicked() { action = MenuAction::SmartImport; ui.close_menu(); }
                 ui.separator();
                 if ui.button("參考圖片").clicked() { action = MenuAction::ImportImage; ui.close_menu(); }
             });
         });
-        ui.menu_button("編輯", |ui| {
+        ui.menu_button(egui::RichText::new("編輯").size(menu_font), |ui| {
             if ui.add_enabled(can_undo, egui::Button::new("復原 (Ctrl+Z)")).clicked() { action = MenuAction::Undo; ui.close_menu(); }
             if ui.add_enabled(can_redo, egui::Button::new("重做 (Ctrl+Y)")).clicked() { action = MenuAction::Redo; ui.close_menu(); }
             ui.separator();
             if ui.add_enabled(has_selection, egui::Button::new("刪除 (Delete)")).clicked() { action = MenuAction::Delete; ui.close_menu(); }
             if ui.button("全選 (Ctrl+A)").clicked() { action = MenuAction::SelectAll; ui.close_menu(); }
         });
-        ui.menu_button("工具", |ui| {
+        ui.menu_button(egui::RichText::new("工具").size(menu_font), |ui| {
             ui.label("布林運算 (需選取2個方塊)");
             if ui.button("聯集 (A+B)").clicked() { action = MenuAction::CsgUnion; ui.close_menu(); }
             if ui.button("差集 (A-B)").clicked() { action = MenuAction::CsgSubtract; ui.close_menu(); }
@@ -146,7 +147,7 @@ pub fn draw_menu_bar(ui: &mut egui::Ui, has_selection: bool, can_undo: bool, can
             ui.label("分割");
             if ui.button("分割物件 (沿最長軸)").clicked() { action = MenuAction::SplitObject; ui.close_menu(); }
         });
-        ui.menu_button("檢視", |ui| {
+        ui.menu_button(egui::RichText::new("檢視").size(menu_font), |ui| {
             if ui.button("前視圖 (1)").clicked() { action = MenuAction::ViewFront; ui.close_menu(); }
             if ui.button("後視圖").clicked() { action = MenuAction::ViewBack; ui.close_menu(); }
             if ui.button("左視圖").clicked() { action = MenuAction::ViewLeft; ui.close_menu(); }

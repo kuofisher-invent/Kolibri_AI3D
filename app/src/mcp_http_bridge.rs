@@ -345,6 +345,14 @@ fn parse_draft_command(tool: &str, args: &serde_json::Value) -> Option<McpComman
             ids: args["ids"].as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_u64()).collect()).unwrap_or_default(),
         }),
+        "draft_set_zoom" => Some(McpCommand::DraftSetZoom {
+            zoom: args["zoom"].as_f64().unwrap_or(2.0) as f32,
+            offset_x: args["offset_x"].as_f64().unwrap_or(0.0) as f32,
+            offset_y: args["offset_y"].as_f64().unwrap_or(0.0) as f32,
+        }),
+        "draft_import_file" => Some(McpCommand::DraftImportFile {
+            path: args["path"].as_str().unwrap_or("").into(),
+        }),
         _ => None,
     }
 }

@@ -88,6 +88,10 @@ pub enum McpCommand {
     DraftSetTool { tool: String },
     #[cfg(feature = "drafting")]
     DraftSelect { ids: Vec<u64> },
+    #[cfg(feature = "drafting")]
+    DraftImportFile { path: String },
+    #[cfg(feature = "drafting")]
+    DraftSetZoom { zoom: f32, offset_x: f32, offset_y: f32 },
 }
 
 /// MCP result sent back from GUI thread to MCP thread

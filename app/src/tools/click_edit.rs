@@ -8,13 +8,58 @@ impl KolibriApp {
     /// Wall, Slab, Steel* 系列工具
     pub(crate) fn on_click_edit(&mut self) {
         match self.editor.tool {
-            // Move click = select for moving (only when highlighted)
+            // Move: SU-style click-click（點擊起點 → 移動 → 點擊終點）
             Tool::Move => {
-                if let Some(ref id) = self.editor.hovered_id.clone() {
-                    self.editor.selected_ids = vec![id.clone()];
-                    // Expand selection to include all group members
-                    self.expand_selection_to_groups();
-                    self.right_tab = RightTab::Properties;
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        // 第一次點擊：選取物件 + 設定移動起點
+                        if self.editor.selected_ids.is_empty() {
+                            // 未選取時先 pick
+                            if let Some(ref id) = self.editor.hovered_id.clone() {
+                                self.editor.selected_ids = vec![id.clone()];
+                                self.expand_selection_to_groups();
+                                self.right_tab = RightTab::Properties;
+                            }
+                        }
+                        // 有選取的物件 → 進入 MoveFrom 狀態
+                        if !self.editor.selected_ids.is_empty() {
+                            if let Some(from) = self.ground_snapped() {
+                                let ids = self.editor.selected_ids.clone();
+                                let orig_pos: Vec<[f32; 3]> = ids.iter()
+                                    .map(|id| self.scene.objects.get(id).map_or([0.0; 3], |o| o.position))
+                                    .collect();
+                                // Ctrl held = copy mode
+                                let ctrl = false; // 在 click 中不易取得 modifier，drag 模式中處理
+                                let snap_ids: Vec<&str> = ids.iter().map(|s| s.as_str()).collect();
+                                self.scene.snapshot_ids(&snap_ids, "移動");
+                                self.editor.draw_state = DrawState::MoveFrom {
+                                    from,
+                                    obj_ids: ids,
+                                    original_positions: orig_pos,
+                                };
+                            }
+                        }
+                    }
+                    DrawState::MoveFrom { from, obj_ids, original_positions } => {
+                        // 第二次點擊：確認移動終點
+                        if let Some(to) = self.ground_snapped() {
+                            let dx = to[0] - from[0];
+                            let dy = to[1] - from[1];
+                            let dz = to[2] - from[2];
+                            // 套用位移（以 original_positions 為基準）
+                            for (i, id) in obj_ids.iter().enumerate() {
+                                if let Some(obj) = self.scene.objects.get_mut(id) {
+                                    let orig = original_positions[i];
+                                    obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
+                                }
+                            }
+                            self.scene.version += 1;
+                            self.editor.last_move_delta = Some([dx, dy, dz]);
+                            self.editor.draw_state = DrawState::Idle;
+                            self.editor.drag_snapshot_taken = false;
+                        }
+                    }
+                    _ => {}
                 }
             }
 
@@ -474,7 +519,27 @@ impl KolibriApp {
             }
 
             Tool::PushPull => {
-                if matches!(self.editor.draw_state, DrawState::Idle) {
+                // SU-style PullClick: 如果已在 PullClick 狀態 → 第二次點擊確認
+                if let DrawState::PullClick { ref obj_id, face, original_dim } = self.editor.draw_state.clone() {
+                    // 確認推拉距離
+                    let current_dim = self.scene.objects.get(obj_id.as_str()).map(|obj| {
+                        match (&obj.shape, face) {
+                            (Shape::Box { height, .. }, PullFace::Top | PullFace::Bottom) => *height,
+                            (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
+                            (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
+                            (Shape::Cylinder { height, .. }, _) => *height,
+                            _ => 0.0,
+                        }
+                    }).unwrap_or(0.0);
+                    let dist = current_dim - original_dim;
+                    self.editor.last_pull_distance = dist;
+                    self.editor.last_pull_face = Some((obj_id.clone(), face));
+                    self.editor.last_pull_click_time = std::time::Instant::now();
+                    self.editor.draw_state = DrawState::Idle;
+                    self.editor.drag_snapshot_taken = false;
+                    self.editor.selected_face = None;
+                    self.file_message = Some((format!("推拉 {:.0}mm", dist), std::time::Instant::now()));
+                } else if matches!(self.editor.draw_state, DrawState::Idle) {
                     let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
                     let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                     let clicked_face = self.pick_face(mx, my, vw, vh);
@@ -530,7 +595,8 @@ impl KolibriApp {
                             ));
                             self.editor.last_pull_click_time = std::time::Instant::now();
                         } else {
-                            // Check if clicking the SAME face that's already selected → toggle off
+                            // SU-style: 點擊面 → 進入 PullClick 狀態（移動滑鼠即時預覽）
+                            // 也設定 selected_face 讓拖曳模式繼續可用
                             let same = self.editor.selected_face.as_ref()
                                 .map(|(sid, sf)| sid == id && *sf == face)
                                 .unwrap_or(false);
@@ -538,9 +604,33 @@ impl KolibriApp {
                             if same {
                                 self.editor.selected_face = None;
                             } else {
+                                // 取得 original dim
+                                let orig_dim = self.scene.objects.get(id).map(|obj| {
+                                    match (&obj.shape, face) {
+                                        (Shape::Box { height, .. }, PullFace::Top | PullFace::Bottom) => *height,
+                                        (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
+                                        (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
+                                        (Shape::Cylinder { height, .. }, _) => *height,
+                                        _ => 0.0,
+                                    }
+                                }).unwrap_or(0.0);
                                 self.editor.selected_face = Some((id.clone(), face));
                                 self.editor.selected_ids = vec![id.clone()];
                                 self.right_tab = RightTab::Properties;
+                                // 進入 PullClick 狀態
+                                self.scene.snapshot_ids(&[id.as_str()], "推拉");
+                                self.editor.pull_original_pos = self.scene.objects.get(id).map(|o| o.position);
+                                self.editor.pull_original_dims = self.scene.objects.get(id).and_then(|o| {
+                                    match &o.shape {
+                                        Shape::Box { width, height, depth } => Some([*width, *height, *depth]),
+                                        Shape::Cylinder { radius, height, .. } => Some([*radius * 2.0, *height, *radius * 2.0]),
+                                        _ => None,
+                                    }
+                                });
+                                self.editor.draw_state = DrawState::PullClick {
+                                    obj_id: id.clone(), face, original_dim: orig_dim,
+                                };
+                                self.editor.last_pull_click_time = std::time::Instant::now();
                             }
                         }
                     } else if let Some(fid) = self.pick_free_mesh_face(mx, my, vw, vh) {

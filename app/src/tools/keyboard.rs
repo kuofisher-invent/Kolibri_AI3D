@@ -20,8 +20,24 @@ impl KolibriApp {
                     }
                 }
                 if i.key_pressed(egui::Key::Escape) {
+                    // MoveFrom: ESC cancels → restore original positions
+                    if let DrawState::MoveFrom { ref obj_ids, ref original_positions, .. } = self.editor.draw_state.clone() {
+                        for (i, id) in obj_ids.iter().enumerate() {
+                            if let Some(obj) = self.scene.objects.get_mut(id) {
+                                obj.position = original_positions[i];
+                            }
+                        }
+                        self.scene.undo();
+                        self.editor.draw_state = DrawState::Idle;
+                    }
+                    // PullClick: ESC cancels → undo snapshot
+                    else if matches!(self.editor.draw_state, DrawState::PullClick { .. }) {
+                        self.scene.undo();
+                        self.editor.draw_state = DrawState::Idle;
+                        self.editor.selected_face = None;
+                    }
                     // RotateAngle: ESC cancels — restore original rotations
-                    if let DrawState::RotateAngle { ref obj_ids, ref original_rotations, .. } = self.editor.draw_state.clone() {
+                    else if let DrawState::RotateAngle { ref obj_ids, ref original_rotations, .. } = self.editor.draw_state.clone() {
                         for (i, id) in obj_ids.iter().enumerate() {
                             let orig = original_rotations.get(i).copied().unwrap_or(0.0);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
@@ -48,17 +64,28 @@ impl KolibriApp {
                                 self.editor.piping.cancel();
                             }
                         }
-                        self.editor.tool = Tool::Select;
-                        self.editor.draw_state = DrawState::Idle;
-                        self.editor.selected_ids.clear();
-                        self.editor.selected_face = None;
-                        self.editor.locked_axis = None;
-                        self.editor.sticky_axis = None;
-                        self.editor.editing_group_id = None;
-                        self.editor.suggestion = None;
-                        // Inference 2.0: reset context on ESC
-                        crate::inference::reset_context(&mut self.editor.inference_ctx);
-                        self.editor.inference_ctx.current_tool = Tool::Select;
+                        // SU-style ESC 兩段式：
+                        // 1. 如果有選取，先清除選取（保持目前工具）
+                        // 2. 如果在非 Idle 狀態，回到 Idle（保持目前工具）
+                        // 3. 如果已經沒選取且 Idle，才切到 Select
+                        if !self.editor.selected_ids.is_empty() || self.editor.selected_face.is_some() {
+                            // 第一段：清除選取
+                            self.editor.selected_ids.clear();
+                            self.editor.selected_face = None;
+                            self.editor.locked_axis = None;
+                            self.editor.sticky_axis = None;
+                            self.editor.suggestion = None;
+                        } else if self.editor.editing_group_id.is_some() {
+                            // 退出群組編輯
+                            self.editor.editing_group_id = None;
+                        } else if self.editor.tool != Tool::Select {
+                            // 第二段：切到 Select
+                            self.editor.tool = Tool::Select;
+                            self.editor.draw_state = DrawState::Idle;
+                            // Inference 2.0: reset context on ESC
+                            crate::inference::reset_context(&mut self.editor.inference_ctx);
+                            self.editor.inference_ctx.current_tool = Tool::Select;
+                        }
                     }
                 }
                 // Enter key: finish FollowPath extrusion

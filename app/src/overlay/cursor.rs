@@ -89,7 +89,10 @@ impl KolibriApp {
                 }
 
                 // ── A6: Track move origin for rubber band ──
-                if self.editor.tool == Tool::Move && self.editor.drag_snapshot_taken && !self.editor.selected_ids.is_empty() {
+                if let DrawState::MoveFrom { from, .. } = &self.editor.draw_state {
+                    // SU-style click-click Move: 用 from 作為 move_origin
+                    self.editor.move_origin = Some(*from);
+                } else if self.editor.tool == Tool::Move && self.editor.drag_snapshot_taken && !self.editor.selected_ids.is_empty() {
                     // Move drag is in progress; capture origin if not yet set
                     if self.editor.move_origin.is_none() {
                         // Use the undo stack's last snapshot to get the original position
@@ -104,8 +107,38 @@ impl KolibriApp {
                     self.editor.move_origin = None;
                 }
 
-                // ── A2/A3: Cursor-following dimension during drag/push-pull ──
+                // ── A2/A3: Cursor-following dimension during drag/push-pull/move/pullclick ──
                 self.editor.cursor_dimension = match &self.editor.draw_state {
+                    // SU-style MoveFrom: 顯示移動距離
+                    DrawState::MoveFrom { from, .. } => {
+                        if let Some(to) = self.editor.mouse_ground {
+                            let dx = to[0] - from[0];
+                            let dy = to[1] - from[1];
+                            let dz = to[2] - from[2];
+                            let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+                            if dist > 1.0 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("移動 {}", if dist >= 1000.0 { format!("{:.2} m", dist / 1000.0) } else { format!("{:.0} mm", dist) })))
+                            } else { None }
+                        } else { None }
+                    }
+                    // SU-style PullClick: 顯示推拉距離
+                    DrawState::PullClick { ref obj_id, face, original_dim } => {
+                        if let Some(obj) = self.scene.objects.get(obj_id) {
+                            let current_dim = match (&obj.shape, face) {
+                                (Shape::Box { height, .. }, PullFace::Top | PullFace::Bottom) => *height,
+                                (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
+                                (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
+                                (Shape::Cylinder { height, .. }, _) => *height,
+                                _ => 0.0,
+                            };
+                            let delta = current_dim - original_dim;
+                            if delta.abs() > 0.5 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("推拉 {:.0} mm", delta)))
+                            } else { None }
+                        } else { None }
+                    }
                     DrawState::Pulling { obj_id, face, original_dim, .. } => {
                         if let Some(obj) = self.scene.objects.get(obj_id) {
                             let current_dim = match (&obj.shape, face) {

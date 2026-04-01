@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Two line segments joining at center -->
+  <path d="M2 8L12 12"/>
+  <path d="M22 8L12 12"/>
+  <!-- Arrows pointing toward junction -->
+  <path d="M8 10.5L12 12L9 13"/>
+  <path d="M16 10.5L12 12L15 13"/>
+  <!-- Junction point -->
+  <circle cx="12" cy="12" r="1.5" fill="#C0C0C0"/>
+</svg>

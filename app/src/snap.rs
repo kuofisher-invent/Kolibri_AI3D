@@ -272,11 +272,20 @@ impl KolibriApp {
         }
 
         // ── Evaluate all point candidates in screen space ──
+        // SU-style: 收集附近所有 snap 候選點（在 nearby_radius 內的），用於被動顯示小圓點
+        let nearby_radius = 120.0_f32; // 像素範圍內的都顯示小圓點
+        let mut nearby: Vec<([f32; 3], SnapType)> = Vec::new();
         for (world_pos, snap_type) in &snap_candidates {
             if let Some(screen_pos) = Self::world_to_screen_vp(*world_pos, &vp_mat, &vp_rect) {
                 let dx = screen_pos.x - mouse_screen.x;
                 let dy = screen_pos.y - mouse_screen.y;
                 let screen_dist = (dx * dx + dy * dy).sqrt();
+                // 收集附近所有端點/中點/面中心（被動圓點）
+                if screen_dist < nearby_radius && matches!(snap_type,
+                    SnapType::Endpoint | SnapType::Midpoint | SnapType::FaceCenter | SnapType::Origin)
+                {
+                    nearby.push((*world_pos, *snap_type));
+                }
                 if screen_dist < screen_threshold && screen_dist < best_screen_dist {
                     best_pos = *world_pos;
                     best_type = *snap_type;
@@ -284,6 +293,7 @@ impl KolibriApp {
                 }
             }
         }
+        self.editor.nearby_snaps = nearby;
 
         // ── On-edge snap: find closest point on each 3D edge to mouse in screen space ──
         for (ea, eb) in &all_box_edges_3d {

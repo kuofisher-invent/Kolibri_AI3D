@@ -645,6 +645,15 @@ impl KolibriApp {
                 }
             }
             DrawState::PullingFreeMesh { .. } => "推拉自由面 — 拖曳拉伸, 放開確認".into(),
+            DrawState::MoveFrom { .. } => "移動 — 移動滑鼠到目標位置, 點擊確認 (ESC 取消)".into(),
+            DrawState::PullClick { face, .. } => {
+                let face_name = match face {
+                    PullFace::Top => "頂面", PullFace::Bottom => "底面",
+                    PullFace::Front => "前面", PullFace::Back => "後面",
+                    PullFace::Left => "左面", PullFace::Right => "右面",
+                };
+                format!("推拉 {} — 移動滑鼠調整距離, 點擊確認 (ESC 取消)", face_name)
+            }
             DrawState::WallFrom { .. } => "牆工具 — 點擊設定終點（連續畫牆，ESC 結束）".into(),
             DrawState::SlabCorner { .. } => "板工具 — 點擊設定第二角".into(),
             DrawState::FollowPath { path_points, .. } => {

@@ -375,6 +375,7 @@ impl KolibriApp {
                 command_palette_query: String::new(),
                 gizmo_hovered_axis: None,
                 gizmo_drag_axis: None,
+                nearby_snaps: Vec::new(),
                 #[cfg(feature = "piping")]
                 piping: kolibri_piping::PipingState::default(),
                 #[cfg(feature = "drafting")]
@@ -431,6 +432,14 @@ impl KolibriApp {
                 draft_cmd_buf: String::new(),
                 #[cfg(feature = "drafting")]
                 draft_cmd_time: std::time::Instant::now(),
+                #[cfg(feature = "drafting")]
+                draft_num_input: String::new(),
+                #[cfg(feature = "drafting")]
+                draft_zoom: 2.0,
+                #[cfg(feature = "drafting")]
+                draft_offset: egui::Vec2::ZERO,
+                #[cfg(feature = "drafting")]
+                draft_pan_drag: None,
             },
 
             right_tab: RightTab::Properties,
@@ -512,6 +521,48 @@ impl KolibriApp {
         self.viewer.layout_mode = false;
         // 將工具重設為 3D Select，避免殘留 Draft* 工具
         self.editor.tool = Tool::Select;
+    }
+
+    /// 匯入 DXF/DWG 到 2D 畫布，自動建立以檔名命名的新分頁（ZWCAD 風格）
+    #[cfg(feature = "drafting")]
+    pub(crate) fn import_cad_to_2d_tab(&mut self, file_path: &str) -> Result<usize, String> {
+        // 取得檔名（不含路徑和副檔名）
+        let file_name = file_path
+            .rsplit(['\\', '/'])
+            .next()
+            .unwrap_or(file_path)
+            .rsplit_once('.')
+            .map(|(name, _)| name)
+            .unwrap_or(file_path)
+            .to_string();
+
+        // 建立新的 DraftDocument 並匯入
+        let mut new_doc = kolibri_drafting::DraftDocument::new();
+        let count = crate::dxf_io::import_cad_to_draft(&mut new_doc, file_path)?;
+
+        // 儲存目前 active sheet
+        let active = self.editor.draft_active_sheet;
+        if active < self.editor.draft_sheets.len() {
+            self.editor.draft_sheets[active].1 = self.editor.draft_doc.clone();
+        }
+
+        // 新增分頁，命名為檔名
+        self.editor.draft_sheets.push((file_name.clone(), new_doc.clone()));
+        let new_idx = self.editor.draft_sheets.len() - 1;
+
+        // 切換到新分頁
+        self.editor.draft_active_sheet = new_idx;
+        self.editor.draft_doc = new_doc;
+        self.editor.draft_selected.clear();
+
+        // 確保在 2D 模式
+        if !self.viewer.layout_mode {
+            self.viewer.layout_mode = true;
+            self.editor.tool = Tool::DraftSelect;
+        }
+
+        self.console_push("ACTION", format!("[2D] 已匯入 {} 個圖元到分頁「{}」", count, file_name));
+        Ok(count)
     }
 
     /// F6 切換 2D/3D

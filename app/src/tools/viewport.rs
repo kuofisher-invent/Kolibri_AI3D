@@ -98,6 +98,61 @@ impl KolibriApp {
                 }
             }
 
+            // ── SU-style Move click-click 即時預覽 ──
+            if let DrawState::MoveFrom { from, ref obj_ids, ref original_positions } = self.editor.draw_state.clone() {
+                if let Some(to) = self.editor.mouse_ground {
+                    let dx = to[0] - from[0];
+                    let dy = to[1] - from[1];
+                    let dz = to[2] - from[2];
+                    for (i, id) in obj_ids.iter().enumerate() {
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            let orig = original_positions[i];
+                            obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
+                        }
+                    }
+                    self.scene.version += 1;
+                }
+            }
+
+            // ── SU-style PushPull click-click 即時預覽 ──
+            if let DrawState::PullClick { ref obj_id, face, original_dim } = self.editor.draw_state.clone() {
+                let d = response.drag_delta();
+                let scale = self.viewer.camera.distance * 0.0015;
+                // 用垂直拖曳量計算推拉距離
+                let amount = -d.y * scale;
+                if amount.abs() > 0.01 {
+                    if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
+                        match (&mut obj.shape, face) {
+                            (Shape::Box { height, .. }, PullFace::Top) =>
+                                *height = (*height + amount).max(10.0),
+                            (Shape::Box { height, .. }, PullFace::Bottom) => {
+                                let delta = amount.min(*height - 10.0);
+                                *height = (*height - delta).max(10.0);
+                                obj.position[1] += delta;
+                            }
+                            (Shape::Box { width, .. }, PullFace::Right) =>
+                                *width = (*width + amount).max(10.0),
+                            (Shape::Box { width, .. }, PullFace::Left) => {
+                                let delta = amount.min(*width - 10.0);
+                                *width = (*width - delta).max(10.0);
+                                obj.position[0] += delta;
+                            }
+                            (Shape::Box { depth, .. }, PullFace::Back) =>
+                                *depth = (*depth + amount).max(10.0),
+                            (Shape::Box { depth, .. }, PullFace::Front) => {
+                                let delta = amount.min(*depth - 10.0);
+                                *depth = (*depth - delta).max(10.0);
+                                obj.position[2] += delta;
+                            }
+                            (Shape::Cylinder { height, .. }, PullFace::Top) =>
+                                *height = (*height + amount).max(10.0),
+                            _ => {}
+                        }
+                    }
+                    self.scene.version += 1;
+                }
+            }
+
             // Hover pick — 大場景跳過（遍歷所有物件 raycasting 太慢）
             let interactive = !skip_snap && matches!(self.editor.tool,
                 Tool::Select | Tool::PushPull | Tool::Move | Tool::Rotate |

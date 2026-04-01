@@ -182,10 +182,26 @@ impl KolibriApp {
             }
             McpCommand::ImportFile { path } => {
                 let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+                // 根據目前模式決定 DXF/DWG 匯入路徑
+                let is_2d_mode = {
+                    #[cfg(feature = "drafting")]
+                    { self.viewer.layout_mode }
+                    #[cfg(not(feature = "drafting"))]
+                    { false }
+                };
                 let result = match ext.as_str() {
-                    "obj" => crate::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n})),
-                    "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n})),
-                    "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n})),
+                    "obj" => crate::obj_io::import_obj(&mut self.scene, &path).map(|n| json!({"imported": n, "mode": "3d"})),
+                    "stl" => crate::stl_io::import_stl(&mut self.scene, &path).map(|n| json!({"imported": n, "mode": "3d"})),
+                    "dxf" | "dwg" if is_2d_mode => {
+                        #[cfg(feature = "drafting")]
+                        {
+                            self.import_cad_to_2d_tab(&path)
+                                .map(|n| json!({"imported": n, "mode": "2d"}))
+                        }
+                        #[cfg(not(feature = "drafting"))]
+                        { Err("drafting feature not enabled".to_string()) }
+                    }
+                    "dxf" => crate::dxf_io::import_dxf(&mut self.scene, &path).map(|n| json!({"imported": n, "mode": "3d"})),
                     "skp" => {
                         // SKP SDK 匯入（子進程隔離，避免 DLL 崩潰影響主 APP）
                         if kolibri_skp::sdk_available() {
@@ -438,6 +454,8 @@ impl KolibriApp {
                     "trim" => Tool::DraftTrim, "offset" => Tool::DraftOffset,
                     "dim_linear" => Tool::DraftDimLinear, "dim_aligned" => Tool::DraftDimAligned,
                     "erase" => Tool::DraftErase, "copy" => Tool::DraftCopy,
+                    "zoom_all" => Tool::DraftZoomAll, "pan" => Tool::DraftPan,
+                    "zoom_window" => Tool::DraftZoomWindow,
                     _ => Tool::DraftSelect,
                 };
                 self.editor.tool = t;
@@ -447,6 +465,26 @@ impl KolibriApp {
             McpCommand::DraftSelect { ids } => {
                 self.editor.draft_selected = ids.clone();
                 McpResult { success: true, data: json!({ "selected": ids.len() }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftSetZoom { zoom, offset_x, offset_y } => {
+                if !self.viewer.layout_mode { self.enter_layout_mode(); }
+                self.editor.draft_zoom = zoom;
+                self.editor.draft_offset = egui::vec2(offset_x, offset_y);
+                self.console_push("INFO", format!("MCP Zoom: {:.2}x offset=({:.0},{:.0})", zoom, offset_x, offset_y));
+                McpResult { success: true, data: json!({ "zoom": zoom, "offset_x": offset_x, "offset_y": offset_y }) }
+            }
+            #[cfg(feature = "drafting")]
+            McpCommand::DraftImportFile { path } => {
+                match self.import_cad_to_2d_tab(&path) {
+                    Ok(count) => {
+                        McpResult { success: true, data: json!({ "imported": count, "path": path }) }
+                    }
+                    Err(e) => {
+                        self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                        McpResult { success: false, data: json!({ "error": e }) }
+                    }
+                }
             }
         }
     }

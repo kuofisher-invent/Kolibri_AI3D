@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Paintbrush / format painter -->
+  <rect x="2" y="14" width="5" height="8" rx="1"/>
+  <path d="M4.5 14V10C4.5 8.5 5.5 7 7 7H10"/>
+  <path d="M7 7L10 4L20 4L22 6L22 10L20 12H14L10 12L7 7Z"/>
+  <path d="M14 4V12"/>
+</svg>

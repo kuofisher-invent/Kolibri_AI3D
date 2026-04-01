@@ -266,6 +266,37 @@ impl KolibriApp {
             }
 
             DrawState::PullingFreeMesh { .. } => {}
+            DrawState::MoveFrom { .. } => {} // 即時預覽已在 viewport.rs 處理
+            DrawState::PullClick { ref obj_id, face, .. } => {
+                // 高亮推拉面（與 Pulling 相同邏輯）
+                let face_color = [0.95, 0.55, 0.15, 0.30];
+                if let Some(obj) = self.scene.objects.get(obj_id) {
+                    let p = obj.position;
+                    if let Shape::Box { width, height, depth } = &obj.shape {
+                        let thickness = 5.0;
+                        match face {
+                            PullFace::Top => crate::renderer::push_box_pub(
+                                &mut v, &mut idx,
+                                [p[0], p[1] + height - thickness, p[2]],
+                                *width, thickness, *depth, face_color),
+                            PullFace::Bottom => crate::renderer::push_box_pub(
+                                &mut v, &mut idx, p, *width, thickness, *depth, face_color),
+                            PullFace::Right => crate::renderer::push_box_pub(
+                                &mut v, &mut idx,
+                                [p[0] + width - thickness, p[1], p[2]],
+                                thickness, *height, *depth, face_color),
+                            PullFace::Left => crate::renderer::push_box_pub(
+                                &mut v, &mut idx, p, thickness, *height, *depth, face_color),
+                            PullFace::Back => crate::renderer::push_box_pub(
+                                &mut v, &mut idx,
+                                [p[0], p[1], p[2] + depth - thickness],
+                                *width, *height, thickness, face_color),
+                            PullFace::Front => crate::renderer::push_box_pub(
+                                &mut v, &mut idx, p, *width, *height, thickness, face_color),
+                        }
+                    }
+                }
+            }
             DrawState::WallFrom { .. } | DrawState::SlabCorner { .. } => {}
 
             DrawState::FollowPath { ref source_id, ref path_points } => {

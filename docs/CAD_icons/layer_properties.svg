@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Stacked layers -->
+  <path d="M2 12L12 7L22 12L12 17Z"/>
+  <path d="M2 15L12 20L22 15"/>
+  <path d="M2 9L12 4L22 9"/>
+  <!-- Gear (small, bottom-right) -->
+  <circle cx="19" cy="19" r="2.5"/>
+  <circle cx="19" cy="19" r="1" fill="#C0C0C0"/>
+  <path d="M19 15.5V16.5M19 21.5V22.5M15.5 19H16.5M21.5 19H22.5"/>
+</svg>

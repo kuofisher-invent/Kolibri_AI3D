@@ -131,7 +131,9 @@ fn write_3dface(f: &mut std::fs::File, layer: &str, v1: [f32;3], v2: [f32;3], v3
 pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
     use kolibri_core::halfedge::HeMesh;
 
-    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let raw = std::fs::read(path).map_err(|e| e.to_string())?;
+    let content = String::from_utf8(raw.clone())
+        .unwrap_or_else(|_| String::from_utf8_lossy(&raw).into_owned());
     let lines: Vec<&str> = content.lines().collect();
 
     let mut line_segments: Vec<([f32; 3], [f32; 3])> = Vec::new();
@@ -371,7 +373,39 @@ pub fn import_dxf(scene: &mut Scene, path: &str) -> Result<usize, String> {
 pub fn import_dwg_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
     use crate::cad_import::dxf_importer::*;
 
-    // 解析 DWG → GeometryIr
+    // ── R2018+ DWG: 先嘗試外部轉換 DWG → DXF ──
+    // 偵測版本
+    let data = std::fs::read(path).map_err(|e| format!("讀取失敗: {}", e))?;
+    let is_r2018_plus = data.len() >= 6 && &data[0..6] == b"AC1032";
+
+    // ── 優先檢查同目錄是否已有同名 DXF（使用者可能已手動轉換）──
+    {
+        let dxf_sibling = path.rsplit_once('.').map(|(base, _)| format!("{}.dxf", base));
+        if let Some(ref dxf_path) = dxf_sibling {
+            if std::path::Path::new(dxf_path).exists() {
+                tracing::info!("找到同名 DXF: {}，直接使用", dxf_path);
+                return import_dxf_to_draft(doc, dxf_path);
+            }
+        }
+        // 也檢查 .tmp.dxf（之前轉換的快取）
+        let tmp_dxf = format!("{}.tmp.dxf", path);
+        if std::path::Path::new(&tmp_dxf).exists() {
+            tracing::info!("找到快取 DXF: {}，直接使用", tmp_dxf);
+            return import_dxf_to_draft(doc, &tmp_dxf);
+        }
+    }
+
+    if is_r2018_plus {
+        // 嘗試外部轉換（ZWCAD COM / LibreDWG / ODA）
+        if let Some(dxf_path) = crate::dwg_parser::try_convert_dwg_to_dxf(path) {
+            let result = import_dxf_to_draft(doc, &dxf_path);
+            return result;
+        }
+        // 沒有外部工具 — 繼續用 native parser（精確度有限）
+        tracing::warn!("R2018 DWG 無法用外部工具轉換。建議在 ZWCAD 中另存為 DXF 後匯入。");
+    }
+
+    // 解析 DWG → GeometryIr（native parser）
     let ir = crate::dwg_parser::parse_dwg(path)
         .map_err(|e| format!("DWG 解析失敗: {:?}", e))?;
     let mut count = 0;
@@ -442,7 +476,12 @@ pub fn import_dwg_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str
         }
     }
 
-    if count == 0 { return Err("DWG 中沒有找到 2D 圖元（建議存為 DXF 後匯入）".into()); }
+    if count == 0 {
+        if is_r2018_plus {
+            return Err("DWG R2018+ 格式使用加密區段，無法完整解析。\n請在 ZWCAD/AutoCAD 中開啟此檔案，另存為 DXF 格式後再匯入。\n（檔案 → 另存為 → 檔案類型: DXF）".into());
+        }
+        return Err("DWG 中沒有找到 2D 圖元（建議存為 DXF 後匯入）".into());
+    }
     Ok(count)
 }
 
@@ -527,14 +566,33 @@ fn flush_draft_entity(
                 position: [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)],
             }); 1
         }
+        // SOLID = 填充三角形/四邊形（2D CAD 常見，用 Polyline 表示）
+        "SOLID" | "3DFACE" => {
+            let p1 = [*coords.get(&10).unwrap_or(&0.0), *coords.get(&20).unwrap_or(&0.0)];
+            let p2 = [*coords.get(&11).unwrap_or(&0.0), *coords.get(&21).unwrap_or(&0.0)];
+            let p3 = [*coords.get(&12).unwrap_or(&0.0), *coords.get(&22).unwrap_or(&0.0)];
+            let p4 = [*coords.get(&13).unwrap_or(&0.0), *coords.get(&23).unwrap_or(&0.0)];
+            // 如果 p3==p4 是三角形，否則是四邊形
+            let is_tri = (p3[0] - p4[0]).abs() < 0.01 && (p3[1] - p4[1]).abs() < 0.01;
+            let pts = if is_tri { vec![p1, p2, p3] } else { vec![p1, p2, p3, p4] };
+            doc.add(kolibri_drafting::DraftEntity::Polyline {
+                points: pts, closed: true,
+            }); 1
+        }
+        // HATCH = 填充區域的邊界（簡化：取邊界路徑）
+        // INSERT = 圖塊參照（只取位置，無法展開）
         _ => 0,
     }
 }
 
 /// 從 DXF 檔案匯入到 DraftDocument（2D CAD 模式用）
+/// 支援 UTF-8 / BIG5 / ANSI 等編碼（lossy conversion）
 #[cfg(feature = "drafting")]
 pub fn import_dxf_to_draft(doc: &mut kolibri_drafting::DraftDocument, path: &str) -> Result<usize, String> {
-    let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    // 先嘗試 UTF-8，失敗則用 lossy（非 UTF-8 字元替換為 ?）
+    let raw = std::fs::read(path).map_err(|e| e.to_string())?;
+    let content = String::from_utf8(raw.clone())
+        .unwrap_or_else(|_| String::from_utf8_lossy(&raw).into_owned());
     let lines: Vec<&str> = content.lines().collect();
     let mut count = 0;
     let mut i = 0;

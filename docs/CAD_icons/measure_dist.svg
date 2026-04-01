@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Ruler/tape measure -->
+  <rect x="1" y="8" width="22" height="8" rx="1"/>
+  <!-- Tick marks -->
+  <path d="M5 8V12"/>
+  <path d="M9 8V14"/>
+  <path d="M13 8V12"/>
+  <path d="M17 8V14"/>
+  <path d="M21 8V12"/>
+  <!-- Endpoints -->
+  <circle cx="3" cy="12" r="1" fill="#C0C0C0"/>
+  <circle cx="21" cy="12" r="1" fill="#C0C0C0"/>
+</svg>

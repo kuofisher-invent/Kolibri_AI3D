@@ -357,6 +357,96 @@ impl eframe::App for KolibriApp {
                     }
                 }
 
+                // ── SU-style: 被動顯示附近的 snap 端點/中點小圓點 ──
+                // 只顯示相機可見的 snap 點（背面遮擋的不顯示）
+                {
+                    let painter = ui.painter();
+                    let active_pos = self.editor.snap_result.as_ref().map(|s| s.position);
+                    let cam_eye = self.viewer.camera.eye();
+                    // 收集所有物件的 AABB 用於遮擋測試
+                    let aabbs: Vec<(glam::Vec3, glam::Vec3)> = self.scene.objects.values()
+                        .filter(|o| o.visible)
+                        .filter_map(|o| {
+                            let p = glam::Vec3::from(o.position);
+                            match &o.shape {
+                                Shape::Box { width, height, depth } =>
+                                    Some((p, p + glam::Vec3::new(*width, *height, *depth))),
+                                Shape::Cylinder { radius, height, .. } =>
+                                    Some((p, p + glam::Vec3::new(*radius * 2.0, *height, *radius * 2.0))),
+                                Shape::Sphere { radius, .. } =>
+                                    Some((p, p + glam::Vec3::new(*radius * 2.0, *radius * 2.0, *radius * 2.0))),
+                                _ => None,
+                            }
+                        }).collect();
+
+                    for (wp, st) in &self.editor.nearby_snaps {
+                        // 跳過已被主動 snap 指示器顯示的點
+                        if let Some(ap) = active_pos {
+                            let dx = ap[0] - wp[0];
+                            let dy = ap[1] - wp[1];
+                            let dz = ap[2] - wp[2];
+                            if dx * dx + dy * dy + dz * dz < 1.0 { continue; }
+                        }
+                        // 遮擋測試：snap 點到相機的射線是否被其他 AABB 擋住
+                        let snap_pos = glam::Vec3::new(wp[0], wp[1], wp[2]);
+                        let ray_dir = (snap_pos - cam_eye).normalize();
+                        let snap_dist = (snap_pos - cam_eye).length();
+                        let margin = 5.0; // mm 容差（snap 點在物件表面上，不要被自己擋）
+                        let occluded = aabbs.iter().any(|(bmin, bmax)| {
+                            // 簡易 Ray-AABB slab test
+                            let inv = glam::Vec3::new(
+                                if ray_dir.x.abs() > 1e-8 { 1.0 / ray_dir.x } else { 1e8 },
+                                if ray_dir.y.abs() > 1e-8 { 1.0 / ray_dir.y } else { 1e8 },
+                                if ray_dir.z.abs() > 1e-8 { 1.0 / ray_dir.z } else { 1e8 },
+                            );
+                            let t1 = (*bmin - cam_eye) * inv;
+                            let t2 = (*bmax - cam_eye) * inv;
+                            let tmin = t1.min(t2);
+                            let tmax = t1.max(t2);
+                            let enter = tmin.x.max(tmin.y).max(tmin.z);
+                            let exit = tmax.x.min(tmax.y).min(tmax.z);
+                            enter < exit && exit > 0.0 && enter < snap_dist - margin
+                        });
+                        if occluded { continue; }
+
+                        if let Some(sp) = self.world_to_screen(*wp, &rect) {
+                            let color = st.color();
+                            let faded = egui::Color32::from_rgba_unmultiplied(
+                                color.r(), color.g(), color.b(), 100,
+                            );
+                            match st {
+                                SnapType::Endpoint => {
+                                    // 小綠菱形（3px）
+                                    let s = 3.5;
+                                    let d = vec![
+                                        egui::pos2(sp.x, sp.y - s),
+                                        egui::pos2(sp.x + s, sp.y),
+                                        egui::pos2(sp.x, sp.y + s),
+                                        egui::pos2(sp.x - s, sp.y),
+                                    ];
+                                    painter.add(egui::Shape::convex_polygon(d, faded, egui::Stroke::NONE));
+                                }
+                                SnapType::Midpoint => {
+                                    // 小青三角形（3px）
+                                    let s = 3.0;
+                                    let t = vec![
+                                        egui::pos2(sp.x, sp.y - s),
+                                        egui::pos2(sp.x + s, sp.y + s * 0.6),
+                                        egui::pos2(sp.x - s, sp.y + s * 0.6),
+                                    ];
+                                    painter.add(egui::Shape::convex_polygon(t, faded, egui::Stroke::NONE));
+                                }
+                                SnapType::FaceCenter | SnapType::Origin => {
+                                    painter.circle_filled(sp, 2.5, faded);
+                                }
+                                _ => {
+                                    painter.circle_filled(sp, 2.0, faded);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Draw snap indicators on top of viewport
                 if let Some(ref snap) = self.editor.snap_result {
                     if snap.snap_type != SnapType::None && snap.snap_type != SnapType::Grid {
@@ -418,15 +508,42 @@ impl eframe::App for KolibriApp {
                                     );
                                 }
                                 SnapType::OnEdge => {
-                                    // Red diamond (match SketchUp)
+                                    // SU-style: red filled circle on edge
                                     let edge_color = egui::Color32::from_rgb(220, 50, 50);
-                                    let diamond = vec![
-                                        egui::pos2(sx, sy - 5.0),
-                                        egui::pos2(sx + 5.0, sy),
-                                        egui::pos2(sx, sy + 5.0),
-                                        egui::pos2(sx - 5.0, sy),
-                                    ];
-                                    painter.add(egui::Shape::convex_polygon(diamond, edge_color, egui::Stroke::NONE));
+                                    painter.circle_filled(screen_pos, 5.0, edge_color);
+                                    painter.circle_stroke(screen_pos, 5.0, egui::Stroke::new(1.5, egui::Color32::WHITE));
+                                }
+                                SnapType::Tangent => {
+                                    // SU-style: 橙色圓 + 切線符號
+                                    let tang_color = egui::Color32::from_rgb(200, 120, 60);
+                                    painter.circle_filled(screen_pos, 6.0, tang_color);
+                                    painter.circle_stroke(screen_pos, 6.0, egui::Stroke::new(1.5, egui::Color32::WHITE));
+                                    // 切線短線
+                                    painter.line_segment(
+                                        [egui::pos2(sx - 8.0, sy), egui::pos2(sx + 8.0, sy)],
+                                        egui::Stroke::new(2.0, tang_color),
+                                    );
+                                }
+                                SnapType::Parallel | SnapType::Perpendicular => {
+                                    // SU-style: 紫色雙線符號
+                                    let pp_color = egui::Color32::from_rgb(200, 60, 200);
+                                    if snap.snap_type == SnapType::Parallel {
+                                        // 平行線 = 兩條短平行線
+                                        painter.line_segment(
+                                            [egui::pos2(sx - 6.0, sy - 3.0), egui::pos2(sx + 6.0, sy - 3.0)],
+                                            egui::Stroke::new(2.0, pp_color));
+                                        painter.line_segment(
+                                            [egui::pos2(sx - 6.0, sy + 3.0), egui::pos2(sx + 6.0, sy + 3.0)],
+                                            egui::Stroke::new(2.0, pp_color));
+                                    } else {
+                                        // 垂直 = L 型符號
+                                        painter.line_segment(
+                                            [egui::pos2(sx - 5.0, sy + 6.0), egui::pos2(sx - 5.0, sy - 6.0)],
+                                            egui::Stroke::new(2.0, pp_color));
+                                        painter.line_segment(
+                                            [egui::pos2(sx - 5.0, sy + 6.0), egui::pos2(sx + 6.0, sy + 6.0)],
+                                            egui::Stroke::new(2.0, pp_color));
+                                    }
                                 }
                                 _ => {
                                     // Default: circle indicator
@@ -438,28 +555,31 @@ impl eframe::App for KolibriApp {
                             // (Old combined label removed — now displayed in cursor hint card)
                         }
 
-                        // Draw axis / parallel / perpendicular inference line from origin to snap point
+                        // Draw axis / parallel / perpendicular inference line
+                        // SU-style: 延伸到視口邊緣的虛線（不只是 from→to）
                         if let Some(from) = snap.from_point {
                             if matches!(snap.snap_type, SnapType::AxisX | SnapType::AxisZ
-                                        | SnapType::Parallel | SnapType::Perpendicular) {
+                                        | SnapType::AxisY | SnapType::Parallel | SnapType::Perpendicular) {
                                 if let (Some(from_s), Some(to_s)) = (
                                     self.world_to_screen(from, &rect),
                                     self.world_to_screen(snap.position, &rect),
                                 ) {
                                     let color = snap.snap_type.color();
-                                    // Draw dashed line (thicker stroke)
+                                    let faded = egui::Color32::from_rgba_unmultiplied(
+                                        color.r(), color.g(), color.b(), 80,
+                                    );
                                     let dir = to_s - from_s;
                                     let len = dir.length();
                                     if len > 1.0 {
-                                        let step = 8.0;
                                         let norm = dir / len;
-                                        let mut d = 0.0;
-                                        while d < len {
-                                            let a = from_s + norm * d;
-                                            let b = from_s + norm * (d + step * 0.6).min(len);
-                                            painter.line_segment([a, b], egui::Stroke::new(2.0, color));
-                                            d += step;
-                                        }
+                                        // 主線段（from → snap）用較粗實線+虛線
+                                        crate::overlay::draw_dashed_line(painter, from_s, to_s,
+                                            egui::Stroke::new(2.0, color), 8.0, 5.0);
+                                        // 延伸線（snap 之後繼續延伸 300px）
+                                        let ext_len = 300.0;
+                                        let ext_end = to_s + norm * ext_len;
+                                        crate::overlay::draw_dashed_line(painter, to_s, ext_end,
+                                            egui::Stroke::new(1.0, faded), 6.0, 6.0);
                                     }
                                 }
                             }
@@ -951,22 +1071,53 @@ impl eframe::App for KolibriApp {
             }
         }
 
-        // ── Cursor feedback based on active tool ──
+        // ── Cursor feedback based on active tool + state ──
         ctx.output_mut(|o| {
             o.cursor_icon = match self.editor.tool {
-                Tool::Select => egui::CursorIcon::Default,
-                Tool::Move => egui::CursorIcon::Move,
+                Tool::Select => {
+                    if self.editor.hovered_id.is_some() {
+                        egui::CursorIcon::PointingHand
+                    } else {
+                        egui::CursorIcon::Default
+                    }
+                }
+                Tool::Move => {
+                    if matches!(self.editor.draw_state, DrawState::MoveFrom { .. }) {
+                        egui::CursorIcon::Crosshair // 正在選擇終點
+                    } else {
+                        egui::CursorIcon::Move
+                    }
+                }
                 Tool::Rotate => egui::CursorIcon::Alias,
                 Tool::Scale => egui::CursorIcon::ResizeNeSw,
                 Tool::Line | Tool::Arc | Tool::Rectangle | Tool::Circle => egui::CursorIcon::Crosshair,
                 Tool::CreateBox | Tool::CreateCylinder | Tool::CreateSphere => egui::CursorIcon::Crosshair,
-                Tool::PushPull => egui::CursorIcon::ResizeVertical,
-                Tool::Eraser => egui::CursorIcon::NotAllowed,
+                Tool::PushPull => {
+                    if matches!(self.editor.draw_state, DrawState::PullClick { .. }) {
+                        egui::CursorIcon::ResizeVertical // 正在推拉
+                    } else if self.editor.hovered_face.is_some() {
+                        egui::CursorIcon::PointingHand // hover 在面上
+                    } else {
+                        egui::CursorIcon::Default
+                    }
+                }
+                Tool::Eraser => {
+                    if self.editor.hovered_id.is_some() {
+                        egui::CursorIcon::NotAllowed // hover 在物件上可刪
+                    } else {
+                        egui::CursorIcon::Default
+                    }
+                }
+                Tool::Offset => egui::CursorIcon::ResizeHorizontal,
+                Tool::FollowMe => egui::CursorIcon::Crosshair,
                 Tool::PaintBucket => egui::CursorIcon::PointingHand,
                 Tool::TapeMeasure | Tool::Dimension => egui::CursorIcon::Crosshair,
                 Tool::Text => egui::CursorIcon::Text,
                 Tool::Orbit => egui::CursorIcon::Grab,
                 Tool::Pan => egui::CursorIcon::AllScroll,
+                Tool::Walk | Tool::LookAround => egui::CursorIcon::Move,
+                Tool::ZoomExtents => egui::CursorIcon::ZoomIn,
+                Tool::Wall | Tool::Slab => egui::CursorIcon::Crosshair,
                 _ => egui::CursorIcon::Default,
             };
         });

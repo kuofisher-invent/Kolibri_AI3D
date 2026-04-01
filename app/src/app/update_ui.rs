@@ -676,8 +676,50 @@ impl KolibriApp {
                         }
                     }
                 } else if p.ends_with(".stl") {
-                    self.console_push("WARN", "[Import] STL 匯入尚未支援".to_string());
-                    self.file_message = Some(("STL 匯入尚未支援".to_string(), std::time::Instant::now()));
+                    self.console_push("INFO", format!("[Import] STL: {}", p));
+                    match crate::stl_io::import_stl(&mut self.scene, &p) {
+                        Ok(count) => {
+                            self.add_recent_file(&p);
+                            self.editor.selected_ids.clear();
+                            self.file_message = Some((format!("已匯入 {} 個物件", count), std::time::Instant::now()));
+                        }
+                        Err(e) => {
+                            self.console_push("ERROR", format!("[Import] STL 匯入失敗: {}", e));
+                            self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                        }
+                    }
+                } else if p.to_lowercase().ends_with(".dxf") || p.to_lowercase().ends_with(".dwg") {
+                    // 根據目前模式自動路由：2D → DraftDocument, 3D → Scene
+                    let route_2d = {
+                        #[cfg(feature = "drafting")]
+                        { self.viewer.layout_mode }
+                        #[cfg(not(feature = "drafting"))]
+                        { false }
+                    };
+                    if route_2d {
+                        #[cfg(feature = "drafting")]
+                        {
+                            match self.import_cad_to_2d_tab(&p) {
+                                Ok(count) => {
+                                    self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                                }
+                                Err(e) => {
+                                    self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                                }
+                            }
+                        }
+                    } else {
+                        self.console_push("INFO", format!("[Import] DXF/DWG → 3D: {}", p));
+                        match crate::dxf_io::import_dxf(&mut self.scene, &p) {
+                            Ok(count) => {
+                                self.editor.selected_ids.clear();
+                                self.file_message = Some((format!("已匯入 {} 個 3D 物件", count), std::time::Instant::now()));
+                            }
+                            Err(e) => {
+                                self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                            }
+                        }
+                    }
                 }
             }
         }

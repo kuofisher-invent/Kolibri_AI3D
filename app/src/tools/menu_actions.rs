@@ -337,17 +337,41 @@ impl KolibriApp {
             }
             MenuAction::ImportDxf => {
                 let file = rfd::FileDialog::new()
-                    .set_title("匯入 DXF")
-                    .add_filter("DXF 圖面", &["dxf", "DXF"])
+                    .set_title("匯入 DXF/DWG")
+                    .add_filter("CAD 圖面", &["dxf", "DXF", "dwg", "DWG"])
                     .pick_file();
                 if let Some(p) = file {
                     let ps = p.to_string_lossy().to_string();
-                    match crate::dxf_io::import_dxf(&mut self.scene, &ps) {
-                        Ok(count) => {
-                            self.editor.selected_ids.clear();
-                            self.file_message = Some((format!("已匯入 {} 個物件: {}", count, ps), std::time::Instant::now()));
+                    // 根據目前模式自動路由：2D 模式 → DraftDocument, 3D 模式 → Scene
+                    #[cfg(feature = "drafting")]
+                    if self.viewer.layout_mode {
+                        match self.import_cad_to_2d_tab(&ps) {
+                            Ok(count) => {
+                                self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                            }
+                            Err(e) => {
+                                self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                                self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                            }
                         }
-                        Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
+                    } else {
+                        match crate::dxf_io::import_dxf(&mut self.scene, &ps) {
+                            Ok(count) => {
+                                self.editor.selected_ids.clear();
+                                self.file_message = Some((format!("已匯入 {} 個 3D 物件: {}", count, ps), std::time::Instant::now()));
+                            }
+                            Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
+                        }
+                    }
+                    #[cfg(not(feature = "drafting"))]
+                    {
+                        match crate::dxf_io::import_dxf(&mut self.scene, &ps) {
+                            Ok(count) => {
+                                self.editor.selected_ids.clear();
+                                self.file_message = Some((format!("已匯入 {} 個物件: {}", count, ps), std::time::Instant::now()));
+                            }
+                            Err(e) => self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now())),
+                        }
                     }
                 }
             }
@@ -362,7 +386,27 @@ impl KolibriApp {
                     let ext = ps.rsplit('.').next().unwrap_or("").to_lowercase();
                     self.console_push("INFO", format!("[CAD] 開始解析: {} ({})", ps, ext));
 
-                    if ext == "dxf" {
+                    // 2D 模式下：DXF/DWG 自動路由到 2D DraftDocument
+                    let routed_to_2d = {
+                        #[cfg(feature = "drafting")]
+                        { self.viewer.layout_mode && matches!(ext.as_str(), "dxf" | "dwg") }
+                        #[cfg(not(feature = "drafting"))]
+                        { false }
+                    };
+                    if routed_to_2d {
+                        #[cfg(feature = "drafting")]
+                        {
+                            match self.import_cad_to_2d_tab(&ps) {
+                                Ok(count) => {
+                                    self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                                }
+                                Err(e) => {
+                                    self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                                    self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                                }
+                            }
+                        }
+                    } else if ext == "dxf" {
                         // DXF: full entity parsing
                         match crate::cad_import::import_dxf_to_ir(&ps) {
                             Ok(ir) => {
@@ -419,8 +463,31 @@ impl KolibriApp {
                     .pick_file();
                 if let Some(path) = file {
                     let ps = path.to_string_lossy().to_string();
-                    self.console_push("INFO", format!("[Import] 開始匯入: {}", ps));
-                    self.start_import_task(ps.clone());
+                    let ext = ps.rsplit('.').next().unwrap_or("").to_lowercase();
+                    // 2D 模式下：DXF/DWG 自動路由到 2D DraftDocument
+                    let route_2d = {
+                        #[cfg(feature = "drafting")]
+                        { self.viewer.layout_mode && matches!(ext.as_str(), "dxf" | "dwg") }
+                        #[cfg(not(feature = "drafting"))]
+                        { false }
+                    };
+                    if route_2d {
+                        #[cfg(feature = "drafting")]
+                        {
+                            match self.import_cad_to_2d_tab(&ps) {
+                                Ok(count) => {
+                                    self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
+                                }
+                                Err(e) => {
+                                    self.console_push("ERROR", format!("[2D] 匯入失敗: {}", e));
+                                    self.file_message = Some((format!("匯入失敗: {}", e), std::time::Instant::now()));
+                                }
+                            }
+                        }
+                    } else {
+                        self.console_push("INFO", format!("[Import] 開始匯入: {}", ps));
+                        self.start_import_task(ps.clone());
+                    }
                 }
             }
             // ── 2D CAD DXF Import/Export ──
@@ -434,12 +501,8 @@ impl KolibriApp {
                     .pick_file();
                 if let Some(p) = file {
                     let ps = p.to_string_lossy().to_string();
-                    self.console_push("INFO", format!("[2D] 正在匯入: {}...", ps));
-                    // 切換到 2D 模式
-                    self.enter_layout_mode();
-                    match crate::dxf_io::import_cad_to_draft(&mut self.editor.draft_doc, &ps) {
+                    match self.import_cad_to_2d_tab(&ps) {
                         Ok(count) => {
-                            self.console_push("ACTION", format!("[2D] 匯入完成: {} 個圖元", count));
                             self.file_message = Some((format!("已匯入 {} 個 2D 圖元", count), std::time::Instant::now()));
                         }
                         Err(e) => {

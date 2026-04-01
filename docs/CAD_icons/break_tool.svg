@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#C0C0C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Line with a gap in the middle -->
+  <path d="M2 12H8"/>
+  <path d="M16 12H22"/>
+  <!-- Break marks (zigzag gap) -->
+  <path d="M8 12L9.5 8L11 16L12.5 8L14 16L16 12"/>
+</svg>

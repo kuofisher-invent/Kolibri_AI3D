@@ -277,17 +277,21 @@ impl KolibriApp {
                 ToolBtn { tool: Tool::DraftJoin, label: "接合", tooltip: "接合 (J)" },
             ], 4);
             self.ribbon_vsep(ui);
-            // ── 註解：多行文字/標註 = 2大 ──
+            // ── 註解（對標 ZWCAD：多行文字/標註/表格 = 3大 + 線性/引線/欄位 = 小）──
             self.ribbon_group_n(ui, "註解", &[
                 ToolBtn { tool: Tool::DraftText, label: "多行文字", tooltip: "多行文字 (MT)" },
                 ToolBtn { tool: Tool::DraftDimLinear, label: "標註", tooltip: "線性標註 (DLI)" },
-                ToolBtn { tool: Tool::DraftLeader, label: "引線", tooltip: "引線 (LE)" },
-                ToolBtn { tool: Tool::DraftDimContinue, label: "連續", tooltip: "連續標註 (DCO)" },
-                ToolBtn { tool: Tool::DraftHatch, label: "填充", tooltip: "填充 (H)" },
                 ToolBtn { tool: Tool::DraftTable, label: "表格", tooltip: "表格 (TABLE)" },
-            ], 2);
+                ToolBtn { tool: Tool::DraftDimAligned, label: "線性", tooltip: "對齊標註 (DAL)" },
+                ToolBtn { tool: Tool::DraftLeader, label: "引線", tooltip: "引線 (LE)" },
+                ToolBtn { tool: Tool::DraftHatch, label: "填充", tooltip: "填充 (H)" },
+                ToolBtn { tool: Tool::DraftDimContinue, label: "連續", tooltip: "連續標註 (DCO)" },
+                ToolBtn { tool: Tool::DraftDimAngle, label: "角度", tooltip: "角度標註 (DAN)" },
+                ToolBtn { tool: Tool::DraftDimRadius, label: "半徑", tooltip: "半徑標註 (DRA)" },
+            ], 3);
             self.ribbon_vsep(ui);
-            self.ribbon_layer_group(ui);
+            // ── 圖層（對標 ZWCAD：圖層特性 = 1大 + 圖層匹配/置為目前 = 小 + dropdown）──
+            self.ribbon_layer_group_v2(ui);
             self.ribbon_vsep(ui);
             // ── 圖塊：2大 ──
             self.ribbon_group_n(ui, "圖塊", &[
@@ -521,7 +525,168 @@ impl KolibriApp {
         );
     }
 
-    /// 圖層 Group（ZWCAD 風格下拉 — 含可見/鎖定/顏色）
+    /// 圖層 Group v2（對標 ZWCAD：圖層特性(大) + 匹配/置為目前(小) + dropdown + 色票）
+    #[cfg(feature = "drafting")]
+    fn ribbon_layer_group_v2(&mut self, ui: &mut egui::Ui) {
+        let total_h = RIBBON_CONTENT_H;
+        let btn_area_h = total_h - GROUP_LABEL_H;
+        let group_w = 240.0;
+        let small_btn_h = btn_area_h / 3.0;
+
+        let (group_rect, _) = ui.allocate_exact_size(
+            egui::vec2(group_w, total_h), egui::Sense::hover());
+        if !ui.is_rect_visible(group_rect) { return; }
+        let p = ui.painter();
+
+        // 底部標籤
+        let label_rect = egui::Rect::from_min_size(
+            egui::pos2(group_rect.left(), group_rect.bottom() - GROUP_LABEL_H),
+            egui::vec2(group_w, GROUP_LABEL_H));
+        p.rect_filled(label_rect, 0.0, GROUP_LABEL_BG);
+        p.text(label_rect.center(), egui::Align2::CENTER_CENTER, "圖層",
+            egui::FontId::proportional(FONT_LABEL), TEXT_DIM);
+
+        // ── 大按鈕：圖層特性 ──
+        {
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left() + 2.0, group_rect.top()),
+                egui::vec2(BIG_BTN_W, btn_area_h));
+            let resp = ui.interact(btn_rect, ui.id().with("layer_prop_btn"), egui::Sense::click());
+            let active = self.editor.tool == Tool::DraftLayerProp;
+            if active { p.rect_filled(btn_rect, 2.0, ACTIVE_BG); }
+            else if resp.hovered() { p.rect_filled(btn_rect, 2.0, HOVER_BG); }
+            let tc = if active { ACTIVE_TEXT } else { TEXT_COLOR };
+            if let Some(tex_id) = self.svg_icons.get(ui.ctx(), "layer_properties") {
+                let ir = egui::Rect::from_center_size(
+                    egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.33),
+                    egui::vec2(ICON_SIZE, ICON_SIZE));
+                p.image(tex_id, ir,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE);
+            }
+            p.text(egui::pos2(btn_rect.center().x, btn_rect.top() + btn_area_h * 0.72),
+                egui::Align2::CENTER_TOP, "圖層特性",
+                egui::FontId::proportional(FONT_BIG), tc);
+            if resp.on_hover_text("圖層特性管理員 (LA)").clicked() {
+                self.editor.show_layer_manager = !self.editor.show_layer_manager;
+            }
+        }
+
+        // ── 小按鈕：圖層匹配 + 置為目前 + 圖層凍結 ──
+        let small_x = group_rect.left() + 2.0 + BIG_BTN_W;
+        let small_w = 78.0;
+        let layer_small_tools: &[(&str, &str, &str, &str)] = &[
+            ("圖層匹配", "layer_match", "圖層匹配 (LAYMCH)", "layer_match_btn"),
+            ("置為目前", "layer_set_current", "置為目前圖層 (LAYMCUR)", "layer_cur_btn"),
+            ("圖層凍結", "layer_freeze", "凍結圖層", "layer_freeze_btn"),
+        ];
+        for (row, &(label, icon_name, tip, id_str)) in layer_small_tools.iter().enumerate() {
+            let btn_rect = egui::Rect::from_min_size(
+                egui::pos2(small_x, group_rect.top() + row as f32 * small_btn_h),
+                egui::vec2(small_w, small_btn_h));
+            let resp = ui.interact(btn_rect, ui.id().with(id_str), egui::Sense::click());
+            if resp.hovered() { p.rect_filled(btn_rect, 1.0, HOVER_BG); }
+            if let Some(tex_id) = self.svg_icons.get(ui.ctx(), icon_name) {
+                let ir = egui::Rect::from_center_size(
+                    egui::pos2(btn_rect.left() + 12.0, btn_rect.center().y),
+                    egui::vec2(ICON_SM, ICON_SM));
+                p.image(tex_id, ir,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE);
+            }
+            p.text(egui::pos2(btn_rect.left() + 26.0, btn_rect.center().y),
+                egui::Align2::LEFT_CENTER, label,
+                egui::FontId::proportional(FONT_SM), TEXT_COLOR);
+            if resp.on_hover_text(tip).clicked() {
+                match row {
+                    0 => { /* 圖層匹配：選取物件套用圖層 */ }
+                    1 => { /* 置為目前：選取物件的圖層設為當前 */
+                        if let Some(&id) = self.editor.draft_selected.first() {
+                            if let Some(obj) = self.editor.draft_doc.objects.iter().find(|o| o.id == id) {
+                                self.editor.draft_layers.current = obj.layer.clone();
+                                self.console_push("INFO", format!("目前圖層設為: {}", obj.layer));
+                            }
+                        }
+                    }
+                    _ => { /* 圖層凍結 */ }
+                }
+            }
+        }
+
+        // ── 色票 + 圖層下拉（需要 child_ui，所以先記錄 paint 資料再畫）──
+        let drop_x = small_x + small_w + 2.0;
+        let drop_w = group_w - BIG_BTN_W - small_w - 8.0;
+        let swatch_y = group_rect.top() + 6.0;
+        let sw_size = 10.0;
+
+        // 先用 painter 畫色票
+        let swatch_colors: &[[u8; 3]] = &[
+            [255, 0, 0], [255, 255, 0], [0, 255, 0],
+            [0, 255, 255], [0, 0, 255], [255, 0, 255], [255, 255, 255],
+        ];
+        for (i, c) in swatch_colors.iter().enumerate() {
+            let sr = egui::Rect::from_min_size(
+                egui::pos2(drop_x + i as f32 * (sw_size + 2.0), swatch_y),
+                egui::vec2(sw_size, sw_size));
+            p.rect_filled(sr, 1.0, egui::Color32::from_rgb(c[0], c[1], c[2]));
+        }
+
+        // 圖層數
+        let layer_count = self.editor.draft_layers.layers.len();
+        p.text(egui::pos2(drop_x + drop_w * 0.5, swatch_y + sw_size + 30.0),
+            egui::Align2::CENTER_TOP,
+            format!("{} 個圖層", layer_count),
+            egui::FontId::proportional(9.0), TEXT_DIM);
+
+        // 圖層下拉（使用 child_ui 避免 painter borrow 衝突）
+        let current = self.editor.draft_layers.current.clone();
+        let cur_color = self.editor.draft_layers.current_layer()
+            .map(|l| l.color).unwrap_or([255, 255, 255]);
+        let combo_rect = egui::Rect::from_min_size(
+            egui::pos2(drop_x, swatch_y + sw_size + 4.0),
+            egui::vec2(drop_w, 22.0));
+        let mut child = ui.child_ui(combo_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+        egui::ComboBox::from_id_source("layer_v2_combo")
+            .width(drop_w - 4.0)
+            .selected_text(egui::RichText::new(format!("\u{25A0} {}", current))
+                .size(10.0)
+                .color(egui::Color32::from_rgb(cur_color[0], cur_color[1], cur_color[2])))
+            .show_ui(&mut child, |ui| {
+                let layer_info: Vec<(String, [u8;3], bool, bool)> = self.editor.draft_layers.layers.iter()
+                    .map(|l| (l.name.clone(), l.color, l.visible, l.locked))
+                    .collect();
+                for (name, color, visible, locked) in &layer_info {
+                    let is_current = *name == self.editor.draft_layers.current;
+                    ui.horizontal(|ui| {
+                        let vis_label = if *visible { "\u{1F441}" } else { "\u{2014}" };
+                        if ui.add(egui::Label::new(
+                            egui::RichText::new(vis_label).size(11.0).color(TEXT_COLOR))
+                            .sense(egui::Sense::click())).clicked() {
+                            if let Some(layer) = self.editor.draft_layers.layers.iter_mut().find(|l| l.name == *name) {
+                                layer.visible = !layer.visible;
+                            }
+                        }
+                        let lock_label = if *locked { "\u{1F512}" } else { "\u{1F513}" };
+                        if ui.add(egui::Label::new(
+                            egui::RichText::new(lock_label).size(11.0).color(TEXT_DIM))
+                            .sense(egui::Sense::click())).clicked() {
+                            if let Some(layer) = self.editor.draft_layers.layers.iter_mut().find(|l| l.name == *name) {
+                                layer.locked = !layer.locked;
+                            }
+                        }
+                        let (sr, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
+                        ui.painter().rect_filled(sr, 2.0,
+                            egui::Color32::from_rgb(color[0], color[1], color[2]));
+                        if ui.selectable_label(is_current,
+                            egui::RichText::new(name).size(10.0).color(TEXT_COLOR)).clicked() {
+                            self.editor.draft_layers.current = name.clone();
+                        }
+                    });
+                }
+            });
+    }
+
+    /// 圖層 Group（舊版，保留供相容）
     #[cfg(feature = "drafting")]
     fn ribbon_layer_group(&mut self, ui: &mut egui::Ui) {
         let total_h = RIBBON_CONTENT_H;

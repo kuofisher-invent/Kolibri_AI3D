@@ -4,24 +4,7 @@
 use eframe::egui;
 use crate::app::{KolibriApp, Tool};
 
-/// 2D 畫布狀態（未來支援 pan/zoom 時使用）
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub(crate) struct CanvasState {
-    /// 畫布偏移（像素）
-    pub offset: egui::Vec2,
-    /// 縮放（像素/mm）
-    pub zoom: f32,
-}
-
-impl Default for CanvasState {
-    fn default() -> Self {
-        Self {
-            offset: egui::Vec2::ZERO,
-            zoom: 2.0, // 2px per mm
-        }
-    }
-}
+// 2D 畫布 zoom/offset 狀態存在 EditorState 的 draft_zoom / draft_offset 欄位
 
 impl KolibriApp {
     /// 繪製 2D 出圖畫布（layout_mode 時取代 3D viewport）
@@ -29,15 +12,19 @@ impl KolibriApp {
     pub(crate) fn draw_draft_canvas(&mut self, ui: &mut egui::Ui) {
         let rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
+        // response.hovered()/hover_pos() 不可靠，改用 pointer 位置直接判斷
+        let canvas_hover_pos: Option<egui::Pos2> = ui.input(|i| {
+            i.pointer.latest_pos().filter(|p| rect.contains(*p))
+        });
         let painter = ui.painter_at(rect);
 
         // 背景（ZWCAD 深色 — 無白紙，直接模型空間）
         let bg_color = egui::Color32::from_rgb(33, 40, 48);
         painter.rect_filled(rect, 0.0, bg_color);
 
-        // 座標系統：原點在畫布中央，1mm = 2px（可日後加 pan/zoom）
-        let scale = 2.0_f32;
-        let origin = rect.center(); // 螢幕原點 = 數學原點 (0,0)
+        // 座標系統：原點 = 畫布中央 + offset，scale = zoom（像素/mm）
+        let scale = self.editor.draft_zoom;
+        let origin = rect.center() + self.editor.draft_offset;
 
         // mm → screen 座標轉換（Y 軸翻轉：數學 Y 向上，螢幕 Y 向下）
         let to_screen = |mm_x: f64, mm_y: f64| -> egui::Pos2 {
@@ -67,15 +54,27 @@ impl KolibriApp {
             let mm_right = ((rect.right() - origin.x) / scale) as f64;
             let mm_top = ((origin.y - rect.top()) / scale) as f64;    // Y 翻轉
             let mm_bottom = ((origin.y - rect.bottom()) / scale) as f64;
-            let x_start = (mm_left / grid_mm).floor() as i64;
-            let x_end = (mm_right / grid_mm).ceil() as i64;
-            let y_start = (mm_bottom / grid_mm).floor() as i64;
-            let y_end = (mm_top / grid_mm).ceil() as i64;
-            for ix in x_start..=x_end {
-                for iy in y_start..=y_end {
-                    let sp = to_screen(ix as f64 * grid_mm, iy as f64 * grid_mm);
-                    if rect.contains(sp) {
-                        painter.circle_filled(sp, dot_r, dot_color);
+            // 動態調整格線間距：縮小到太密時自動加大間距
+            let grid_px = grid_mm as f32 * scale;
+            let effective_grid = if grid_px < 4.0 {
+                grid_mm * (4.0 / grid_px as f64).ceil() // 自動倍增到至少 4px 間距
+            } else {
+                grid_mm
+            };
+            let x_start = (mm_left / effective_grid).floor() as i64;
+            let x_end = (mm_right / effective_grid).ceil() as i64;
+            let y_start = (mm_bottom / effective_grid).floor() as i64;
+            let y_end = (mm_top / effective_grid).ceil() as i64;
+            // 限制最大格點數（避免縮太小時畫幾萬個點）
+            let max_dots = 10000_i64;
+            let dot_count = (x_end - x_start + 1) * (y_end - y_start + 1);
+            if dot_count <= max_dots {
+                for ix in x_start..=x_end {
+                    for iy in y_start..=y_end {
+                        let sp = to_screen(ix as f64 * effective_grid, iy as f64 * effective_grid);
+                        if rect.contains(sp) {
+                            painter.circle_filled(sp, dot_r, dot_color);
+                        }
                     }
                 }
             }
@@ -118,15 +117,22 @@ impl KolibriApp {
         // ── 2D Snap 偵測（端點/中點/圓心/交點/最近點/垂直）──
         let snap_threshold_mm = 5.0_f64;
         let mut snap_point: Option<([f64; 2], &str, egui::Color32)> = None;
-        if let Some(hover_pos) = response.hover_pos() {
+        if let Some(hover_pos) = canvas_hover_pos {
             let mx = ((hover_pos.x - origin.x) / scale) as f64;
             let my = ((origin.y - hover_pos.y) / scale) as f64;
 
             let mut best_dist = snap_threshold_mm;
             // 收集所有線段端點（用於交點偵測）
             let mut line_segments: Vec<([f64; 2], [f64; 2])> = Vec::new();
+            // snap 只檢查附近區域的圖元（效能優化）
+            let snap_range = snap_threshold_mm * 5.0;
+            let snap_left = mx - snap_range;
+            let snap_right = mx + snap_range;
+            let snap_bottom = my - snap_range;
+            let snap_top = my + snap_range;
             for obj in &self.editor.draft_doc.objects {
                 if !obj.visible { continue; }
+                if !Self::entity_in_view(&obj.entity, snap_left, snap_right, snap_bottom, snap_top) { continue; }
                 // 端點 Snap
                 let grips = self.entity_grip_points(&obj.entity);
                 for gp in &grips {
@@ -264,7 +270,7 @@ impl KolibriApp {
         }
 
         // 十字游標（ZWCAD 風格：跟隨滑鼠的全畫面十字線）
-        if let Some(hover_pos) = response.hover_pos() {
+        if let Some(hover_pos) = canvas_hover_pos {
             // 如果有 snap 點，十字游標吸附到 snap 位置
             let cursor_pos = if let Some((sp, _, _)) = &snap_point {
                 to_screen(sp[0], sp[1])
@@ -299,8 +305,32 @@ impl KolibriApp {
         let dim_color = egui::Color32::from_rgb(0, 220, 220); // cyan（ZWCAD 標註色）
         let text_color = egui::Color32::from_rgb(220, 220, 50); // 黃色文字
 
+        // ── 可見區域（mm 座標，用於 frustum culling）──
+        let vis_left = ((rect.left() - origin.x) / scale) as f64 - 50.0;
+        let vis_right = ((rect.right() - origin.x) / scale) as f64 + 50.0;
+        let vis_bottom = ((origin.y - rect.bottom()) / scale) as f64 - 50.0;
+        let vis_top = ((origin.y - rect.top()) / scale) as f64 + 50.0;
+
+        // Debug: 顯示可見區域和圖元數量（右上角）
+        let obj_count = self.editor.draft_doc.objects.len();
+        if obj_count > 0 {
+            painter.text(
+                egui::pos2(rect.right() - 10.0, rect.top() + 10.0),
+                egui::Align2::RIGHT_TOP,
+                format!("{} entities | zoom:{:.3} | vis:[{:.0},{:.0}]×[{:.0},{:.0}]",
+                    obj_count, scale, vis_left, vis_right, vis_bottom, vis_top),
+                egui::FontId::monospace(10.0),
+                egui::Color32::from_rgb(255, 200, 60),
+            );
+        }
+
+        let mut rendered_count = 0_usize;
         for obj in &self.editor.draft_doc.objects {
             if !obj.visible { continue; }
+            // ── Frustum culling: 跳過完全不在螢幕內的圖元 ──
+            let in_view = Self::entity_in_view(&obj.entity, vis_left, vis_right, vis_bottom, vis_top);
+            if !in_view { continue; }
+            rendered_count += 1;
             // 深色背景：黑色線改白色，其他保留
             let color = if obj.color == [0, 0, 0] {
                 egui::Color32::from_rgb(230, 230, 230) // 白色線條
@@ -685,7 +715,7 @@ impl KolibriApp {
         }
 
         // ── Hover 高亮（ZWCAD 風格：加粗 + 虛線效果）──
-        let hover_mm = response.hover_pos().map(|pos| {
+        let hover_mm = canvas_hover_pos.map(|pos| {
             [((pos.x - origin.x) / scale) as f64, ((origin.y - pos.y) / scale) as f64]
         });
         let mut hovered_entity_id: Option<kolibri_drafting::DraftId> = None;
@@ -729,7 +759,7 @@ impl KolibriApp {
                 for gp in &grips {
                     let sp = to_screen(gp[0], gp[1]);
                     // 判斷滑鼠是否 hover 在此 grip 上
-                    let is_grip_hovered = if let Some(hp) = response.hover_pos() {
+                    let is_grip_hovered = if let Some(hp) = canvas_hover_pos {
                         (hp.x - sp.x).abs() < grip_size && (hp.y - sp.y).abs() < grip_size
                     } else { false };
                     let gc = if is_grip_hovered { grip_hover } else { grip_cold };
@@ -745,7 +775,7 @@ impl KolibriApp {
         }
 
         // ── 繪製進行中的繪製狀態 ──
-        self.draw_draft_preview(&painter, &to_screen, scale, &response);
+        self.draw_draft_preview(&painter, &to_screen, scale, &response, canvas_hover_pos);
 
         // ── 處理滑鼠點擊 ──
         if response.clicked() {
@@ -1027,9 +1057,69 @@ impl KolibriApp {
             self.console_push("INFO", format!("動態輸入: {}", if self.editor.draft_dyn_input { "ON" } else { "OFF" }));
         }
 
-        // ── 指令別名輸入（L=Line, C=Circle, PL=Polyline, REC=Rectangle...）──
-        #[cfg(feature = "drafting")]
+        // ── Mouse Wheel Zoom（以游標為中心，ZWCAD 風格）──
+        let canvas_center = rect.center();
         {
+            let scroll = ui.input(|i| {
+                let s = i.smooth_scroll_delta.y;
+                if s.abs() > 0.1 { s } else { i.raw_scroll_delta.y }
+            });
+            if scroll.abs() > 0.1 && canvas_hover_pos.is_some() {
+                self.draft_zoom_at_cursor(scroll, canvas_hover_pos, canvas_center);
+            }
+        }
+
+        // ── 鍵盤 +/- Zoom（備用，與 ZWCAD 一致）──
+        if ui.input(|i| i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals)) {
+            self.draft_zoom_at_cursor(100.0, canvas_hover_pos, canvas_center);
+        }
+        if ui.input(|i| i.key_pressed(egui::Key::Minus)) {
+            self.draft_zoom_at_cursor(-100.0, canvas_hover_pos, canvas_center);
+        }
+
+        // ── Middle Mouse Button Pan（中鍵拖曳平移，ZWCAD 風格）──
+        {
+            let middle_down = ui.input(|i| i.pointer.button_down(egui::PointerButton::Middle));
+            if middle_down {
+                if let Some(pos) = ui.input(|i| i.pointer.latest_pos()) {
+                    if let Some(prev) = self.editor.draft_pan_drag {
+                        let delta = pos - prev;
+                        self.editor.draft_offset += delta;
+                    }
+                    self.editor.draft_pan_drag = Some(pos);
+                }
+            } else {
+                self.editor.draft_pan_drag = None;
+            }
+        }
+
+        // ── DraftPan tool（左鍵拖曳平移）──
+        if self.editor.tool == Tool::DraftPan {
+            if response.dragged_by(egui::PointerButton::Primary) {
+                self.editor.draft_offset += response.drag_delta();
+            }
+            if response.drag_stopped_by(egui::PointerButton::Primary) {
+                // 單次平移完成後回到 Select
+                self.editor.tool = Tool::DraftSelect;
+            }
+        }
+
+        // ── DraftZoomAll（縮放至全部圖元）──
+        if self.editor.tool == Tool::DraftZoomAll {
+            self.draft_zoom_all(rect);
+            self.editor.tool = Tool::DraftSelect;
+        }
+
+        // ── DraftZoomWindow（目前先用 ZoomAll 替代）──
+        if self.editor.tool == Tool::DraftZoomWindow {
+            self.draft_zoom_all(rect);
+            self.editor.tool = Tool::DraftSelect;
+        }
+
+        // ── 指令別名輸入（L=Line, C=Circle, PL=Polyline, REC=Rectangle...）──
+        // 注意：正在數值輸入時（draft_num_input 非空）跳過指令別名
+        #[cfg(feature = "drafting")]
+        if self.editor.draft_num_input.is_empty() {
             // 超過 500ms 未按鍵，清除緩衝
             if self.editor.draft_cmd_time.elapsed() > std::time::Duration::from_millis(500) {
                 if !self.editor.draft_cmd_buf.is_empty() {
@@ -1086,6 +1176,9 @@ impl KolibriApp {
                     "DCE" => Some(crate::editor::Tool::DraftCenterMark), // DCE = center mark
                     "AR" => Some(crate::editor::Tool::DraftArrayRect),   // AR = array rect
                     "AP" => Some(crate::editor::Tool::DraftArrayPolar),  // AP = array polar
+                    "P" => Some(crate::editor::Tool::DraftPan),          // P = pan
+                    "ZA" => Some(crate::editor::Tool::DraftZoomAll),     // ZA = zoom all
+                    "ZW" => Some(crate::editor::Tool::DraftZoomWindow),  // ZW = zoom window
                     _ => None,
                 };
                 // 如果匹配成功，切換工具並清空緩衝
@@ -1105,14 +1198,182 @@ impl KolibriApp {
             }
         }
 
+        // ── AutoCAD/ZWCAD 風格數值輸入（畫線/圓/矩形時直接打數字 + Enter）──
+        #[cfg(feature = "drafting")]
+        {
+            use crate::editor::DraftDrawState;
+            let is_drawing = !matches!(self.editor.draft_state, DraftDrawState::Idle);
+            // 收集數字/小數點/逗號/負號/@ 輸入
+            let num_events: Vec<char> = ui.input(|i| {
+                let mut chars = Vec::new();
+                if i.modifiers.ctrl || i.modifiers.alt || i.modifiers.mac_cmd { return chars; }
+                for evt in &i.events {
+                    match evt {
+                        egui::Event::Text(t) => {
+                            for c in t.chars() {
+                                if c.is_ascii_digit() || c == '.' || c == ',' || c == '-' || c == '@' || c == '<' {
+                                    chars.push(c);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                chars
+            });
+            let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let backspace = ui.input(|i| i.key_pressed(egui::Key::Backspace));
+            let esc_pressed = ui.input(|i| i.key_pressed(egui::Key::Escape));
+
+            // 數字鍵 → 加入緩衝
+            for ch in &num_events {
+                if is_drawing || !self.editor.draft_num_input.is_empty() {
+                    self.editor.draft_num_input.push(*ch);
+                }
+            }
+            if backspace && !self.editor.draft_num_input.is_empty() {
+                self.editor.draft_num_input.pop();
+            }
+            if esc_pressed {
+                self.editor.draft_num_input.clear();
+            }
+
+            // Enter 按下且有數值輸入 → 解析並套用
+            if enter_pressed && !self.editor.draft_num_input.is_empty() && is_drawing {
+                let input = self.editor.draft_num_input.clone();
+                self.editor.draft_num_input.clear();
+
+                // 解析格式：
+                // "500"         → 距離 500mm（沿目前方向）
+                // "500,300"     → 相對座標 dx=500, dy=300
+                // "@500<45"     → 極座標 距離 500，角度 45°
+                let from_point: Option<[f64; 2]> = match &self.editor.draft_state {
+                    DraftDrawState::LineFrom { p1 } => Some(*p1),
+                    DraftDrawState::RectFrom { p1 } => Some(*p1),
+                    DraftDrawState::CircleCenter { center } => Some(*center),
+                    DraftDrawState::PolylinePoints { points } => points.last().copied(),
+                    _ => None,
+                };
+
+                if let Some(fp) = from_point {
+                    let target: Option<[f64; 2]> = if input.contains(',') {
+                        // "dx,dy" 相對座標
+                        let parts: Vec<&str> = input.split(',').collect();
+                        if parts.len() == 2 {
+                            if let (Ok(dx), Ok(dy)) = (parts[0].trim().parse::<f64>(), parts[1].trim().parse::<f64>()) {
+                                Some([fp[0] + dx, fp[1] + dy])
+                            } else { None }
+                        } else { None }
+                    } else if input.contains('<') {
+                        // "@dist<angle" 極座標
+                        let clean = input.trim_start_matches('@');
+                        let parts: Vec<&str> = clean.split('<').collect();
+                        if parts.len() == 2 {
+                            if let (Ok(dist), Ok(angle)) = (parts[0].trim().parse::<f64>(), parts[1].trim().parse::<f64>()) {
+                                let rad = angle.to_radians();
+                                Some([fp[0] + dist * rad.cos(), fp[1] + dist * rad.sin()])
+                            } else { None }
+                        } else { None }
+                    } else {
+                        // 純數字 → 距離（沿滑鼠方向）
+                        if let Ok(dist) = input.parse::<f64>() {
+                            if let Some(hover_pos) = canvas_hover_pos {
+                                let mx = ((hover_pos.x - origin.x) / scale) as f64;
+                                let my = ((origin.y - hover_pos.y) / scale) as f64;
+                                let dx = mx - fp[0];
+                                let dy = my - fp[1];
+                                let len = (dx * dx + dy * dy).sqrt();
+                                if len > 0.001 {
+                                    Some([fp[0] + dx / len * dist, fp[1] + dy / len * dist])
+                                } else {
+                                    Some([fp[0] + dist, fp[1]]) // 預設向右
+                                }
+                            } else {
+                                Some([fp[0] + dist, fp[1]])
+                            }
+                        } else { None }
+                    };
+
+                    if let Some(to) = target {
+                        match &self.editor.draft_state.clone() {
+                            DraftDrawState::LineFrom { p1 } => {
+                                self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Line {
+                                    start: *p1, end: to,
+                                });
+                                // 連續畫線：新起點 = 舊終點
+                                self.editor.draft_state = DraftDrawState::LineFrom { p1: to };
+                                self.console_push("ACTION", format!("LINE: ({:.1},{:.1})→({:.1},{:.1})", p1[0], p1[1], to[0], to[1]));
+                            }
+                            DraftDrawState::RectFrom { p1 } => {
+                                self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Rectangle {
+                                    p1: *p1, p2: to,
+                                });
+                                self.editor.draft_state = DraftDrawState::Idle;
+                            }
+                            DraftDrawState::CircleCenter { center } => {
+                                // 數字 = 半徑
+                                if let Ok(r) = input.parse::<f64>() {
+                                    self.editor.draft_doc.add(kolibri_drafting::DraftEntity::Circle {
+                                        center: *center, radius: r,
+                                    });
+                                    self.editor.draft_state = DraftDrawState::Idle;
+                                }
+                            }
+                            DraftDrawState::PolylinePoints { points } => {
+                                let mut pts = points.clone();
+                                pts.push(to);
+                                self.editor.draft_state = DraftDrawState::PolylinePoints { points: pts };
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            // 顯示數值輸入提示（游標旁的輸入框）
+            if !self.editor.draft_num_input.is_empty() {
+                if let Some(hover_pos) = canvas_hover_pos {
+                    let input_rect = egui::Rect::from_min_size(
+                        egui::pos2(hover_pos.x + 20.0, hover_pos.y + 45.0),
+                        egui::vec2(100.0, 20.0),
+                    );
+                    let bg = egui::Color32::from_rgba_unmultiplied(20, 25, 35, 240);
+                    let border = egui::Color32::from_rgb(76, 139, 245);
+                    painter.rect_filled(input_rect, 3.0, bg);
+                    painter.rect_stroke(input_rect, 3.0, egui::Stroke::new(1.5, border));
+                    painter.text(
+                        egui::pos2(input_rect.left() + 4.0, input_rect.center().y),
+                        egui::Align2::LEFT_CENTER,
+                        &self.editor.draft_num_input,
+                        egui::FontId::monospace(12.0),
+                        egui::Color32::from_rgb(240, 240, 245),
+                    );
+                    // 閃爍游標
+                    let blink = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() / 500) % 2 == 0;
+                    if blink {
+                        let galley = painter.layout_no_wrap(
+                            self.editor.draft_num_input.clone(),
+                            egui::FontId::monospace(12.0),
+                            egui::Color32::WHITE,
+                        );
+                        let cursor_x = input_rect.left() + 4.0 + galley.size().x + 1.0;
+                        painter.line_segment(
+                            [egui::pos2(cursor_x, input_rect.top() + 3.0), egui::pos2(cursor_x, input_rect.bottom() - 3.0)],
+                            egui::Stroke::new(1.0, egui::Color32::WHITE),
+                        );
+                    }
+                }
+            }
+        }
+
         // 持續 repaint（十字游標需要跟隨滑鼠）
-        if response.hovered() {
+        if canvas_hover_pos.is_some() {
             ui.ctx().request_repaint();
         }
 
         // ── 動態輸入 (DYN) — 游標旁顯示距離/角度 tooltip ──
         if self.editor.draft_dyn_input {
-            if let Some(hover_pos) = response.hover_pos() {
+            if let Some(hover_pos) = canvas_hover_pos {
                 let mx = ((hover_pos.x - origin.x) / scale) as f64;
                 let my = ((origin.y - hover_pos.y) / scale) as f64;
                 let cursor_pos = if let Some((sp, _, _)) = &snap_point {
@@ -1187,7 +1448,7 @@ impl KolibriApp {
 
         // ── POLAR tracking — 角度吸附線 ──
         if self.editor.draft_polar {
-            if let Some(hover_pos) = response.hover_pos() {
+            if let Some(hover_pos) = canvas_hover_pos {
                 let from_point: Option<[f64; 2]> = match &self.editor.draft_state {
                     crate::editor::DraftDrawState::LineFrom { p1 } => Some(*p1),
                     crate::editor::DraftDrawState::RectFrom { p1 } => Some(*p1),
@@ -1428,12 +1689,13 @@ impl KolibriApp {
         to_screen: &impl Fn(f64, f64) -> egui::Pos2,
         scale: f32,
         response: &egui::Response,
+        hover_pos: Option<egui::Pos2>,
     ) {
         let preview_color = egui::Color32::from_rgb(76, 139, 245);
         let preview_stroke = egui::Stroke::new(1.0, preview_color);
 
         // 取得目前滑鼠位置（mm，原點在畫布中央，Y 向上）
-        let mouse_mm = response.hover_pos().map(|pos| {
+        let mouse_mm = hover_pos.map(|pos| {
             let rect = response.rect;
             let org = rect.center();
             [((pos.x - org.x) / scale) as f64, ((org.y - pos.y) / scale) as f64]
@@ -3414,6 +3676,165 @@ impl KolibriApp {
             }
             other => other.clone(),
         }
+    }
+
+    /// 游標中心縮放（ZWCAD 風格：以滑鼠位置為錨點，滾動越多縮放越快）
+    #[cfg(feature = "drafting")]
+    fn draft_zoom_at_cursor(&mut self, scroll: f32, cursor_pos: Option<egui::Pos2>, canvas_center: egui::Pos2) {
+        // ZWCAD 風格：每格 1.2x，滾動量影響步階數
+        let steps = (scroll / 50.0).clamp(-3.0, 3.0); // 正規化滾動量為 ±1~3 步
+        let zoom_factor = (1.2_f32).powf(steps);
+        let old_zoom = self.editor.draft_zoom;
+        let new_zoom = (old_zoom * zoom_factor).clamp(0.01, 500.0);
+
+        // 以游標位置為縮放錨點：
+        // 原理：縮放前後，游標指向的 mm 座標不變
+        // screen_pos = canvas_center + offset + mm * zoom
+        // 所以 mm = (cursor - canvas_center - offset) / zoom
+        // 縮放後要保持 cursor 指向同一個 mm 點：
+        // new_offset = cursor - canvas_center - mm * new_zoom
+        if let Some(cursor) = cursor_pos {
+            let mm_x = (cursor.x - canvas_center.x - self.editor.draft_offset.x) / old_zoom;
+            let mm_y = (cursor.y - canvas_center.y - self.editor.draft_offset.y) / old_zoom;
+            self.editor.draft_offset.x = cursor.x - canvas_center.x - mm_x * new_zoom;
+            self.editor.draft_offset.y = cursor.y - canvas_center.y - mm_y * new_zoom;
+        }
+        self.editor.draft_zoom = new_zoom;
+    }
+
+    /// 判斷 2D 圖元是否在可見區域內（frustum culling，大幅提升大場景效能）
+    #[cfg(feature = "drafting")]
+    fn entity_in_view(entity: &kolibri_drafting::DraftEntity, left: f64, right: f64, bottom: f64, top: f64) -> bool {
+        // AABB 測試：取圖元 bounding box，與可見區域做交叉測試
+        let (min_x, min_y, max_x, max_y) = match entity {
+            kolibri_drafting::DraftEntity::Line { start, end } => {
+                (start[0].min(end[0]), start[1].min(end[1]),
+                 start[0].max(end[0]), start[1].max(end[1]))
+            }
+            kolibri_drafting::DraftEntity::Circle { center, radius } => {
+                (center[0] - radius, center[1] - radius,
+                 center[0] + radius, center[1] + radius)
+            }
+            kolibri_drafting::DraftEntity::Arc { center, radius, .. } => {
+                (center[0] - radius, center[1] - radius,
+                 center[0] + radius, center[1] + radius)
+            }
+            kolibri_drafting::DraftEntity::Rectangle { p1, p2 } => {
+                (p1[0].min(p2[0]), p1[1].min(p2[1]),
+                 p1[0].max(p2[0]), p1[1].max(p2[1]))
+            }
+            kolibri_drafting::DraftEntity::Polyline { points, .. } => {
+                if points.is_empty() { return false; }
+                let mut mnx = f64::MAX; let mut mny = f64::MAX;
+                let mut mxx = f64::MIN; let mut mxy = f64::MIN;
+                for p in points {
+                    mnx = mnx.min(p[0]); mny = mny.min(p[1]);
+                    mxx = mxx.max(p[0]); mxy = mxy.max(p[1]);
+                }
+                (mnx, mny, mxx, mxy)
+            }
+            kolibri_drafting::DraftEntity::Ellipse { center, semi_major, semi_minor, .. } => {
+                let r = semi_major.max(*semi_minor);
+                (center[0] - r, center[1] - r, center[0] + r, center[1] + r)
+            }
+            kolibri_drafting::DraftEntity::Text { position, height, .. } => {
+                // 文字大致寬度估計
+                (position[0], position[1] - height, position[0] + height * 10.0, position[1] + height)
+            }
+            kolibri_drafting::DraftEntity::DimLinear { p1, p2, offset, .. } => {
+                let off = offset.abs();
+                (p1[0].min(p2[0]) - off, p1[1].min(p2[1]) - off,
+                 p1[0].max(p2[0]) + off, p1[1].max(p2[1]) + off)
+            }
+            kolibri_drafting::DraftEntity::DimAligned { p1, p2, offset, .. } => {
+                let off = offset.abs();
+                (p1[0].min(p2[0]) - off, p1[1].min(p2[1]) - off,
+                 p1[0].max(p2[0]) + off, p1[1].max(p2[1]) + off)
+            }
+            kolibri_drafting::DraftEntity::Leader { points, .. } => {
+                if points.is_empty() { return true; } // 有文字，保守顯示
+                let mut mnx = f64::MAX; let mut mny = f64::MAX;
+                let mut mxx = f64::MIN; let mut mxy = f64::MIN;
+                for p in points {
+                    mnx = mnx.min(p[0]); mny = mny.min(p[1]);
+                    mxx = mxx.max(p[0]); mxy = mxy.max(p[1]);
+                }
+                (mnx, mny, mxx, mxy)
+            }
+            kolibri_drafting::DraftEntity::Point { position } => {
+                (position[0] - 1.0, position[1] - 1.0, position[0] + 1.0, position[1] + 1.0)
+            }
+            // 其他不常見型別：保守顯示（不跳過）
+            _ => return true,
+        };
+        // AABB 交叉測試：圖元 bbox 和可見區域有無重疊
+        !(max_x < left || min_x > right || max_y < bottom || min_y > top)
+    }
+
+    /// 縮放至全部圖元（Zoom Extents）
+    #[cfg(feature = "drafting")]
+    fn draft_zoom_all(&mut self, canvas_rect: egui::Rect) {
+        if self.editor.draft_doc.objects.is_empty() {
+            // 沒有圖元，重置到預設
+            self.editor.draft_zoom = 2.0;
+            self.editor.draft_offset = egui::Vec2::ZERO;
+            return;
+        }
+        // 計算所有圖元的 bounding box（mm 座標）
+        let mut min_x = f64::MAX;
+        let mut min_y = f64::MAX;
+        let mut max_x = f64::MIN;
+        let mut max_y = f64::MIN;
+        for obj in &self.editor.draft_doc.objects {
+            if !obj.visible { continue; }
+            let grips = self.entity_grip_points(&obj.entity);
+            for gp in &grips {
+                if gp[0] < min_x { min_x = gp[0]; }
+                if gp[1] < min_y { min_y = gp[1]; }
+                if gp[0] > max_x { max_x = gp[0]; }
+                if gp[1] > max_y { max_y = gp[1]; }
+            }
+            // 圓/弧需要考慮半徑
+            match &obj.entity {
+                kolibri_drafting::DraftEntity::Circle { center, radius } => {
+                    min_x = min_x.min(center[0] - radius);
+                    min_y = min_y.min(center[1] - radius);
+                    max_x = max_x.max(center[0] + radius);
+                    max_y = max_y.max(center[1] + radius);
+                }
+                _ => {}
+            }
+        }
+        if min_x >= max_x || min_y >= max_y {
+            // 只有點狀圖元
+            self.editor.draft_zoom = 2.0;
+            self.editor.draft_offset = egui::Vec2::ZERO;
+            return;
+        }
+        let extent_w = (max_x - min_x) as f32;
+        let extent_h = (max_y - min_y) as f32;
+        let center_mm_x = (min_x + max_x) / 2.0;
+        let center_mm_y = (min_y + max_y) / 2.0;
+
+        let canvas_w = canvas_rect.width();
+        let canvas_h = canvas_rect.height();
+        let margin = 0.85; // 留 15% 邊距
+
+        let zoom_x = canvas_w * margin / extent_w.max(1.0);
+        let zoom_y = canvas_h * margin / extent_h.max(1.0);
+        let new_zoom = zoom_x.min(zoom_y).clamp(0.05, 200.0);
+
+        self.editor.draft_zoom = new_zoom;
+        // offset 使得 center_mm 映射到 canvas 中央
+        // screen_center = canvas_center + offset + center_mm * zoom → offset = -center_mm * zoom
+        self.editor.draft_offset = egui::vec2(
+            -(center_mm_x as f32) * new_zoom,
+            (center_mm_y as f32) * new_zoom, // Y 翻轉
+        );
+        self.console_push("INFO", format!(
+            "縮放全部：{:.1}x（範圍 {:.0}×{:.0} mm）",
+            new_zoom, extent_w, extent_h
+        ));
     }
 }
 

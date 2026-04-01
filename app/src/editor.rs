@@ -200,6 +200,12 @@ pub enum Tool {
     DraftArrayPolar,  // 環形陣列
     #[cfg(feature = "drafting")]
     DraftArrayPath,   // 路徑陣列
+    #[cfg(feature = "drafting")]
+    DraftLayerProp,   // 圖層特性管理員
+    #[cfg(feature = "drafting")]
+    DraftLayerMatch,  // 圖層匹配
+    #[cfg(feature = "drafting")]
+    DraftMakeCurrent, // 置為目前圖層
 }
 
 impl Tool {
@@ -242,6 +248,10 @@ pub(crate) enum DrawState {
     FollowPath { source_id: String, path_points: Vec<[f32; 3]> },
     Measuring { start: [f32; 3] },
     PullingFreeMesh { face_id: u32 },
+    /// SU-style Move click-click: 第一次點擊設定起點，第二次點擊設定終點
+    MoveFrom { from: [f32; 3], obj_ids: Vec<String>, original_positions: Vec<[f32; 3]> },
+    /// SU-style PushPull click-click: 點擊面後移動滑鼠，再點擊確認距離
+    PullClick { obj_id: String, face: PullFace, original_dim: f32 },
     WallFrom { p1: [f32; 3] },
     SlabCorner { p1: [f32; 3] },
 }
@@ -453,6 +463,8 @@ pub(crate) struct EditorState {
     pub(crate) gizmo_hovered_axis: Option<u8>,
     /// Gizmo drag 狀態：拖曳中鎖定的軸
     pub(crate) gizmo_drag_axis: Option<u8>,
+    /// 附近的 snap 候選點（SU-style：顯示附近所有端點/中點小圓點）
+    pub(crate) nearby_snaps: Vec<([f32; 3], SnapType)>,
 
     // ── Piping（管線外掛）──
     #[cfg(feature = "piping")]
@@ -522,6 +534,16 @@ pub(crate) struct EditorState {
     pub(crate) draft_cmd_buf: String,
     #[cfg(feature = "drafting")]
     pub(crate) draft_cmd_time: std::time::Instant,
+    /// AutoCAD/ZWCAD 風格數值輸入緩衝（畫線時輸入長度/座標）
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_num_input: String,
+    // ── 2D 畫布 Pan/Zoom ──
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_zoom: f32,           // 像素/mm（預設 2.0）
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_offset: egui::Vec2,  // 畫布偏移（像素）
+    #[cfg(feature = "drafting")]
+    pub(crate) draft_pan_drag: Option<egui::Pos2>,  // 中鍵拖曳起始點
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────
