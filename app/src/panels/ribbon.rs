@@ -389,16 +389,80 @@ impl KolibriApp {
     #[cfg(feature = "drafting")]
     fn ribbon_output(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-        self.ribbon_group(ui, "輸出", &[
-            ToolBtn { tool: Tool::DraftPrint, label: "列印", tooltip: "列印 (Ctrl+P)" },
-            ToolBtn { tool: Tool::DraftExportPdf, label: "PDF", tooltip: "匯出 PDF" },
-        ]);
+        // ── 輸出群組：PDF/DXF/DWG ──
+        self.ribbon_group_n(ui, "匯出", &[
+            ToolBtn { tool: Tool::DraftExportPdf, label: "PDF", tooltip: "匯出 PDF (Ctrl+P)" },
+            ToolBtn { tool: Tool::DraftPrint, label: "DXF", tooltip: "匯出 DXF" },
+        ], 2);
         self.ribbon_vsep(ui);
-        ui.vertical(|ui| {
-            ui.add_space(4.0);
-            ui.label(egui::RichText::new(format!("紙張: {}", self.viewer.layout.paper_size.label())).size(10.0).color(TEXT_COLOR));
-            ui.label(egui::RichText::new(format!("比例: 1:{:.0}", self.viewer.layout.scale)).size(10.0).color(TEXT_DIM));
-        });
+
+        // ── 紙張設定（可選擇）──
+        let total_h = RIBBON_CONTENT_H;
+        let btn_area_h = total_h - GROUP_LABEL_H;
+        let group_w = 150.0;
+        let (group_rect, _) = ui.allocate_exact_size(egui::vec2(group_w, total_h), egui::Sense::hover());
+        if ui.is_rect_visible(group_rect) {
+            let p = ui.painter();
+
+            // 底部標籤
+            let label_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left(), group_rect.bottom() - GROUP_LABEL_H),
+                egui::vec2(group_w, GROUP_LABEL_H));
+            p.rect_filled(label_rect, 0.0, GROUP_LABEL_BG);
+            p.text(label_rect.center(), egui::Align2::CENTER_CENTER, "頁面設定",
+                egui::FontId::proportional(FONT_LABEL), TEXT_DIM);
+
+            // 紙張大小下拉
+            let combo_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left() + 4.0, group_rect.top() + 6.0),
+                egui::vec2(group_w - 8.0, 24.0));
+            let mut child = ui.child_ui(combo_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            child.label(egui::RichText::new("紙張:").size(11.0).color(TEXT_COLOR));
+            let current_paper = self.viewer.layout.paper_size.label().to_string();
+            egui::ComboBox::from_id_source("output_paper_combo")
+                .width(80.0)
+                .selected_text(egui::RichText::new(&current_paper).size(11.0).color(TEXT_COLOR))
+                .show_ui(&mut child, |ui| {
+                    for &size in crate::layout::PaperSize::ALL {
+                        if ui.selectable_label(self.viewer.layout.paper_size == size,
+                            egui::RichText::new(size.label()).size(11.0)).clicked() {
+                            self.viewer.layout.paper_size = size;
+                        }
+                    }
+                });
+
+            // 比例下拉
+            let scale_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left() + 4.0, group_rect.top() + 34.0),
+                egui::vec2(group_w - 8.0, 24.0));
+            let mut child2 = ui.child_ui(scale_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            child2.label(egui::RichText::new("比例:").size(11.0).color(TEXT_COLOR));
+            let scales: &[f32] = &[1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0];
+            egui::ComboBox::from_id_source("output_scale_combo")
+                .width(80.0)
+                .selected_text(egui::RichText::new(format!("1:{:.0}", self.viewer.layout.scale)).size(11.0).color(TEXT_COLOR))
+                .show_ui(&mut child2, |ui| {
+                    for &s in scales {
+                        if ui.selectable_label((self.viewer.layout.scale - s).abs() < 0.1,
+                            egui::RichText::new(format!("1:{:.0}", s)).size(11.0)).clicked() {
+                            self.viewer.layout.scale = s;
+                        }
+                    }
+                });
+
+            // 方向
+            let orient_rect = egui::Rect::from_min_size(
+                egui::pos2(group_rect.left() + 4.0, group_rect.top() + 62.0),
+                egui::vec2(group_w - 8.0, 24.0));
+            let mut child3 = ui.child_ui(orient_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            let is_landscape = matches!(self.viewer.layout.orientation, crate::layout::Orientation::Landscape);
+            if child3.add(egui::SelectableLabel::new(is_landscape, egui::RichText::new("橫向").size(10.0))).clicked() {
+                self.viewer.layout.orientation = crate::layout::Orientation::Landscape;
+            }
+            if child3.add(egui::SelectableLabel::new(!is_landscape, egui::RichText::new("直向").size(10.0))).clicked() {
+                self.viewer.layout.orientation = crate::layout::Orientation::Portrait;
+            }
+        }
         });  // close horizontal_top for output
     }
 

@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = []
-drafting = ["dep:kolibri-drafting"]
+drafting = ["dep:kolibri-drafting", "dep:printpdf"]
 
 [dependencies]
 kolibri-core = { path = "../core" }
@@ -15,3 +15,4 @@ serde_json = "1"
 tracing = "0.1"
 zip = "0.6"
 flate2 = "1"
+printpdf = { version = "0.7", optional = true }

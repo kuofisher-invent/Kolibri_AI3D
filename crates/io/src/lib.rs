@@ -8,3 +8,5 @@ pub mod gltf_io;
 pub mod cad_import;
 pub mod import;
 pub mod dwg_parser;
+#[cfg(feature = "drafting")]
+pub mod pdf_export;

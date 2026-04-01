@@ -1149,6 +1149,53 @@ impl KolibriApp {
             self.editor.tool = Tool::DraftSelect;
         }
 
+        // ── DraftExportPdf（匯出 PDF）──
+        if self.editor.tool == Tool::DraftExportPdf {
+            self.editor.tool = Tool::DraftSelect;
+            let file = rfd::FileDialog::new()
+                .set_title("匯出 PDF")
+                .add_filter("PDF", &["pdf"])
+                .set_file_name("drawing.pdf")
+                .save_file();
+            if let Some(p) = file {
+                let ps = p.to_string_lossy().to_string();
+                let paper = kolibri_io::pdf_export::PdfPaperSize::from_name(self.viewer.layout.paper_size.label());
+                let scale = self.viewer.layout.scale as f64;
+                match kolibri_io::pdf_export::export_draft_to_pdf(&self.editor.draft_doc, &ps, paper, scale) {
+                    Ok(count) => {
+                        self.console_push("ACTION", format!("PDF 匯出: {} 個圖元 → {}", count, ps));
+                        self.file_message = Some((format!("已匯出 PDF: {}", ps), std::time::Instant::now()));
+                    }
+                    Err(e) => {
+                        self.console_push("ERROR", format!("PDF 匯出失敗: {}", e));
+                        self.file_message = Some((format!("PDF 匯出失敗: {}", e), std::time::Instant::now()));
+                    }
+                }
+            }
+        }
+
+        // ── DraftPrint（Ribbon 上的 DXF 快捷按鈕）──
+        if self.editor.tool == Tool::DraftPrint {
+            self.editor.tool = Tool::DraftSelect;
+            let file = rfd::FileDialog::new()
+                .set_title("匯出 DXF")
+                .add_filter("DXF 圖面", &["dxf"])
+                .set_file_name("drawing.dxf")
+                .save_file();
+            if let Some(p) = file {
+                let ps = p.to_string_lossy().to_string();
+                match crate::dxf_io::export_draft_to_dxf(&self.editor.draft_doc, &ps) {
+                    Ok(count) => {
+                        self.console_push("ACTION", format!("DXF 匯出: {} 個圖元 → {}", count, ps));
+                        self.file_message = Some((format!("已匯出 DXF: {}", ps), std::time::Instant::now()));
+                    }
+                    Err(e) => {
+                        self.console_push("ERROR", format!("DXF 匯出失敗: {}", e));
+                    }
+                }
+            }
+        }
+
         // ── DraftZoomWindow（目前先用 ZoomAll 替代）──
         if self.editor.tool == Tool::DraftZoomWindow {
             self.draft_zoom_all(rect);
