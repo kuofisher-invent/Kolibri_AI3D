@@ -81,28 +81,48 @@ impl KolibriApp {
                         egui::Color32::from_rgb(100, 110, 130)
                     };
 
-                    // 3D 按鈕（左半圓角）
+                    // 三模式按鈕：3D / 2D / AI
+                    let is_ai = self.viewer.ai_mode;
+                    let mode_3d_active = !is_2d && !is_ai;
+                    let ai_brand = egui::Color32::from_rgb(220, 160, 40); // 金色
+
+                    // 3D 按鈕（左圓角）
                     let btn_3d = egui::Button::new(
                         egui::RichText::new("3D").size(13.0).strong()
-                            .color(if !is_2d { active_text } else { inactive_text })
+                            .color(if mode_3d_active { active_text } else { inactive_text })
                     )
-                    .fill(if !is_2d { active_bg } else { inactive_bg })
+                    .fill(if mode_3d_active { active_bg } else { inactive_bg })
                     .rounding(egui::Rounding { nw: 6.0, sw: 6.0, ne: 0.0, se: 0.0 })
-                    .stroke(egui::Stroke::new(1.0, if is_2d { egui::Color32::from_rgb(80, 80, 85) } else { brand }));
-                    if ui.add_sized([42.0, 28.0], btn_3d).on_hover_text("3D 建模 (F6)").clicked() && is_2d {
-                        self.exit_layout_mode();
+                    .stroke(egui::Stroke::new(1.0, if mode_3d_active { brand } else { egui::Color32::from_rgb(80, 80, 85) }));
+                    if ui.add_sized([38.0, 28.0], btn_3d).on_hover_text("3D 建模 (F6)").clicked() && !mode_3d_active {
+                        self.viewer.ai_mode = false;
+                        if is_2d { self.exit_layout_mode(); }
                     }
 
-                    // 2D 按鈕（右半圓角）
+                    // 2D 按鈕（中間無圓角）
                     let btn_2d = egui::Button::new(
                         egui::RichText::new("2D").size(13.0).strong()
                             .color(if is_2d { active_text } else { inactive_text })
                     )
                     .fill(if is_2d { active_bg } else { inactive_bg })
-                    .rounding(egui::Rounding { nw: 0.0, sw: 0.0, ne: 6.0, se: 6.0 })
-                    .stroke(egui::Stroke::new(1.0, if !is_2d { egui::Color32::from_rgb(200, 205, 215) } else { brand }));
-                    if ui.add_sized([42.0, 28.0], btn_2d).on_hover_text("2D 出圖 CAD (F6)").clicked() && !is_2d {
+                    .rounding(0.0)
+                    .stroke(egui::Stroke::new(1.0, if is_2d { brand } else { egui::Color32::from_rgb(80, 80, 85) }));
+                    if ui.add_sized([38.0, 28.0], btn_2d).on_hover_text("2D 出圖 CAD (F6)").clicked() && !is_2d {
+                        self.viewer.ai_mode = false;
                         self.enter_layout_mode();
+                    }
+
+                    // AI 按鈕（右圓角）
+                    let btn_ai = egui::Button::new(
+                        egui::RichText::new("AI").size(13.0).strong()
+                            .color(if is_ai { egui::Color32::BLACK } else { inactive_text })
+                    )
+                    .fill(if is_ai { ai_brand } else { inactive_bg })
+                    .rounding(egui::Rounding { nw: 0.0, sw: 0.0, ne: 6.0, se: 6.0 })
+                    .stroke(egui::Stroke::new(1.0, if is_ai { ai_brand } else { egui::Color32::from_rgb(80, 80, 85) }));
+                    if ui.add_sized([38.0, 28.0], btn_ai).on_hover_text("K3D 智慧分析").clicked() && !is_ai {
+                        if is_2d { self.exit_layout_mode(); }
+                        self.viewer.ai_mode = true;
                     }
 
                     ui.add_space(6.0);

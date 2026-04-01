@@ -252,6 +252,12 @@ impl eframe::App for KolibriApp {
                 .stroke(egui::Stroke::NONE)
                 .inner_margin(egui::Margin::same(0.0)))
             .show(ctx, |ui| {
+                // ── AI mode: K3D 智慧分析 ──
+                if self.viewer.ai_mode {
+                    self.draw_ai_analysis_page(ui);
+                    return;
+                }
+
                 // ── Layout mode: 2D 出圖畫布 ──
                 if self.viewer.layout_mode {
                     #[cfg(feature = "drafting")]

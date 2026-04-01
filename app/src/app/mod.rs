@@ -292,6 +292,7 @@ impl KolibriApp {
                 show_console: true,  // 預設開啟 Console 即時監控
                 console_log: Vec::new(),
                 layout_mode: false,
+                ai_mode: false,
                 layout: Default::default(),
                 show_grid: true,
                 show_axes: true,

@@ -43,6 +43,7 @@ pub(crate) struct ViewerState {
     pub(crate) show_console: bool,
     pub(crate) console_log: Vec<(String, String, std::time::Instant)>,
     pub(crate) layout_mode: bool,
+    pub(crate) ai_mode: bool,      // K3D 智慧分析模式
     pub(crate) layout: crate::layout::Layout,
     pub(crate) show_grid: bool,
     pub(crate) show_axes: bool,

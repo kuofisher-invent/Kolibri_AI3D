@@ -7,5 +7,6 @@ mod tab_help;
 mod ribbon;
 #[cfg(feature = "drafting")]
 pub(crate) mod draft_canvas;
+mod ai_analysis;
 
 pub(crate) use material_swatches::draw_material_swatch;
