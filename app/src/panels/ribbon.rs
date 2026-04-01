@@ -71,45 +71,75 @@ struct ToolBtn {
     tooltip: &'static str,
 }
 
-/// 深色 widget 樣式覆寫 — 讓 ComboBox/Button/SelectableLabel 在深色 Ribbon 中可讀
-fn apply_dark_widget_style(ui: &mut egui::Ui) {
-    let vis = &mut ui.style_mut().visuals;
-    // 文字色
+/// 對 egui Context 全域套用深色 visuals（含 popup/dropdown）
+fn apply_dark_visuals_to_ctx(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+    apply_dark_visuals_inner(&mut style.visuals);
+    ctx.set_style(style);
+}
+
+/// 恢復淺色 visuals（3D 模式用）
+fn restore_light_visuals_to_ctx(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+    style.visuals = egui::Visuals::light();
+    ctx.set_style(style);
+}
+
+/// 深色 visuals 內部設定（共用）
+fn apply_dark_visuals_inner(vis: &mut egui::Visuals) {
     vis.override_text_color = Some(egui::Color32::from_rgb(220, 220, 225));
-    // Widget 背景（ComboBox/Button 的底色）
+    vis.dark_mode = true;
+    // Widget 背景
     let dark_bg = egui::Color32::from_rgb(55, 58, 65);
     let dark_bg_hover = egui::Color32::from_rgb(70, 74, 82);
     let dark_bg_active = egui::Color32::from_rgb(45, 48, 55);
     let border = egui::Stroke::new(1.0, egui::Color32::from_rgb(80, 84, 92));
-    // Inactive widget (ComboBox closed state)
+    // Inactive
     vis.widgets.inactive.bg_fill = dark_bg;
     vis.widgets.inactive.bg_stroke = border;
     vis.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 210));
+    vis.widgets.inactive.weak_bg_fill = dark_bg;
     // Hovered
     vis.widgets.hovered.bg_fill = dark_bg_hover;
     vis.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 160, 240));
     vis.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
-    // Active (pressed)
+    vis.widgets.hovered.weak_bg_fill = dark_bg_hover;
+    // Active
     vis.widgets.active.bg_fill = dark_bg_active;
     vis.widgets.active.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
     vis.widgets.active.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
-    // Open (ComboBox dropdown open)
+    vis.widgets.active.weak_bg_fill = dark_bg_active;
+    // Open
     vis.widgets.open.bg_fill = dark_bg;
     vis.widgets.open.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
-    // Selection highlight
+    vis.widgets.open.weak_bg_fill = dark_bg;
+    // Noninteractive (labels, separators)
+    vis.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(40, 43, 50);
+    vis.widgets.noninteractive.bg_stroke = egui::Stroke::new(0.5, egui::Color32::from_rgb(65, 68, 75));
+    vis.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(180, 180, 190));
+    // Selection
     vis.selection.bg_fill = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 80);
     vis.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
-    // Popup (dropdown) 背景
+    // Window/popup
     vis.window_fill = egui::Color32::from_rgb(45, 48, 55);
     vis.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 74, 82));
-    // Extreme background (ScrollArea, etc.)
+    vis.panel_fill = egui::Color32::from_rgb(40, 43, 50);
     vis.extreme_bg_color = egui::Color32::from_rgb(35, 38, 44);
+    vis.faint_bg_color = egui::Color32::from_rgb(50, 53, 60);
+}
+
+/// 深色 widget 樣式覆寫（對 UI 局部）
+fn apply_dark_widget_style(ui: &mut egui::Ui) {
+    apply_dark_visuals_inner(&mut ui.style_mut().visuals);
 }
 
 impl KolibriApp {
     /// 繪製 ZWCAD 風格 Ribbon（僅在出圖模式時呼叫）
     #[cfg(feature = "drafting")]
     pub(crate) fn draw_ribbon(&mut self, ctx: &egui::Context) {
+        // ── 全域深色主題（影響 popup/dropdown 等脫離 parent 的元件）──
+        apply_dark_visuals_to_ctx(ctx);
+
         // ── Tab 列（獨立 panel）──
         egui::TopBottomPanel::top("ribbon_tabs")
             .exact_height(TAB_BAR_H)
