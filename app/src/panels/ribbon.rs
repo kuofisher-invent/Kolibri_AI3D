@@ -71,6 +71,41 @@ struct ToolBtn {
     tooltip: &'static str,
 }
 
+/// 深色 widget 樣式覆寫 — 讓 ComboBox/Button/SelectableLabel 在深色 Ribbon 中可讀
+fn apply_dark_widget_style(ui: &mut egui::Ui) {
+    let vis = &mut ui.style_mut().visuals;
+    // 文字色
+    vis.override_text_color = Some(egui::Color32::from_rgb(220, 220, 225));
+    // Widget 背景（ComboBox/Button 的底色）
+    let dark_bg = egui::Color32::from_rgb(55, 58, 65);
+    let dark_bg_hover = egui::Color32::from_rgb(70, 74, 82);
+    let dark_bg_active = egui::Color32::from_rgb(45, 48, 55);
+    let border = egui::Stroke::new(1.0, egui::Color32::from_rgb(80, 84, 92));
+    // Inactive widget (ComboBox closed state)
+    vis.widgets.inactive.bg_fill = dark_bg;
+    vis.widgets.inactive.bg_stroke = border;
+    vis.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(200, 200, 210));
+    // Hovered
+    vis.widgets.hovered.bg_fill = dark_bg_hover;
+    vis.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 160, 240));
+    vis.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+    // Active (pressed)
+    vis.widgets.active.bg_fill = dark_bg_active;
+    vis.widgets.active.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
+    vis.widgets.active.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+    // Open (ComboBox dropdown open)
+    vis.widgets.open.bg_fill = dark_bg;
+    vis.widgets.open.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
+    // Selection highlight
+    vis.selection.bg_fill = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 80);
+    vis.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(76, 139, 245));
+    // Popup (dropdown) 背景
+    vis.window_fill = egui::Color32::from_rgb(45, 48, 55);
+    vis.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 74, 82));
+    // Extreme background (ScrollArea, etc.)
+    vis.extreme_bg_color = egui::Color32::from_rgb(35, 38, 44);
+}
+
 impl KolibriApp {
     /// 繪製 ZWCAD 風格 Ribbon（僅在出圖模式時呼叫）
     #[cfg(feature = "drafting")]
@@ -120,6 +155,9 @@ impl KolibriApp {
                 .stroke(egui::Stroke::NONE)
                 .inner_margin(egui::Margin { left: 4.0, right: 4.0, top: 0.0, bottom: 0.0 }))
             .show(ctx, |ui| {
+                // ── 深色主題覆寫：讓 ComboBox/Button/Label 在深色 Ribbon 中可讀 ──
+                apply_dark_widget_style(ui);
+
                 match self.editor.ribbon_tab {
                     RibbonTab::Home => self.ribbon_home(ui),
                     RibbonTab::Insert => self.ribbon_insert(ui),
@@ -417,6 +455,7 @@ impl KolibriApp {
                 egui::pos2(group_rect.left() + 4.0, group_rect.top() + 6.0),
                 egui::vec2(group_w - 8.0, 24.0));
             let mut child = ui.child_ui(combo_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            apply_dark_widget_style(&mut child);
             child.label(egui::RichText::new("紙張:").size(11.0).color(TEXT_COLOR));
             let current_paper = self.viewer.layout.paper_size.label().to_string();
             egui::ComboBox::from_id_source("output_paper_combo")
@@ -436,6 +475,7 @@ impl KolibriApp {
                 egui::pos2(group_rect.left() + 4.0, group_rect.top() + 34.0),
                 egui::vec2(group_w - 8.0, 24.0));
             let mut child2 = ui.child_ui(scale_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            apply_dark_widget_style(&mut child2);
             child2.label(egui::RichText::new("比例:").size(11.0).color(TEXT_COLOR));
             let scales: &[f32] = &[1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0];
             egui::ComboBox::from_id_source("output_scale_combo")
@@ -455,6 +495,7 @@ impl KolibriApp {
                 egui::pos2(group_rect.left() + 4.0, group_rect.top() + 62.0),
                 egui::vec2(group_w - 8.0, 24.0));
             let mut child3 = ui.child_ui(orient_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+            apply_dark_widget_style(&mut child3);
             let is_landscape = matches!(self.viewer.layout.orientation, crate::layout::Orientation::Landscape);
             if child3.add(egui::SelectableLabel::new(is_landscape, egui::RichText::new("橫向").size(10.0))).clicked() {
                 self.viewer.layout.orientation = crate::layout::Orientation::Landscape;
@@ -938,6 +979,7 @@ impl KolibriApp {
             egui::pos2(drop_x, swatch_y + sw_size + 4.0),
             egui::vec2(drop_w, 22.0));
         let mut child = ui.child_ui(combo_rect, egui::Layout::left_to_right(egui::Align::Center), None);
+        apply_dark_widget_style(&mut child);
         egui::ComboBox::from_id_source("layer_v2_combo")
             .width(drop_w - 4.0)
             .selected_text(egui::RichText::new(format!("\u{25A0} {}", current))
