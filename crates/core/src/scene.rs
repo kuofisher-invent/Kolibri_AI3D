@@ -72,9 +72,12 @@ pub struct SceneObject {
     pub shape: Shape,
     pub position: [f32; 3],
     pub material: MaterialKind,
-    /// Y-axis rotation in radians
+    /// Y-axis rotation in radians (legacy, still used as primary rotation)
     #[serde(default)]
     pub rotation_y: f32,
+    /// XYZ Euler rotation in radians [rx, ry, rz] — ry synced with rotation_y
+    #[serde(default)]
+    pub rotation_xyz: [f32; 3],
     /// Layer/tag name
     #[serde(default = "default_tag")]
     pub tag: String,
@@ -356,7 +359,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
@@ -412,7 +415,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
@@ -429,7 +432,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
@@ -446,7 +449,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Sphere { radius: r, segments: seg },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
@@ -464,7 +467,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Line { points, thickness, arc_center: None, arc_radius: None, arc_angle_deg: None },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
@@ -481,7 +484,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
@@ -536,7 +539,7 @@ impl Scene {
                 arc_center: None, arc_radius: None, arc_angle_deg: None,
             },
             position: start, material: MaterialKind::Custom([1.0, 0.75, 0.0, 1.0]), // 焊接橘黃色
-            rotation_y: 0.0, tag: "焊接".into(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: "焊接".into(), visible: true,
             roughness: 0.8, metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
@@ -552,7 +555,7 @@ impl Scene {
             id: id.clone(), name,
             shape: Shape::Mesh(mesh),
             position: pos, material: mat,
-            rotation_y: 0.0, tag: default_tag(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id

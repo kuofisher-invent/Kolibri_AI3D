@@ -516,20 +516,19 @@ impl KolibriApp {
             }
         }
 
-        // D1: Rotate — live preview (直接從 original_positions 計算，無累積誤差)
-        if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations, ref original_positions } = self.editor.draw_state.clone() {
+        // D1: Rotate — live preview (支援 XYZ 軸)
+        if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations, ref original_positions, rotate_axis } = self.editor.draw_state.clone() {
             if let Some(pt) = self.editor.mouse_ground {
-                let dx = pt[0] - center[0];
-                let dz = pt[2] - center[2];
-                let mouse_angle = dz.atan2(dx);
+                let mouse_angle = match rotate_axis {
+                    0 => { let dy = pt[1] - center[1]; let dz = pt[2] - center[2]; dz.atan2(dy) }
+                    2 => { let dx = pt[0] - center[0]; let dy = pt[1] - center[1]; dx.atan2(dy) }
+                    _ => { let dx = pt[0] - center[0]; let dz = pt[2] - center[2]; dz.atan2(dx) }
+                };
                 let mut delta = mouse_angle - ref_angle;
 
-                // Snap to 15°
                 let snap_angle = 15.0_f32.to_radians();
                 let snapped = (delta / snap_angle).round() * snap_angle;
-                if (delta - snapped).abs() < 3.0_f32.to_radians() {
-                    delta = snapped;
-                }
+                if (delta - snapped).abs() < 3.0_f32.to_radians() { delta = snapped; }
 
                 let cos_d = delta.cos();
                 let sin_d = delta.sin();
@@ -538,22 +537,34 @@ impl KolibriApp {
                     let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                     let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                     if let Some(obj) = self.scene.objects.get_mut(id) {
-                        let px = orig_pos[0] - center[0];
-                        let pz = orig_pos[2] - center[2];
-                        obj.position[0] = center[0] + px * cos_d - pz * sin_d;
-                        obj.position[2] = center[2] + px * sin_d + pz * cos_d;
-                        obj.rotation_y = orig_rot + delta;
+                        obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
+                        if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
+
+                        let (pa, pb) = match rotate_axis {
+                            0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]),
+                            2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]),
+                            _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]),
+                        };
+                        let na = pa * cos_d - pb * sin_d;
+                        let nb = pa * sin_d + pb * cos_d;
+                        match rotate_axis {
+                            0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
+                            2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
+                            _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
+                        }
                         obj.obj_version += 1;
                     }
                 }
 
+                let axis_name = ["X","Y","Z"][rotate_axis.min(2) as usize];
                 let deg = delta.to_degrees();
-                self.editor.cursor_dimension = Some((deg, 0.0, format!("{:.1}°", deg)));
+                self.editor.cursor_dimension = Some((deg, 0.0, format!("{:.1}° ({}軸)", deg, axis_name)));
 
                 self.editor.draw_state = DrawState::RotateAngle {
                     obj_ids: obj_ids.to_vec(), center, ref_angle, current_angle: mouse_angle,
                     original_rotations: original_rotations.to_vec(),
                     original_positions: original_positions.to_vec(),
+                    rotate_axis,
                 };
                 self.scene.version += 1;
             }

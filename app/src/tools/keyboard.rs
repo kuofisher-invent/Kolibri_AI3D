@@ -382,12 +382,34 @@ impl KolibriApp {
                         }
                     }
 
-                    // Axis locking
-                    if i.key_pressed(egui::Key::ArrowLeft) || i.key_pressed(egui::Key::ArrowRight) {
-                        self.editor.locked_axis = if self.editor.locked_axis == Some(0) { None } else { Some(0) };
+                    // Axis locking / Rotation axis switching
+                    if i.key_pressed(egui::Key::ArrowRight) {
+                        // → = X 軸 (紅)
+                        self.editor.locked_axis = Some(0);
+                        // 旋轉工具：切換旋轉軸
+                        if let DrawState::RotateRef { ref mut rotate_axis, .. } = self.editor.draw_state {
+                            *rotate_axis = 0;
+                            self.file_message = Some(("旋轉軸: X (紅)".into(), std::time::Instant::now()));
+                        }
                     }
-                    if i.key_pressed(egui::Key::ArrowUp) || i.key_pressed(egui::Key::ArrowDown) {
-                        self.editor.locked_axis = if self.editor.locked_axis == Some(2) { None } else { Some(2) };
+                    if i.key_pressed(egui::Key::ArrowUp) {
+                        // ↑ = Y 軸 (綠) — SU 預設
+                        self.editor.locked_axis = Some(1);
+                        if let DrawState::RotateRef { ref mut rotate_axis, .. } = self.editor.draw_state {
+                            *rotate_axis = 1;
+                            self.file_message = Some(("旋轉軸: Y (綠)".into(), std::time::Instant::now()));
+                        }
+                    }
+                    if i.key_pressed(egui::Key::ArrowLeft) {
+                        // ← = Z 軸 (藍)
+                        self.editor.locked_axis = Some(2);
+                        if let DrawState::RotateRef { ref mut rotate_axis, .. } = self.editor.draw_state {
+                            *rotate_axis = 2;
+                            self.file_message = Some(("旋轉軸: Z (藍)".into(), std::time::Instant::now()));
+                        }
+                    }
+                    if i.key_pressed(egui::Key::ArrowDown) {
+                        self.editor.locked_axis = None; // 清除鎖定
                     }
                 }
 

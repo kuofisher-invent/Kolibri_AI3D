@@ -219,7 +219,7 @@ pub fn import_stl(scene: &mut Scene, path: &str) -> Result<usize, String> {
         shape: Shape::Mesh(mesh),
         position: min_pos,
         material: MaterialKind::White,
-        rotation_y: 0.0,
+        rotation_y: 0.0, rotation_xyz: [0.0; 3],
         tag: "匯入".to_string(),
         visible: true,
         roughness: 0.5,

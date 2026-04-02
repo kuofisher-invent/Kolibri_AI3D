@@ -84,6 +84,8 @@ impl KolibriApp {
                 match &self.editor.draw_state {
                     DrawState::Idle => {
                         // Step 1: place rotation center
+                        // 預設軸: Y(1), 可用方向鍵切換: ↑=Y(1) →=X(0) ←=Z(2)
+                        let axis = self.editor.locked_axis.unwrap_or(1); // 預設 Y 軸
                         let ids = if self.editor.selected_ids.is_empty() {
                             let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
                             let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
@@ -98,23 +100,32 @@ impl KolibriApp {
                         if !ids.is_empty() {
                             self.editor.selected_ids = ids.clone();
                             if let Some(pt) = self.editor.mouse_ground {
+                                let axis_name = ["X","Y","Z"][axis.min(2) as usize];
+                                self.file_message = Some((
+                                    format!("旋轉軸: {} (按 ←→↑ 切換軸)", axis_name),
+                                    std::time::Instant::now(),
+                                ));
                                 self.editor.draw_state = DrawState::RotateRef {
                                     obj_ids: ids,
                                     center: pt,
+                                    rotate_axis: axis,
                                 };
                             }
                         }
                     }
-                    DrawState::RotateRef { obj_ids, center } => {
+                    DrawState::RotateRef { obj_ids, center, rotate_axis } => {
                         // Step 2: set reference direction
                         let obj_ids = obj_ids.clone();
                         let center = *center;
+                        let axis = *rotate_axis;
                         if let Some(pt) = self.editor.mouse_ground {
-                            let dx = pt[0] - center[0];
-                            let dz = pt[2] - center[2];
-                            let ref_angle = dz.atan2(dx);
+                            let ref_angle = match axis {
+                                0 => { let dy = pt[1] - center[1]; let dz = pt[2] - center[2]; dz.atan2(dy) } // X軸: YZ平面
+                                2 => { let dx = pt[0] - center[0]; let dy = pt[1] - center[1]; dx.atan2(dy) } // Z軸: XY平面
+                                _ => { let dx = pt[0] - center[0]; let dz = pt[2] - center[2]; dz.atan2(dx) } // Y軸: XZ平面
+                            };
                             let original_rotations: Vec<f32> = obj_ids.iter().map(|id| {
-                                self.scene.objects.get(id).map_or(0.0, |o| o.rotation_y)
+                                self.scene.objects.get(id).map_or(0.0, |o| o.rotation_xyz[axis.min(2) as usize])
                             }).collect();
                             let original_positions: Vec<[f32; 3]> = obj_ids.iter().map(|id| {
                                 self.scene.objects.get(id).map_or([0.0; 3], |o| o.position)
@@ -128,13 +139,15 @@ impl KolibriApp {
                                 current_angle: ref_angle,
                                 original_rotations,
                                 original_positions,
+                                rotate_axis: axis,
                             };
                         }
                     }
-                    DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations, original_positions } => {
+                    DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations, original_positions, rotate_axis } => {
                         // Step 3: 確認旋轉 — 從原始位置計算最終位置
                         let delta = *current_angle - *ref_angle;
                         let center = *center;
+                        let axis = *rotate_axis;
                         let cos_d = delta.cos();
                         let sin_d = delta.sin();
 
@@ -142,11 +155,23 @@ impl KolibriApp {
                             let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                             let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
-                                obj.rotation_y = orig_rot + delta;
-                                let px = orig_pos[0] - center[0];
-                                let pz = orig_pos[2] - center[2];
-                                obj.position[0] = center[0] + px * cos_d - pz * sin_d;
-                                obj.position[2] = center[2] + px * sin_d + pz * cos_d;
+                                // 設定旋轉角度到對應軸
+                                obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
+                                if axis == 1 { obj.rotation_y = orig_rot + delta; } // 同步 legacy
+
+                                // 繞中心旋轉位置
+                                let (pa, pb) = match axis {
+                                    0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]), // X軸: 旋轉 YZ
+                                    2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]), // Z軸: 旋轉 XY
+                                    _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]), // Y軸: 旋轉 XZ
+                                };
+                                let na = pa * cos_d - pb * sin_d;
+                                let nb = pa * sin_d + pb * cos_d;
+                                match axis {
+                                    0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
+                                    2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
+                                    _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
+                                }
                                 obj.obj_version += 1;
                             }
                         }

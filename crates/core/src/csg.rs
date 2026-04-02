@@ -133,7 +133,7 @@ fn make_box(name: &str, min: [f32; 3], max: [f32; 3], material: MaterialKind) ->
         shape: Shape::Box { width: w, height: h, depth: d },
         position: min,
         material,
-        rotation_y: 0.0,
+        rotation_y: 0.0, rotation_xyz: [0.0; 3],
         tag: "\u{9810}\u{8a2d}".to_string(),
         visible: true,
         roughness: 0.5,

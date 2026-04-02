@@ -384,24 +384,72 @@ fn build_face_highlight(_obj: &SceneObject, _hf_idx: u8, _start_idx: usize, _ver
 }
 
 fn apply_rotation(obj: &SceneObject, start_idx: usize, verts: &mut [Vertex]) {
-    let (sin, cos) = obj.rotation_y.sin_cos();
-    let (center_offset_x, center_offset_z) = match &obj.shape {
-        Shape::Box { width, depth, .. } => (*width / 2.0, *depth / 2.0),
-        Shape::Cylinder { radius, .. } | Shape::Sphere { radius, .. } => (*radius, *radius),
-        Shape::Line { .. } => (0.0, 0.0),
-        Shape::Mesh(ref mesh) => { let (min, max) = mesh.aabb(); ((max[0]-min[0])/2.0, (max[2]-min[2])/2.0) }
+    let [rx, ry, rz] = obj.rotation_xyz;
+    // 如果 rotation_xyz 全為 0 但 rotation_y 不為 0 → 用 legacy rotation_y
+    let use_y_only = rx.abs() < 1e-6 && rz.abs() < 1e-6;
+    let eff_ry = if use_y_only { obj.rotation_y } else { ry };
+
+    let has_rotation = obj.rotation_y.abs() > 1e-6 || rx.abs() > 1e-6 || rz.abs() > 1e-6;
+    if !has_rotation { return; }
+
+    // 計算物件中心
+    let (coff_x, coff_y, coff_z) = match &obj.shape {
+        Shape::Box { width, height, depth } => (*width / 2.0, *height / 2.0, *depth / 2.0),
+        Shape::Cylinder { radius, height, .. } => (*radius, *height / 2.0, *radius),
+        Shape::Sphere { radius, .. } => (*radius, *radius, *radius),
+        Shape::Line { .. } => (0.0, 0.0, 0.0),
+        Shape::Mesh(ref mesh) => {
+            let (min, max) = mesh.aabb();
+            ((max[0]-min[0])/2.0, (max[1]-min[1])/2.0, (max[2]-min[2])/2.0)
+        }
     };
-    let cx = obj.position[0] + center_offset_x;
-    let cz = obj.position[2] + center_offset_z;
-    for v in &mut verts[start_idx..] {
-        let dx = v.position[0] - cx;
-        let dz = v.position[2] - cz;
-        v.position[0] = cx + dx * cos - dz * sin;
-        v.position[2] = cz + dx * sin + dz * cos;
-        let nx = v.normal[0];
-        let nz = v.normal[2];
-        v.normal[0] = nx * cos - nz * sin;
-        v.normal[2] = nx * sin + nz * cos;
+    let cx = obj.position[0] + coff_x;
+    let cy = obj.position[1] + coff_y;
+    let cz = obj.position[2] + coff_z;
+
+    if use_y_only && rz.abs() < 1e-6 && rx.abs() < 1e-6 {
+        // 快速路徑：只有 Y 軸旋轉（最常見）
+        let (sin, cos) = eff_ry.sin_cos();
+        for v in &mut verts[start_idx..] {
+            let dx = v.position[0] - cx;
+            let dz = v.position[2] - cz;
+            v.position[0] = cx + dx * cos - dz * sin;
+            v.position[2] = cz + dx * sin + dz * cos;
+            let nx = v.normal[0];
+            let nz = v.normal[2];
+            v.normal[0] = nx * cos - nz * sin;
+            v.normal[2] = nx * sin + nz * cos;
+        }
+    } else {
+        // 完整 XYZ 歐拉旋轉（Ry * Rx * Rz 順序）
+        let (sx, cx_r) = rx.sin_cos();
+        let (sy, cy_r) = eff_ry.sin_cos();
+        let (sz, cz_r) = rz.sin_cos();
+        // 旋轉矩陣 R = Ry * Rx * Rz
+        let r00 = cy_r * cz_r + sy * sx * sz;
+        let r01 = -cy_r * sz + sy * sx * cz_r;
+        let r02 = sy * cx_r;
+        let r10 = cx_r * sz;
+        let r11 = cx_r * cz_r;
+        let r12 = -sx;
+        let r20 = -sy * cz_r + cy_r * sx * sz;
+        let r21 = sy * sz + cy_r * sx * cz_r;
+        let r22 = cy_r * cx_r;
+
+        for v in &mut verts[start_idx..] {
+            let dx = v.position[0] - cx;
+            let dy = v.position[1] - cy;
+            let dz = v.position[2] - cz;
+            v.position[0] = cx + r00 * dx + r01 * dy + r02 * dz;
+            v.position[1] = cy + r10 * dx + r11 * dy + r12 * dz;
+            v.position[2] = cz + r20 * dx + r21 * dy + r22 * dz;
+            let nx = v.normal[0];
+            let ny = v.normal[1];
+            let nz_v = v.normal[2];
+            v.normal[0] = r00 * nx + r01 * ny + r02 * nz_v;
+            v.normal[1] = r10 * nx + r11 * ny + r12 * nz_v;
+            v.normal[2] = r20 * nx + r21 * ny + r22 * nz_v;
+        }
     }
 }
 

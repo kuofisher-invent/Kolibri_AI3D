@@ -277,10 +277,11 @@ impl KolibriApp {
                 }
             }
             // D1: Rotate step 3 — type angle in degrees for precise rotation
-            DrawState::RotateAngle { ref obj_ids, center, ref original_rotations, ref original_positions, .. } => {
+            DrawState::RotateAngle { ref obj_ids, center, ref original_rotations, ref original_positions, rotate_axis, .. } => {
                 if let Ok(angle) = self.editor.measure_input.parse::<f32>() {
                     let delta = angle.to_radians();
                     let center = *center;
+                    let axis = *rotate_axis;
                     let cos_d = delta.cos();
                     let sin_d = delta.sin();
 
@@ -288,11 +289,21 @@ impl KolibriApp {
                         let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                         let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                         if let Some(obj) = self.scene.objects.get_mut(id) {
-                            let px = orig_pos[0] - center[0];
-                            let pz = orig_pos[2] - center[2];
-                            obj.position[0] = center[0] + px * cos_d - pz * sin_d;
-                            obj.position[2] = center[2] + px * sin_d + pz * cos_d;
-                            obj.rotation_y = orig_rot + delta;
+                            obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
+                            if axis == 1 { obj.rotation_y = orig_rot + delta; }
+                            let (pa, pb) = match axis {
+                                0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]),
+                                2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]),
+                                _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]),
+                            };
+                            let na = pa * cos_d - pb * sin_d;
+                            let nb = pa * sin_d + pb * cos_d;
+                            match axis {
+                                0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
+                                2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
+                                _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
+                            }
+                            obj.obj_version += 1;
                         }
                     }
                     self.scene.version += 1;
