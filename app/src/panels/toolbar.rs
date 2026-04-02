@@ -283,34 +283,75 @@ impl KolibriApp {
                 section_header(ui, "樓層標高");
                 figma_group(ui, |ui| {
                     let sub = egui::Color32::from_rgb(110, 118, 135);
-                    for (i, (name, elev)) in self.editor.floor_levels.clone().iter().enumerate() {
+                    let brand = egui::Color32::from_rgb(76, 139, 245);
+                    let mut level_changed = false;
+
+                    // 從上到下顯示樓層（RF → 1FL → GL）
+                    let levels_copy = self.editor.floor_levels.clone();
+                    for i in (0..levels_copy.len()).rev() {
+                        let (ref name, elev) = levels_copy[i];
                         let is_active = i == self.editor.active_floor;
-                        let label = format!("{}: {:.0}mm", name, elev);
-                        let color = if is_active {
-                            egui::Color32::from_rgb(76, 139, 245)
-                        } else { sub };
-                        if ui.selectable_label(is_active, egui::RichText::new(&label).size(10.0).color(color)).clicked() {
-                            self.editor.active_floor = i;
-                            // 自動更新柱高 = 此樓層到下一樓層
-                            if i + 1 < self.editor.floor_levels.len() {
-                                self.editor.steel_height = self.editor.floor_levels[i + 1].1 - self.editor.floor_levels[i].1;
+
+                        ui.horizontal(|ui| {
+                            // 作業樓層指示
+                            let indicator = if is_active { "▶" } else { "  " };
+                            if ui.selectable_label(is_active,
+                                egui::RichText::new(indicator).size(10.0).color(brand)
+                            ).clicked() {
+                                self.editor.active_floor = i;
+                                if i + 1 < self.editor.floor_levels.len() {
+                                    self.editor.steel_height = self.editor.floor_levels[i + 1].1 - self.editor.floor_levels[i].1;
+                                }
+                            }
+
+                            // 樓層名稱
+                            ui.label(egui::RichText::new(name).size(10.0).color(
+                                if is_active { brand } else { sub }
+                            ));
+
+                            // 標高可編輯
+                            let mut elev_val = self.editor.floor_levels[i].1;
+                            let resp = ui.add(egui::DragValue::new(&mut elev_val)
+                                .speed(50.0).suffix(" mm").range(if i == 0 { 0.0 } else { 0.0 }..=100000.0));
+                            if resp.changed() {
+                                self.editor.floor_levels[i].1 = elev_val;
+                                level_changed = true;
+                            }
+                        });
+                    }
+
+                    // 加/刪樓層
+                    ui.horizontal(|ui| {
+                        if ui.small_button("+ 加樓層").clicked() {
+                            let last_elev = self.editor.floor_levels.last().map_or(0.0, |f| f.1);
+                            let new_elev = last_elev + self.editor.steel_height;
+                            let n = self.editor.floor_levels.len();
+                            let new_name = if n <= 1 { "1FL".into() }
+                                else if n == 2 { "RF".into() }
+                                else { format!("{}FL", n - 1) };
+                            self.editor.floor_levels.push((new_name, new_elev));
+                            level_changed = true;
+                        }
+                        if self.editor.floor_levels.len() > 1 {
+                            if ui.small_button("- 刪頂層").clicked() {
+                                self.editor.floor_levels.pop();
+                                if self.editor.active_floor >= self.editor.floor_levels.len() {
+                                    self.editor.active_floor = self.editor.floor_levels.len() - 1;
+                                }
+                                level_changed = true;
                             }
                         }
+                    });
+
+                    // 樓層變更 → 自動更新構件
+                    if level_changed {
+                        // 更新柱高
+                        let af = self.editor.active_floor;
+                        if af + 1 < self.editor.floor_levels.len() {
+                            self.editor.steel_height = self.editor.floor_levels[af + 1].1 - self.editor.floor_levels[af].1;
+                        }
+                        self.update_levels();
                     }
-                    // 加樓層按鈕
-                    if ui.small_button("+ 加樓層").clicked() {
-                        let last_elev = self.editor.floor_levels.last().map_or(0.0, |f| f.1);
-                        let new_elev = last_elev + self.editor.steel_height;
-                        let new_name = if self.editor.floor_levels.len() <= 1 {
-                            "1FL".to_string()
-                        } else {
-                            format!("{}FL", self.editor.floor_levels.len())
-                        };
-                        self.editor.floor_levels.push((new_name, new_elev));
-                    }
-                    // 顯示地面標高
-                    ui.label(egui::RichText::new(format!("GL: {:.0}mm (地面基準)", self.editor.ground_level))
-                        .size(9.0).color(sub));
                 });
 
                 // ── 接頭參數 ──

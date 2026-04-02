@@ -352,7 +352,7 @@ pub fn import_obj(scene: &mut Scene, path: &str) -> Result<usize, String> {
             component_kind: Default::default(),
             parent_id: None,
             component_def_id: None,
-            locked: false, obj_version: 0,
+            locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         scene.version += 1;
         *count += 1;

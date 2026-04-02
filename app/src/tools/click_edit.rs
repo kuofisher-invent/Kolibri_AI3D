@@ -365,10 +365,16 @@ impl KolibriApp {
                         tw, member_h, h_sec - 2.0 * tf, MaterialKind::Steel,
                     );
 
-                    // Set component kinds
+                    // Set component kinds + level binding
+                    let active_fl = self.editor.active_floor;
+                    let top_fl = if active_fl + 1 < self.editor.floor_levels.len() {
+                        Some(active_fl + 1)
+                    } else { None };
                     for id in [&f1_id, &f2_id, &web_id] {
                         if let Some(obj) = self.scene.objects.get_mut(id) {
                             obj.component_kind = crate::collision::ComponentKind::Column;
+                            obj.base_level_idx = Some(active_fl);
+                            obj.top_level_idx = top_fl;
                         }
                     }
 
@@ -377,14 +383,16 @@ impl KolibriApp {
                     self.scene.create_group(name_base.clone(), child_ids.clone());
                     self.scene.version += 1;
 
+                    let fl_name = self.editor.floor_levels.get(active_fl)
+                        .map_or("GL".into(), |f| f.0.clone());
                     self.editor.selected_ids = child_ids.clone();
                     self.ai_log.log(
                         &self.current_actor, "建立柱",
-                        &format!("{} H={:.0}", self.editor.steel_profile, member_h),
+                        &format!("{} H={:.0} @{}", self.editor.steel_profile, member_h, fl_name),
                         child_ids,
                     );
                     self.file_message = Some((
-                        format!("柱已建立: {} @ [{:.0},{:.0}]", self.editor.steel_profile, cx, cz),
+                        format!("柱已建立: {} @{} [{:.0},{:.0}]", self.editor.steel_profile, fl_name, cx, cz),
                         std::time::Instant::now(),
                     ));
                 }
@@ -456,9 +464,16 @@ impl KolibriApp {
                                 vec![f1, f2, w]
                             };
 
+                            // 梁綁定到上層 Level（梁頂 = 柱頂 = 上層標高）
+                            let active_fl = self.editor.active_floor;
+                            let top_fl = if active_fl + 1 < self.editor.floor_levels.len() {
+                                Some(active_fl + 1)
+                            } else { Some(active_fl) };
                             for id in &ids {
                                 if let Some(obj) = self.scene.objects.get_mut(id) {
                                     obj.component_kind = crate::collision::ComponentKind::Beam;
+                                    obj.base_level_idx = top_fl; // 梁在上層
+                                    obj.top_level_idx = top_fl;
                                 }
                             }
 

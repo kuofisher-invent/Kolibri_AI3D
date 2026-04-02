@@ -724,7 +724,7 @@ mod tests {
             rotation_y: 0.0, tag: "鋼構".into(), visible: true,
             roughness: 0.5, metallic: 0.0, texture_path: None,
             component_kind: ComponentKind::Column, parent_id: None,
-            component_def_id: None, locked: false, obj_version: 0,
+            component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         };
         let numbering = crate::steel_numbering::auto_number(&Scene::default());
         let dwg = generate_part_drawing(&obj, "C1", &[], &numbering);

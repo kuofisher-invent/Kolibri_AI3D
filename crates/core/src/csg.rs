@@ -144,6 +144,8 @@ fn make_box(name: &str, min: [f32; 3], max: [f32; 3], material: MaterialKind) ->
         component_def_id: None,
         locked: false,
         obj_version: 0,
+        base_level_idx: None,
+        top_level_idx: None,
     }
 }
 

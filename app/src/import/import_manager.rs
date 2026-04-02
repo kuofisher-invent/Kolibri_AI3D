@@ -396,6 +396,8 @@ fn imported_mesh_object(
         component_def_id: None,
         locked: false,
         obj_version: 0,
+        base_level_idx: None,
+        top_level_idx: None,
     }
 }
 

@@ -105,6 +105,12 @@ pub struct SceneObject {
     /// 物件版本（每次修改遞增，用於增量渲染快取）
     #[serde(default)]
     pub obj_version: u64,
+    /// 綁定的底部樓層 index（鋼構用，改 Level 時自動更新位置）
+    #[serde(default)]
+    pub base_level_idx: Option<usize>,
+    /// 綁定的頂部樓層 index
+    #[serde(default)]
+    pub top_level_idx: Option<usize>,
 }
 
 fn default_tag() -> String { "預設".to_string() }
@@ -351,7 +357,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
     }
@@ -407,7 +413,7 @@ impl Scene {
             shape: Shape::Box { width: w, height: h, depth: d },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
         id
@@ -424,7 +430,7 @@ impl Scene {
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
         id
@@ -441,7 +447,7 @@ impl Scene {
             shape: Shape::Sphere { radius: r, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
         id
@@ -459,7 +465,7 @@ impl Scene {
             shape: Shape::Line { points, thickness, arc_center: None, arc_radius: None, arc_angle_deg: None },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         self.version += 1;
         id
@@ -476,7 +482,7 @@ impl Scene {
             shape: Shape::Cylinder { radius: r, height: h, segments: seg },
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
     }
@@ -531,7 +537,7 @@ impl Scene {
             },
             position: start, material: MaterialKind::Custom([1.0, 0.75, 0.0, 1.0]), // 焊接橘黃色
             rotation_y: 0.0, tag: "焊接".into(), visible: true,
-            roughness: 0.8, metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: 0.8, metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
     }
@@ -547,7 +553,7 @@ impl Scene {
             shape: Shape::Mesh(mesh),
             position: pos, material: mat,
             rotation_y: 0.0, tag: default_tag(), visible: true,
-            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
         });
         id
     }

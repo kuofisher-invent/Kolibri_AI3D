@@ -183,4 +183,107 @@ impl KolibriApp {
         }
         (cols, beams, braces, plates)
     }
+
+    /// 改 Level 標高後，更新所有綁定構件的位置
+    /// 邏輯：
+    ///   柱：base_level → position.Y = level_elev, height = top_level_elev - base_level_elev
+    ///   梁：base_level → position.Y = level_elev - beam_height
+    pub(crate) fn update_levels(&mut self) {
+        let levels = self.editor.floor_levels.clone();
+        let gl = self.editor.ground_level;
+        let mut updated = 0_u32;
+
+        // 收集群組資訊（群組的子物件要一起動）
+        let groups: Vec<(String, Vec<String>)> = self.scene.groups.values()
+            .map(|g| (g.id.clone(), g.children.clone()))
+            .collect();
+
+        // 處理群組單位（柱/梁是群組，子物件一起更新）
+        for (gid, children) in &groups {
+            if children.is_empty() { continue; }
+
+            // 取第一個子物件的 level 綁定
+            let first = match self.scene.objects.get(&children[0]) {
+                Some(o) => o.clone(),
+                None => continue,
+            };
+            let base_idx = match first.base_level_idx {
+                Some(i) => i,
+                None => continue, // 沒綁定 level
+            };
+            let base_elev = levels.get(base_idx).map_or(0.0, |f| f.1) + gl;
+
+            match first.component_kind {
+                ComponentKind::Column => {
+                    // 柱頂 = top_level 標高
+                    let top_idx = first.top_level_idx.unwrap_or(base_idx);
+                    let top_elev = levels.get(top_idx).map_or(base_elev + 4200.0, |f| f.1) + gl;
+                    let new_height = (top_elev - base_elev).max(100.0);
+
+                    // 計算原始位置的 XZ 中心（不改 XZ）
+                    for cid in children {
+                        if let Some(obj) = self.scene.objects.get_mut(cid) {
+                            // 更新 Y 位置到新的 base_elev
+                            obj.position[1] = base_elev;
+                            // 更新高度
+                            if let crate::scene::Shape::Box { ref mut height, .. } = obj.shape {
+                                *height = new_height;
+                            }
+                        }
+                    }
+                    updated += 1;
+                }
+                ComponentKind::Beam => {
+                    // 梁頂 = 綁定 level 標高
+                    let level_elev = base_elev;
+                    // 取梁高（從第一個子物件推斷）
+                    let beam_h = {
+                        let mut max_h = 0.0_f32;
+                        for cid in children {
+                            if let Some(obj) = self.scene.objects.get(cid) {
+                                if let crate::scene::Shape::Box { height, .. } = &obj.shape {
+                                    max_h = max_h.max(*height);
+                                }
+                            }
+                        }
+                        max_h
+                    };
+                    // 取截面高（所有子物件的 Y 跨度）
+                    let mut min_y = f32::MAX;
+                    let mut max_y = f32::MIN;
+                    for cid in children {
+                        if let Some(obj) = self.scene.objects.get(cid) {
+                            if let crate::scene::Shape::Box { height, .. } = &obj.shape {
+                                min_y = min_y.min(obj.position[1]);
+                                max_y = max_y.max(obj.position[1] + height);
+                            }
+                        }
+                    }
+                    let section_h = max_y - min_y;
+                    let new_beam_y = level_elev - section_h;
+
+                    // 計算 Y 偏移量
+                    let dy = new_beam_y - min_y;
+                    if dy.abs() > 0.1 {
+                        for cid in children {
+                            if let Some(obj) = self.scene.objects.get_mut(cid) {
+                                obj.position[1] += dy;
+                            }
+                        }
+                        updated += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if updated > 0 {
+            self.scene.version += 1;
+            self.file_message = Some((
+                format!("已更新 {} 個構件位置", updated),
+                std::time::Instant::now(),
+            ));
+            self.console_push("LEVEL", format!("樓層標高變更 → {} 構件已更新", updated));
+        }
+    }
 }
