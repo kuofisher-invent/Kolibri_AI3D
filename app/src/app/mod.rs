@@ -358,6 +358,12 @@ impl KolibriApp {
                 steel_profile: "H300×150×6.5×9".into(),
                 steel_material: "SS400".into(),
                 steel_height: 4200.0,
+                ground_level: 0.0,
+                floor_levels: vec![
+                    ("GL".into(), 0.0),
+                    ("1FL".into(), 4200.0),
+                ],
+                active_floor: 0,
                 collision_warning: None,
                 editing_dim_idx: None,
                 editing_dim_text: String::new(),

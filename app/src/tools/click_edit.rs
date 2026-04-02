@@ -340,23 +340,28 @@ impl KolibriApp {
 
                     let cx = p[0];
                     let cz = p[2];
+                    // 柱底 = 目前作業樓層標高（地面基準）
+                    let base_y = self.editor.floor_levels
+                        .get(self.editor.active_floor)
+                        .map_or(0.0, |f| f.1)
+                        + self.editor.ground_level;
 
                     // Front flange (Z-)
                     let f1_id = self.scene.insert_box_raw(
                         format!("{}_F1", name_base),
-                        [cx - b_sec / 2.0, 0.0, cz - h_sec / 2.0],
+                        [cx - b_sec / 2.0, base_y, cz - h_sec / 2.0],
                         b_sec, member_h, tf, MaterialKind::Steel,
                     );
                     // Back flange (Z+)
                     let f2_id = self.scene.insert_box_raw(
                         format!("{}_F2", name_base),
-                        [cx - b_sec / 2.0, 0.0, cz + h_sec / 2.0 - tf],
+                        [cx - b_sec / 2.0, base_y, cz + h_sec / 2.0 - tf],
                         b_sec, member_h, tf, MaterialKind::Steel,
                     );
                     // Web (center)
                     let web_id = self.scene.insert_box_raw(
                         format!("{}_W", name_base),
-                        [cx - tw / 2.0, 0.0, cz - h_sec / 2.0 + tf],
+                        [cx - tw / 2.0, base_y, cz - h_sec / 2.0 + tf],
                         tw, member_h, h_sec - 2.0 * tf, MaterialKind::Steel,
                     );
 
@@ -397,7 +402,12 @@ impl KolibriApp {
                         if let Some(p2) = self.ground_snapped() {
                             self.scene.snapshot();
                             let (h_sec, b_sec, tw, tf) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
-                            let beam_y = self.editor.steel_height - h_sec;
+                            // 梁頂 = 柱頂 = 作業樓層標高 + 柱高
+                            let base_y = self.editor.floor_levels
+                                .get(self.editor.active_floor)
+                                .map_or(0.0, |f| f.1)
+                                + self.editor.ground_level;
+                            let beam_y = base_y + self.editor.steel_height - h_sec;
 
                             let dx = p2[0] - p1[0];
                             let dz = p2[2] - p1[2];

@@ -469,6 +469,12 @@ pub(crate) struct EditorState {
     pub(crate) steel_profile: String,
     pub(crate) steel_material: String,
     pub(crate) steel_height: f32,
+    /// 地面標高 GL (Ground Level, mm) — 所有結構的基準面
+    pub(crate) ground_level: f32,
+    /// 樓層標高列表 [GL, 1FL, 2FL, RF...] (mm, 相對於 GL)
+    pub(crate) floor_levels: Vec<(String, f32)>,
+    /// 目前作業樓層 index
+    pub(crate) active_floor: usize,
     pub(crate) collision_warning: Option<String>,
     pub(crate) editing_dim_idx: Option<usize>,
     pub(crate) editing_dim_text: String,

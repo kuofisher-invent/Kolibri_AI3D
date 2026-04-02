@@ -473,17 +473,36 @@ impl KolibriApp {
             }
         }
 
-        // 最後嘗試：依位置推斷（Y 方向高的 = 柱，寬的 = 梁）
+        // 最後嘗試：依重力路徑推斷
+        // 柱 = 垂直構件（Y 跨度 >> XZ 跨度，且底部接近地面）
+        // 梁 = 水平構件（XZ 跨度 >> Y 跨度）
         if beam_id.is_none() || col_id.is_none() {
             if ids.len() >= 2 {
-                let h0 = self.get_member_height(&ids[0]);
-                let h1 = self.get_member_height(&ids[1]);
-                if h0 > h1 {
-                    col_id = Some(ids[0].clone());
-                    beam_id = Some(ids[1].clone());
-                } else {
-                    col_id = Some(ids[1].clone());
-                    beam_id = Some(ids[0].clone());
+                for id in ids {
+                    let (bmin, bmax) = self.get_group_bounds(id);
+                    let span_y = bmax[1] - bmin[1];
+                    let span_xz = ((bmax[0]-bmin[0]).max(bmax[2]-bmin[2]));
+                    let aspect = span_y / span_xz.max(1.0);
+
+                    if aspect > 3.0 {
+                        // Y 跨度遠大於 XZ → 垂直構件 = 柱
+                        if col_id.is_none() { col_id = Some(id.clone()); }
+                    } else if aspect < 0.5 {
+                        // XZ 跨度遠大於 Y → 水平構件 = 梁
+                        if beam_id.is_none() { beam_id = Some(id.clone()); }
+                    }
+                }
+                // 如果還無法判斷，用 Y 跨度比較
+                if beam_id.is_none() || col_id.is_none() {
+                    let h0 = self.get_member_height(&ids[0]);
+                    let h1 = self.get_member_height(&ids[1]);
+                    if h0 > h1 {
+                        if col_id.is_none() { col_id = Some(ids[0].clone()); }
+                        if beam_id.is_none() { beam_id = Some(ids[1].clone()); }
+                    } else {
+                        if col_id.is_none() { col_id = Some(ids[1].clone()); }
+                        if beam_id.is_none() { beam_id = Some(ids[0].clone()); }
+                    }
                 }
             }
         }
