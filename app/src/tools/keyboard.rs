@@ -332,29 +332,29 @@ impl KolibriApp {
                     // ── 鋼構接頭快捷鍵（Shift+數字）──
                     #[cfg(feature = "steel")]
                     if shift {
-                        // Shift+1: 開啟 AISC 接頭確認對話框（選構件後按）
+                        // Shift+1: AISC 接頭對話框（需 ≥1 構件）
                         if i.key_pressed(egui::Key::Num1) {
                             if !self.editor.selected_ids.is_empty() {
                                 self.open_connection_dialog();
                             } else {
-                                self.file_message = Some(("請先選取兩個構件再按 Shift+1".into(), std::time::Instant::now()));
+                                self.file_message = Some(("Shift+1: 請先選取構件".into(), std::time::Instant::now()));
                             }
                         }
-                        // Shift+2: 底板接頭對話框
+                        // Shift+2: AISC 建議（Console）
                         if i.key_pressed(egui::Key::Num2) {
                             if !self.editor.selected_ids.is_empty() {
-                                self.open_connection_dialog();
+                                self.show_aisc_suggestion();
                             } else {
-                                set(Tool::SteelBasePlate, self);
+                                self.file_message = Some(("Shift+2: 請先選取構件".into(), std::time::Instant::now()));
                             }
                         }
-                        // Shift+3: AISC 建議（Console 輸出）
+                        // Shift+3: 自動編號
                         if i.key_pressed(egui::Key::Num3) {
-                            self.show_aisc_suggestion();
-                        }
-                        // Shift+4: 自動編號
-                        if i.key_pressed(egui::Key::Num4) {
                             self.run_auto_numbering();
+                        }
+                        // Shift+4: 碰撞偵測
+                        if i.key_pressed(egui::Key::Num4) {
+                            self.run_collision_check();
                         }
                     }
 

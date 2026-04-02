@@ -481,19 +481,55 @@ impl Scene {
         id
     }
 
-    /// Insert a weld line visualization (thick line segment).
+    /// Insert a weld line visualization (thick yellow/orange zigzag line).
     pub fn insert_weld_line(
         &mut self, name: String, start: [f32; 3], end: [f32; 3], size: f32,
     ) -> String {
+        // 產生鋸齒形焊接線（zigzag pattern）
+        let dx = end[0] - start[0];
+        let dy = end[1] - start[1];
+        let dz = end[2] - start[2];
+        let length = (dx*dx + dy*dy + dz*dz).sqrt();
+        let segments = (length / (size * 2.0)).max(3.0) as usize;
+
+        let mut points = Vec::with_capacity(segments + 1);
+        points.push(start);
+
+        // 計算垂直於焊接線的偏移方向
+        let perp = if dy.abs() > dx.abs() && dy.abs() > dz.abs() {
+            // 焊接沿 Y → 偏移沿 X
+            [size * 0.5, 0.0, 0.0]
+        } else if dx.abs() > dz.abs() {
+            [0.0, size * 0.5, 0.0]
+        } else {
+            [0.0, size * 0.5, 0.0]
+        };
+
+        for i in 1..segments {
+            let t = i as f32 / segments as f32;
+            let base = [
+                start[0] + dx * t,
+                start[1] + dy * t,
+                start[2] + dz * t,
+            ];
+            let offset = if i % 2 == 1 { 1.0 } else { -1.0 };
+            points.push([
+                base[0] + perp[0] * offset,
+                base[1] + perp[1] * offset,
+                base[2] + perp[2] * offset,
+            ]);
+        }
+        points.push(end);
+
         let id = self.next_id();
         self.objects.insert(id.clone(), SceneObject {
             id: id.clone(), name,
             shape: Shape::Line {
-                points: vec![start, end],
+                points,
                 thickness: size.max(3.0),
                 arc_center: None, arc_radius: None, arc_angle_deg: None,
             },
-            position: start, material: MaterialKind::Custom([1.0, 0.85, 0.0, 1.0]),
+            position: start, material: MaterialKind::Custom([1.0, 0.75, 0.0, 1.0]), // 焊接橘黃色
             rotation_y: 0.0, tag: "焊接".into(), visible: true,
             roughness: 0.8, metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
         });

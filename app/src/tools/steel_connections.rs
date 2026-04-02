@@ -238,8 +238,9 @@ impl KolibriApp {
         self.scene.snapshot();
         let mut child_ids = Vec::new();
         let name_base = self.next_name("EP");
+        let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
 
-        // 生成板件
+        // 生成板件（端板 + 肋板）
         for (i, plate) in conn.plates.iter().enumerate() {
             let plate_name = match plate.plate_type {
                 PlateType::EndPlate => format!("{}_plate", name_base),
@@ -247,35 +248,25 @@ impl KolibriApp {
                 _ => format!("{}_pl_{}", name_base, i),
             };
 
-            let (pw, ph, pt) = (plate.width, plate.height, plate.thickness);
-            let plate_pos = self.offset_plate_position(conn_pos, &plate, &beam_id, &col_id);
-
-            let id = self.scene.insert_box_raw(plate_name, plate_pos, pw, ph, pt, MaterialKind::Metal);
+            let (pos, bw, bh, bd) = self.calc_plate_world_pos(conn_pos, plate, is_x_dir, sign);
+            let id = self.scene.insert_box_raw(plate_name, pos, bw, bh, bd, MaterialKind::Metal);
             if let Some(obj) = self.scene.objects.get_mut(&id) {
                 obj.component_kind = ComponentKind::Plate;
             }
             child_ids.push(id);
         }
 
-        // 生成螺栓
+        // 生成螺栓（位置用本地→世界轉換）
         for bg in &conn.bolts {
-            let bolt_ids = self.create_bolt_group_meshes(bg, conn_pos, &beam_id, &col_id);
+            let bolt_ids = self.create_bolt_group_world(bg, conn_pos, is_x_dir, sign);
             child_ids.extend(bolt_ids);
         }
 
-        // 生成焊接標記（視覺化線段）
+        // 生成焊接標記
         for (i, weld) in conn.welds.iter().enumerate() {
             let weld_name = format!("{}_weld_{}", name_base, i);
-            let w_start = [
-                conn_pos[0] + weld.start[0],
-                conn_pos[1] + weld.start[1],
-                conn_pos[2] + weld.start[2],
-            ];
-            let w_end = [
-                conn_pos[0] + weld.end[0],
-                conn_pos[1] + weld.end[1],
-                conn_pos[2] + weld.end[2],
-            ];
+            let w_start = self.conn_local_to_world(conn_pos, weld.start, is_x_dir, sign);
+            let w_end = self.conn_local_to_world(conn_pos, weld.end, is_x_dir, sign);
             let id = self.scene.insert_weld_line(weld_name, w_start, w_end, weld.size);
             if let Some(obj) = self.scene.objects.get_mut(&id) {
                 obj.component_kind = ComponentKind::Weld;
@@ -330,14 +321,13 @@ impl KolibriApp {
         self.scene.snapshot();
         let mut child_ids = Vec::new();
         let name_base = self.next_name("ST");
+        let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
 
         // 剪力板
         for (i, plate) in conn.plates.iter().enumerate() {
             let plate_name = format!("{}_tab_{}", name_base, i);
-            let plate_pos = self.offset_plate_position(conn_pos, plate, &beam_id, &col_id);
-            let id = self.scene.insert_box_raw(
-                plate_name, plate_pos, plate.width, plate.height, plate.thickness, MaterialKind::Metal,
-            );
+            let (pos, bw, bh, bd) = self.calc_plate_world_pos(conn_pos, plate, is_x_dir, sign);
+            let id = self.scene.insert_box_raw(plate_name, pos, bw, bh, bd, MaterialKind::Metal);
             if let Some(obj) = self.scene.objects.get_mut(&id) {
                 obj.component_kind = ComponentKind::Plate;
             }
@@ -346,15 +336,15 @@ impl KolibriApp {
 
         // 螺栓
         for bg in &conn.bolts {
-            let bolt_ids = self.create_bolt_group_meshes(bg, conn_pos, &beam_id, &col_id);
+            let bolt_ids = self.create_bolt_group_world(bg, conn_pos, is_x_dir, sign);
             child_ids.extend(bolt_ids);
         }
 
         // 焊接
         for (i, weld) in conn.welds.iter().enumerate() {
             let weld_name = format!("{}_weld_{}", name_base, i);
-            let w_start = [conn_pos[0] + weld.start[0], conn_pos[1] + weld.start[1], conn_pos[2] + weld.start[2]];
-            let w_end = [conn_pos[0] + weld.end[0], conn_pos[1] + weld.end[1], conn_pos[2] + weld.end[2]];
+            let w_start = self.conn_local_to_world(conn_pos, weld.start, is_x_dir, sign);
+            let w_end = self.conn_local_to_world(conn_pos, weld.end, is_x_dir, sign);
             let id = self.scene.insert_weld_line(weld_name, w_start, w_end, weld.size);
             if let Some(obj) = self.scene.objects.get_mut(&id) {
                 obj.component_kind = ComponentKind::Weld;
@@ -377,17 +367,21 @@ impl KolibriApp {
             return;
         }
 
-        // 找柱
-        let col_id = ids.iter().find(|id| {
-            self.scene.objects.get(*id)
-                .map_or(false, |o| o.component_kind == ComponentKind::Column)
-        }).cloned().unwrap_or_else(|| ids[0].clone());
+        // 找柱（先 resolve 到群組）
+        let resolved_ids: Vec<String> = ids.iter().map(|id| self.resolve_to_group(id)).collect();
+        let col_id = resolved_ids.iter().find(|id| {
+            let cids = self.get_group_member_ids(id);
+            cids.iter().any(|cid| {
+                self.scene.objects.get(cid).map_or(false, |o| o.component_kind == ComponentKind::Column)
+            })
+        }).cloned().unwrap_or_else(|| resolved_ids[0].clone());
 
         let col_section = self.get_member_section(&col_id);
         // 取柱群組中心作為底板位置
         let col_center = self.get_group_center(&col_id);
-        // 底板放置在柱底部（Y=0）
-        let col_pos = [col_center[0], 0.0, col_center[2]];
+        // 底板放置在柱底部（Y = 群組最低點）
+        let (col_min, _) = self.get_group_bounds(&col_id);
+        let col_pos = [col_center[0], col_min[1], col_center[2]];
 
         let conn = calc_base_plate(col_section, self.editor.conn_bolt_size, self.editor.conn_bolt_grade);
 
@@ -408,13 +402,16 @@ impl KolibriApp {
             child_ids.push(id);
         }
 
-        // 錨栓（簡化為圓柱，從底板往下延伸）
+        // 錨栓（圓柱，從底板往下延伸）
         for (i, bg) in conn.bolts.iter().enumerate() {
             for (j, bp) in bg.positions.iter().enumerate() {
                 let bolt_name = format!("{}_anchor_{}_{}", name_base, i, j);
-                let bolt_pos = [col_pos[0] + bp[0], col_pos[1] - conn.plates[0].thickness - 200.0, col_pos[2] + bp[2]];
+                // 錨栓嵌入深度 = 12 × 螺栓直徑（ACI 318 經驗值）
+                let embed_depth = bg.bolt_size.diameter() * 12.0;
+                let plate_t = conn.plates[0].thickness;
+                let bolt_pos = [col_pos[0] + bp[0], col_pos[1] - plate_t - embed_depth, col_pos[2] + bp[2]];
                 let bolt_r = bg.bolt_size.diameter() / 2.0;
-                let bolt_h = 200.0 + conn.plates[0].thickness; // 錨栓長度
+                let bolt_h = embed_depth + plate_t;
 
                 let id = self.scene.insert_cylinder_raw(
                     bolt_name, bolt_pos, bolt_r, bolt_h, 12, MaterialKind::Metal,
@@ -635,48 +632,99 @@ impl KolibriApp {
         let (beam_min, beam_max) = self.get_group_bounds(beam_id);
         let beam_center = self.get_group_center(beam_id);
 
-        // 判斷梁的哪一端靠近柱
-        let dist_to_min_x = (beam_min[0] - col_center[0]).abs();
-        let dist_to_max_x = (beam_max[0] - col_center[0]).abs();
-        let dist_to_min_z = (beam_min[2] - col_center[2]).abs();
-        let dist_to_max_z = (beam_max[2] - col_center[2]).abs();
+        // 判斷梁沿哪個軸延伸
+        let span_x = beam_max[0] - beam_min[0];
+        let span_z = beam_max[2] - beam_min[2];
 
-        // 找最近的梁端
-        let beam_end_x = if dist_to_min_x < dist_to_max_x { beam_min[0] } else { beam_max[0] };
-        let beam_end_z = if dist_to_min_z < dist_to_max_z { beam_min[2] } else { beam_max[2] };
-
-        // 接頭位置 = 柱中心 XZ + 梁中心 Y
-        [col_center[0], beam_center[1], col_center[2]]
+        if span_x > span_z {
+            // 梁沿 X 方向 — 找最近的 X 端
+            let beam_end_x = if (beam_min[0] - col_center[0]).abs() < (beam_max[0] - col_center[0]).abs() {
+                beam_min[0]
+            } else {
+                beam_max[0]
+            };
+            // 接頭 X = 梁端 X，Y = 梁中心 Y，Z = 梁中心 Z（與柱對齊）
+            [beam_end_x, beam_center[1], beam_center[2]]
+        } else {
+            // 梁沿 Z 方向
+            let beam_end_z = if (beam_min[2] - col_center[2]).abs() < (beam_max[2] - col_center[2]).abs() {
+                beam_min[2]
+            } else {
+                beam_max[2]
+            };
+            [beam_center[0], beam_center[1], beam_end_z]
+        }
     }
 
-    /// 計算板件在世界座標的位置
-    fn offset_plate_position(
-        &self, conn_pos: [f32; 3], plate: &ConnectionPlate,
-        beam_id: &str, col_id: &str,
-    ) -> [f32; 3] {
+    /// 判斷梁相對於柱的方向（回傳 true=X方向, false=Z方向）和方向符號
+    fn beam_direction(&self, beam_id: &str, col_id: &str) -> (bool, f32) {
         let col_center = self.get_group_center(col_id);
         let beam_center = self.get_group_center(beam_id);
-
-        // 端板放在柱面上，面向梁
         let dx = beam_center[0] - col_center[0];
         let dz = beam_center[2] - col_center[2];
-
         if dx.abs() > dz.abs() {
-            // 梁沿 X 方向 → 端板在 YZ 平面
-            let sign = if dx > 0.0 { 1.0 } else { -1.0 };
+            (true, if dx > 0.0 { 1.0 } else { -1.0 })
+        } else {
+            (false, if dz > 0.0 { 1.0 } else { -1.0 })
+        }
+    }
+
+    /// 把接頭本地座標 (local_x, local_y, local_z) 轉換為世界座標
+    /// 本地座標系：X=板件水平, Y=板件垂直(高度), Z=板件法線(沿梁方向)
+    fn conn_local_to_world(
+        &self, conn_pos: [f32; 3], local: [f32; 3],
+        is_x_dir: bool, sign: f32,
+    ) -> [f32; 3] {
+        if is_x_dir {
+            // 梁沿 X → 端板面在 YZ 平面 → local_x→Z, local_y→Y, local_z→X
             [
-                conn_pos[0] + sign * plate.thickness / 2.0 + plate.position[0],
-                conn_pos[1] + plate.position[1] - plate.height / 2.0,
-                conn_pos[2] + plate.position[2] - plate.width / 2.0,
+                conn_pos[0] + local[2] * sign,
+                conn_pos[1] + local[1],
+                conn_pos[2] + local[0],
             ]
         } else {
-            // 梁沿 Z 方向 → 端板在 XY 平面
-            let sign = if dz > 0.0 { 1.0 } else { -1.0 };
+            // 梁沿 Z → 端板面在 XY 平面 → local_x→X, local_y→Y, local_z→Z
             [
-                conn_pos[0] + plate.position[0] - plate.width / 2.0,
-                conn_pos[1] + plate.position[1] - plate.height / 2.0,
-                conn_pos[2] + sign * plate.thickness / 2.0 + plate.position[2],
+                conn_pos[0] + local[0],
+                conn_pos[1] + local[1],
+                conn_pos[2] + local[2] * sign,
             ]
+        }
+    }
+
+    /// 計算板件在世界座標的位置（Box 左下角）
+    fn calc_plate_world_pos(
+        &self, conn_pos: [f32; 3], plate: &ConnectionPlate,
+        is_x_dir: bool, sign: f32,
+    ) -> ([f32; 3], f32, f32, f32) {
+        // 板件中心在本地座標
+        let center_local = plate.position; // [local_x, local_y, local_z]
+        let center_world = self.conn_local_to_world(conn_pos, center_local, is_x_dir, sign);
+
+        // Box 尺寸：width=板寬, height=板高, depth=板厚
+        // 在世界座標中，根據方向分配 w/h/d
+        if is_x_dir {
+            // 端板在 YZ 平面：Box(厚=X, 高=Y, 寬=Z)
+            let bw = plate.thickness; // X 方向
+            let bh = plate.height;    // Y 方向
+            let bd = plate.width;     // Z 方向
+            let pos = [
+                center_world[0] - bw / 2.0,
+                center_world[1] - bh / 2.0,
+                center_world[2] - bd / 2.0,
+            ];
+            (pos, bw, bh, bd)
+        } else {
+            // 端板在 XY 平面：Box(寬=X, 高=Y, 厚=Z)
+            let bw = plate.width;
+            let bh = plate.height;
+            let bd = plate.thickness;
+            let pos = [
+                center_world[0] - bw / 2.0,
+                center_world[1] - bh / 2.0,
+                center_world[2] - bd / 2.0,
+            ];
+            (pos, bw, bh, bd)
         }
     }
 
@@ -774,23 +822,115 @@ impl KolibriApp {
         ids
     }
 
+    /// 生成螺栓群組（使用本地→世界座標轉換）
+    /// bolt positions 是相對於接頭中心的本地座標 [local_x, local_y, 0]
+    pub(crate) fn create_bolt_group_world(
+        &mut self, bg: &BoltGroup, conn_pos: [f32; 3],
+        is_x_dir: bool, sign: f32,
+    ) -> Vec<String> {
+        let mut ids = Vec::new();
+        let bolt_r = bg.bolt_size.diameter() / 2.0;
+        let hole_r = bg.hole_diameter / 2.0;
+        let head_r = bg.bolt_size.head_across_flats() / 2.0;
+        let head_t = bg.bolt_size.head_thickness();
+        let washer_r = head_r + 2.0;
+        let washer_t = 3.0;
+        let nut_t = bg.bolt_size.diameter() * 0.8;
+        let grip = 50.0;
+
+        self.console_push("BOLT", format!(
+            "螺栓 {} {} | {}×{} = {} 顆 | 孔Ø{:.0} | 邊距{:.0} | 間距{:.0}",
+            bg.bolt_size.label(), bg.bolt_grade.label(),
+            bg.rows, bg.cols, bg.positions.len(),
+            bg.hole_diameter, bg.edge_dist, bg.row_spacing,
+        ));
+
+        for (i, bp) in bg.positions.iter().enumerate() {
+            let bolt_name = format!("{}_{}", bg.bolt_size.label(), i + 1);
+
+            // bp = [local_x, local_y, 0] → 轉世界座標
+            // 螺栓軸向沿板件法線（local_z）
+            let bolt_center = self.conn_local_to_world(conn_pos, *bp, is_x_dir, sign);
+
+            // 螺栓沿 local_z 方向延伸 — 在世界座標中是哪個軸？
+            let bolt_axis_offset = if is_x_dir {
+                // local_z → world X (× sign)
+                [sign, 0.0, 0.0]
+            } else {
+                // local_z → world Z (× sign)
+                [0.0, 0.0, sign]
+            };
+
+            // 孔標記（圓柱沿 Y 軸，穿透板件）
+            let hole_id = self.scene.insert_cylinder_raw(
+                format!("{}_hole", bolt_name),
+                [bolt_center[0], bolt_center[1] - grip / 2.0, bolt_center[2]],
+                hole_r, grip, 12,
+                MaterialKind::Custom([0.2, 0.2, 0.2, 0.3]),
+            );
+            if let Some(obj) = self.scene.objects.get_mut(&hole_id) {
+                obj.component_kind = ComponentKind::Bolt;
+            }
+            ids.push(hole_id);
+
+            // 螺栓桿身（沿板法線方向 = 用 bolt_axis_offset）
+            // 簡化：螺栓都沿 Y 軸放（垂直），因為端板也是垂直的
+            // 實際上螺栓穿透端板方向是水平的，但 Cylinder 只能沿 Y 軸
+            // 所以用多個小 Box 代替或直接用 Y 軸 cylinder
+            let shank_id = self.scene.insert_cylinder_raw(
+                format!("{}_shank", bolt_name),
+                [bolt_center[0] - bolt_axis_offset[0] * grip / 2.0,
+                 bolt_center[1],
+                 bolt_center[2] - bolt_axis_offset[2] * grip / 2.0],
+                bolt_r, grip, 8, MaterialKind::Metal,
+            );
+            if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
+                obj.component_kind = ComponentKind::Bolt;
+            }
+            ids.push(shank_id);
+
+            // 螺栓頭（板外側）
+            let head_pos = [
+                bolt_center[0] + bolt_axis_offset[0] * (grip / 2.0 + head_t / 2.0),
+                bolt_center[1],
+                bolt_center[2] + bolt_axis_offset[2] * (grip / 2.0 + head_t / 2.0),
+            ];
+            let head_id = self.scene.insert_cylinder_raw(
+                format!("{}_head", bolt_name),
+                head_pos,
+                head_r, head_t, 6, MaterialKind::Metal,
+            );
+            if let Some(obj) = self.scene.objects.get_mut(&head_id) {
+                obj.component_kind = ComponentKind::Bolt;
+            }
+            ids.push(head_id);
+        }
+
+        ids
+    }
+
     // ─── AISC 接頭對話框流程 ──────────────────────────────────────────────────
 
     /// 開啟 AISC 接頭確認對話框（選取兩構件後觸發）
     pub(crate) fn open_connection_dialog(&mut self) {
-        let ids = self.editor.selected_ids.clone();
-        if ids.len() < 1 {
+        let raw_ids = self.editor.selected_ids.clone();
+        if raw_ids.is_empty() {
             self.file_message = Some(("請先選取構件（選取兩個鋼構件後再按接頭功能鍵）".into(), std::time::Instant::now()));
             return;
         }
+
+        // 先全部 resolve 到群組
+        let ids: Vec<String> = raw_ids.iter()
+            .map(|id| self.resolve_to_group(id))
+            .collect::<std::collections::HashSet<_>>() // 去重
+            .into_iter().collect();
 
         // 辨識梁/柱
         let (beam_id, col_id, intent) = if let Some((b, c)) = self.identify_beam_column(&ids) {
             (b, c, ConnectionIntent::BeamToColumn)
         } else {
             // 嘗試柱底板
-            let col = ids[0].clone();
-            let section = self.get_member_section(&col);
+            let col = self.resolve_to_group(&ids[0]);
             (col.clone(), col, ConnectionIntent::ColumnBase)
         };
 
