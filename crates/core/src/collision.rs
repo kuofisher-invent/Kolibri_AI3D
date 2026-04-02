@@ -470,6 +470,122 @@ pub fn find_nearest_safe_position_along_axis(
     None
 }
 
+// ─── Phase D: 批次碰撞偵測（鋼構細部設計用）────────────────────────────────
+
+/// 碰撞偵測結果（場景全域）
+#[derive(Debug, Clone)]
+pub struct SceneCollisionReport {
+    /// 碰撞對數
+    pub collision_count: usize,
+    /// 警告
+    pub warnings: Vec<CollisionWarning>,
+    /// 是否全部通過
+    pub all_clear: bool,
+}
+
+/// 碰撞警告
+#[derive(Debug, Clone)]
+pub struct CollisionWarning {
+    pub id_a: String,
+    pub id_b: String,
+    pub kind_a: ComponentKind,
+    pub kind_b: ComponentKind,
+    pub collision_kind: CollisionKind,
+    pub decision: CollisionDecision,
+    pub message: String,
+}
+
+/// 對場景中所有構件執行碰撞偵測
+pub fn check_scene_collisions(
+    scene: &crate::scene::Scene,
+    config: &CollisionConfig,
+) -> SceneCollisionReport {
+    // 將 SceneObject 轉為 Component
+    let components: Vec<Component> = scene.objects.values()
+        .filter(|obj| obj.visible)
+        .filter(|obj| obj.component_kind != ComponentKind::Generic)
+        .map(|obj| {
+            let (w, h, d) = match &obj.shape {
+                crate::scene::Shape::Box { width, height, depth } => (*width, *height, *depth),
+                crate::scene::Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+                _ => (10.0, 10.0, 10.0),
+            };
+            let center = [
+                obj.position[0] + w / 2.0,
+                obj.position[1] + h / 2.0,
+                obj.position[2] + d / 2.0,
+            ];
+            Component::new(obj.id.clone(), obj.component_kind, center, [w, h, d])
+        })
+        .collect();
+
+    let mut warnings = Vec::new();
+    let mut collision_count = 0;
+
+    // O(n²) 碰撞檢查（小場景足夠，大場景需 spatial hash）
+    for i in 0..components.len() {
+        for j in (i + 1)..components.len() {
+            let a = &components[i];
+            let b = &components[j];
+
+            let ck = classify_collision(&a.aabb(), &b.aabb(), config.epsilon_mm);
+            if ck == CollisionKind::None { continue; }
+
+            let decision = decide_collision(a, b, ck, config);
+            if decision == CollisionDecision::Allow { continue; }
+
+            collision_count += 1;
+
+            let message = match decision {
+                CollisionDecision::Block => format!(
+                    "碰撞: {} ({:?}) ↔ {} ({:?}) — 不合法穿透",
+                    a.id, a.kind, b.id, b.kind
+                ),
+                CollisionDecision::Warn => format!(
+                    "警告: {} ({:?}) ↔ {} ({:?}) — 需確認",
+                    a.id, a.kind, b.id, b.kind
+                ),
+                _ => continue,
+            };
+
+            warnings.push(CollisionWarning {
+                id_a: a.id.clone(),
+                id_b: b.id.clone(),
+                kind_a: a.kind,
+                kind_b: b.kind,
+                collision_kind: ck,
+                decision,
+                message,
+            });
+        }
+    }
+
+    SceneCollisionReport {
+        collision_count,
+        all_clear: warnings.iter().all(|w| w.decision != CollisionDecision::Block),
+        warnings,
+    }
+}
+
+/// 螺栓邊距檢查（鋼構專用）
+pub fn check_bolt_edge_distances(
+    bolt_positions: &[[f32; 3]],
+    plate_width: f32,
+    plate_height: f32,
+    min_edge: f32,
+) -> Vec<String> {
+    let mut issues = Vec::new();
+    for (i, bp) in bolt_positions.iter().enumerate() {
+        if bp[0].abs() > plate_width / 2.0 - min_edge {
+            issues.push(format!("螺栓 #{} X 邊距不足: {:.1}mm < {:.0}mm", i + 1, (plate_width / 2.0 - bp[0].abs()), min_edge));
+        }
+        if bp[1].abs() > plate_height / 2.0 - min_edge {
+            issues.push(format!("螺栓 #{} Y 邊距不足: {:.1}mm < {:.0}mm", i + 1, (plate_height / 2.0 - bp[1].abs()), min_edge));
+        }
+    }
+    issues
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

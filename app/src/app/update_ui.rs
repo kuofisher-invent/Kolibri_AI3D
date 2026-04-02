@@ -518,12 +518,22 @@ impl KolibriApp {
                 .frame(egui::Frame::none()
                     .fill(egui::Color32::from_rgb(245, 246, 250))
                     .stroke(egui::Stroke::NONE)
-                    .inner_margin(egui::Margin::symmetric(6.0, 0.0)))
+                    .inner_margin(egui::Margin { left: 4.0, right: 0.0, top: 0.0, bottom: 0.0 })
+                    .outer_margin(egui::Margin { left: 0.0, right: -4.0, top: 0.0, bottom: 0.0 }))
                 .show(ctx, |ui| {
-                    ui.add_space(8.0);
-                    self.toolbar_ui(ui);
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false; 2])
+                        .show(ui, |ui| {
+                            ui.add_space(8.0);
+                            self.toolbar_ui(ui);
+                            ui.add_space(8.0);
+                        });
                 });
         }
+
+        // ── AISC 接頭確認對話框 ──
+        #[cfg(feature = "steel")]
+        self.steel_connection_dialog(ctx);
 
         // ── Right panel（出圖模式時完全不顯示）──
         if !self.viewer.layout_mode {

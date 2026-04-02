@@ -528,6 +528,103 @@ pub fn steel_connection(p: &Painter, r: Rect, c: Color32) {
     p.circle_filled(s(r, 0.6, 0.4), 2.5, c);
 }
 
+// ─── Steel End Plate (beam-column moment connection) ────────────────────────
+pub fn steel_end_plate(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    // Vertical column
+    p.line_segment([s(r, 0.5, 0.1), s(r, 0.5, 0.9)], Stroke::new(2.5, c));
+    // Horizontal beam
+    p.line_segment([s(r, 0.5, 0.4), s(r, 0.9, 0.4)], Stroke::new(2.0, c));
+    // End plate (vertical rect at junction)
+    let plate = Rect::from_min_max(s(r, 0.47, 0.25), s(r, 0.53, 0.55));
+    p.rect_filled(plate, 0.0, c.linear_multiply(0.3));
+    p.rect_stroke(plate, 0.0, st);
+    // Bolts
+    p.circle_filled(s(r, 0.5, 0.3), 2.0, c);
+    p.circle_filled(s(r, 0.5, 0.5), 2.0, c);
+}
+
+// ─── Steel Shear Tab (beam-column pin connection) ──────────────────────────
+pub fn steel_shear_tab(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    // Column
+    p.line_segment([s(r, 0.3, 0.1), s(r, 0.3, 0.9)], Stroke::new(2.5, c));
+    // Beam
+    p.line_segment([s(r, 0.4, 0.45), s(r, 0.9, 0.45)], Stroke::new(2.0, c));
+    // Shear tab (small vertical plate)
+    let tab = Rect::from_min_max(s(r, 0.32, 0.3), s(r, 0.4, 0.6));
+    p.rect_filled(tab, 0.0, c.linear_multiply(0.25));
+    p.rect_stroke(tab, 0.0, st);
+    // Bolts (single row)
+    p.circle_filled(s(r, 0.36, 0.38), 2.0, c);
+    p.circle_filled(s(r, 0.36, 0.52), 2.0, c);
+}
+
+// ─── Steel Base Plate (column base + anchor bolts) ─────────────────────────
+pub fn steel_base_plate(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    // Column (vertical)
+    p.line_segment([s(r, 0.5, 0.1), s(r, 0.5, 0.6)], Stroke::new(2.5, c));
+    // Base plate (horizontal rect)
+    let plate = Rect::from_min_max(s(r, 0.2, 0.6), s(r, 0.8, 0.68));
+    p.rect_filled(plate, 0.0, c.linear_multiply(0.3));
+    p.rect_stroke(plate, 0.0, st);
+    // Anchor bolts (4 circles below plate)
+    p.circle_filled(s(r, 0.28, 0.75), 2.0, c);
+    p.circle_filled(s(r, 0.72, 0.75), 2.0, c);
+    // Ground line
+    p.line_segment([s(r, 0.15, 0.85), s(r, 0.85, 0.85)], Stroke::new(1.0, c.linear_multiply(0.5)));
+}
+
+// ─── Steel Bolt (single bolt) ──────────────────────────────────────────────
+pub fn steel_bolt(p: &Painter, r: Rect, c: Color32) {
+    let cx = r.center();
+    // Bolt head (hexagon approximated as circle)
+    p.circle_filled(cx, r.width() * 0.22, c.linear_multiply(0.3));
+    p.circle_stroke(cx, r.width() * 0.22, stroke(c));
+    // Shank (vertical line below)
+    p.line_segment([pos2(cx.x, cx.y + r.height() * 0.12), pos2(cx.x, cx.y + r.height() * 0.35)], Stroke::new(2.0, c));
+    // Thread marks
+    p.line_segment([pos2(cx.x - 2.0, cx.y + r.height() * 0.22), pos2(cx.x + 2.0, cx.y + r.height() * 0.22)], Stroke::new(0.8, c));
+    p.line_segment([pos2(cx.x - 2.0, cx.y + r.height() * 0.28), pos2(cx.x + 2.0, cx.y + r.height() * 0.28)], Stroke::new(0.8, c));
+    // Cross on hex head
+    p.line_segment([pos2(cx.x - 3.0, cx.y), pos2(cx.x + 3.0, cx.y)], Stroke::new(1.0, c));
+}
+
+// ─── Steel Weld (weld symbol) ──────────────────────────────────────────────
+pub fn steel_weld(p: &Painter, r: Rect, c: Color32) {
+    // Zigzag weld line
+    let y = r.center().y;
+    let steps = 5;
+    let dx = r.width() * 0.7 / steps as f32;
+    let x0 = r.left() + r.width() * 0.15;
+    for i in 0..steps {
+        let x1 = x0 + i as f32 * dx;
+        let x2 = x1 + dx;
+        let y1 = if i % 2 == 0 { y - 4.0 } else { y + 4.0 };
+        let y2 = if i % 2 == 0 { y + 4.0 } else { y - 4.0 };
+        p.line_segment([pos2(x1, y1), pos2(x2, y2)], Stroke::new(1.5, c));
+    }
+    // Reference line (horizontal)
+    p.line_segment([s(r, 0.1, 0.35), s(r, 0.9, 0.35)], Stroke::new(1.0, c.linear_multiply(0.5)));
+    // Arrow
+    p.line_segment([s(r, 0.5, 0.35), s(r, 0.5, 0.5)], Stroke::new(1.0, c));
+}
+
+// ─── Steel Stiffener (stiffener plate) ─────────────────────────────────────
+pub fn steel_stiffener(p: &Painter, r: Rect, c: Color32) {
+    let st = stroke(c);
+    // Column flanges (two vertical lines)
+    p.line_segment([s(r, 0.2, 0.15), s(r, 0.2, 0.85)], Stroke::new(2.0, c));
+    p.line_segment([s(r, 0.8, 0.15), s(r, 0.8, 0.85)], Stroke::new(2.0, c));
+    // Web
+    p.line_segment([s(r, 0.5, 0.15), s(r, 0.5, 0.85)], Stroke::new(1.0, c.linear_multiply(0.4)));
+    // Stiffener plate (horizontal, inside column)
+    let stiff = Rect::from_min_max(s(r, 0.22, 0.45), s(r, 0.78, 0.52));
+    p.rect_filled(stiff, 0.0, c.linear_multiply(0.35));
+    p.rect_stroke(stiff, 0.0, st);
+}
+
 // ─── Pie (fan/sector) ────────────────────────────────────────────────────────
 
 pub fn pie(p: &Painter, r: Rect, c: Color32) {
@@ -597,6 +694,18 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::SteelPlate      => steel_plate(p, r, color),
         #[cfg(feature = "steel")]
         Tool::SteelConnection => steel_connection(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelEndPlate   => steel_end_plate(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelShearTab   => steel_shear_tab(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelBasePlate  => steel_base_plate(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelBolt       => steel_bolt(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelWeld       => steel_weld(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelStiffener  => steel_stiffener(p, r, color),
         Tool::Wall => { // 牆圖示：矩形 + 門洞
             p.line_segment([egui::pos2(r.left()+2.0, r.bottom()-2.0), egui::pos2(r.left()+2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));
             p.line_segment([egui::pos2(r.left()+2.0, r.top()+2.0), egui::pos2(r.right()-2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));

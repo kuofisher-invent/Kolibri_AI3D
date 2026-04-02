@@ -23,11 +23,15 @@ Kolibri_Ai3D/
 │   ├── core/               # 純邏輯核心（無 GUI 依賴）
 │   │   ├── scene.rs        # Scene, SceneObject, Shape, MaterialKind
 │   │   ├── halfedge.rs     # HeMesh 半邊資料結構
-│   │   ├── collision.rs    # 碰撞偵測
+│   │   ├── collision.rs    # 碰撞偵測（含場景批次檢查）
 │   │   ├── command.rs      # Command Pattern Undo/Redo (Diff + Full)
 │   │   ├── csg.rs          # CSG 布林運算
 │   │   ├── dimensions.rs   # 標註資料型別
 │   │   ├── geometry.rs     # GeometryKernel trait
+│   │   ├── steel_connection.rs # 鋼構接頭（AISC 360-22 驗算+自動建議）
+│   │   ├── steel_numbering.rs  # 自動編號（C1/B1/BR1/PL1/A1）
+│   │   ├── steel_report.rs     # 完整報表（材料+螺栓+焊接+組裝件 CSV）
+│   │   ├── steel_drawing.rs    # 施工圖（3D→2D 投影+標註+DXF 匯出）
 │   │   ├── error.rs        # thiserror 錯誤型別
 │   │   └── measure.rs      # 測量工具
 │   ├── io/                 # 檔案匯入/匯出
@@ -37,7 +41,9 @@ Kolibri_Ai3D/
 │   │   ├── gltf_io.rs      # glTF 匯出
 │   │   ├── cad_import/     # DXF 智慧匯入管線
 │   │   ├── import/         # 統一匯入管線
-│   │   └── dwg_parser/     # DWG 解析器
+│   │   ├── dwg_parser/     # DWG 解析器
+│   │   ├── nc_export.rs    # DSTV NC1 格式輸出（CNC 鑽孔/切割）
+│   │   └── ifc_export.rs   # IFC 2x3 匯出（STEP Part 21）
 │   ├── skp/                # SketchUp SDK FFI（匯入+匯出）
 │   │   ├── ffi.rs          # 動態載入 SketchUpAPI.dll
 │   │   ├── converter.rs    # SKP → SkpScene 轉換
@@ -84,7 +90,9 @@ Kolibri_Ai3D/
         │   ├── measure.rs      # VCB 尺寸輸入（含單位解析 m/cm/ft/'/"）
         │   ├── menu_actions.rs # 選單動作（匯出/CSG/Hide/Explode/SKP export）
         │   ├── geometry_ops.rs # H型鋼 CNS 規格表 + mesh 生成 + Mirror/Flip
-        │   └── picking.rs      # pick() + pick_face()（slab method）
+        │   ├── picking.rs      # pick() + pick_face()（slab method）
+        │   ├── steel_connections.rs # 鋼構接頭工具（端板/腹板/底板自動生成）
+        │   └── steel_exports.rs    # 報表/施工圖/NC/IFC 匯出 UI
         ├── panels/         # UI 面板
         │   ├── toolbar.rs  # 左側工具列（模式下拉 + 工具按鈕）
         │   ├── ribbon.rs   # ZWCAD 深色 Ribbon（4 tab, 41 工具, SVG icons）

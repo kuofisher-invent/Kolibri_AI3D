@@ -329,6 +329,35 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::E) { set(Tool::Eraser, self); }
                     if i.key_pressed(egui::Key::W) && !ctrl { set(Tool::Wall, self); }
 
+                    // ── 鋼構接頭快捷鍵（Shift+數字）──
+                    #[cfg(feature = "steel")]
+                    if shift {
+                        // Shift+1: 開啟 AISC 接頭確認對話框（選構件後按）
+                        if i.key_pressed(egui::Key::Num1) {
+                            if !self.editor.selected_ids.is_empty() {
+                                self.open_connection_dialog();
+                            } else {
+                                self.file_message = Some(("請先選取兩個構件再按 Shift+1".into(), std::time::Instant::now()));
+                            }
+                        }
+                        // Shift+2: 底板接頭對話框
+                        if i.key_pressed(egui::Key::Num2) {
+                            if !self.editor.selected_ids.is_empty() {
+                                self.open_connection_dialog();
+                            } else {
+                                set(Tool::SteelBasePlate, self);
+                            }
+                        }
+                        // Shift+3: AISC 建議（Console 輸出）
+                        if i.key_pressed(egui::Key::Num3) {
+                            self.show_aisc_suggestion();
+                        }
+                        // Shift+4: 自動編號
+                        if i.key_pressed(egui::Key::Num4) {
+                            self.run_auto_numbering();
+                        }
+                    }
+
                     // Standard view shortcuts (number row + numpad)
                     if i.key_pressed(egui::Key::Num1) { self.viewer.animate_camera_to(|c| c.set_front()); }
                     if i.key_pressed(egui::Key::Num2) { self.viewer.animate_camera_to(|c| c.set_top()); }

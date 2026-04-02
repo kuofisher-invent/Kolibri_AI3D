@@ -190,7 +190,16 @@ impl KolibriApp {
             }
             #[cfg(feature = "steel")]
             WorkMode::Steel => {
-                // Steel tools
+                // ── 通用工具（最上方，與鋼構元件一起）──
+                section_header(ui, "通用 + 建模");
+                self.tool_row(ui, bsz, &[
+                    (Tool::Select, "選取 (Space)\n點擊選取構件"),
+                    (Tool::Move, "移動 (M)\nSU-style 兩點移動"),
+                ]);
+                self.tool_row(ui, bsz, &[
+                    (Tool::Eraser, "刪除 (E)\n點擊刪除構件"),
+                    (Tool::TapeMeasure, "量測 (T)\n量測距離"),
+                ]);
                 self.tool_row(ui, bsz, &[
                     (Tool::SteelGrid, "軸線\n建立結構軸線系統"),
                     (Tool::SteelColumn, "柱\n點擊放置鋼柱 (Profile)"),
@@ -201,15 +210,42 @@ impl KolibriApp {
                 ]);
                 self.tool_row(ui, bsz, &[
                     (Tool::SteelPlate, "鋼板\n畫矩形建立鋼板"),
-                    (Tool::SteelConnection, "接頭\n選兩構件建立接頭"),
+                    (Tool::Rotate, "旋轉 (R)\n旋轉構件"),
                 ]);
 
                 ui.separator();
 
-                // Steel defaults
-                section_header(ui, "預設參數");
+                // ── 接頭工具（全部可點選）──
+                section_header(ui, "接頭（AISC 360-22）");
+                self.tool_row(ui, bsz, &[
+                    (Tool::SteelEndPlate, "端板 (剛接)\n梁-柱端板+螺栓+肋板\nAISC Part 10 FR"),
+                    (Tool::SteelShearTab, "腹板 (鉸接)\n梁-柱剪力板+螺栓\nAISC Part 10 PR"),
+                ]);
+                self.tool_row(ui, bsz, &[
+                    (Tool::SteelBasePlate, "底板\n柱底板+錨栓\nAISC DG1"),
+                    (Tool::SteelStiffener, "肋板\n加勁板 J10.1~J10.5"),
+                ]);
+                self.tool_row(ui, bsz, &[
+                    (Tool::SteelBolt, "螺栓\n手動放置螺栓\n含孔位+孔徑"),
+                    (Tool::SteelWeld, "焊接\n兩點標記焊接線\n角焊/全滲透"),
+                ]);
+                self.tool_row(ui, bsz, &[
+                    (Tool::SteelConnection, "智慧接頭\n選兩構件→AISC自動建議\n含螺栓配置+板件+焊接"),
+                    (Tool::Scale, "縮放 (S)\n縮放構件"),
+                ]);
+
+                // ── AISC 建議按鈕 ──
                 figma_group(ui, |ui| {
-                    // H 型鋼規格下拉選單（CNS 386）
+                    if ui.button("AISC 接頭建議").on_hover_text("選取兩構件後，根據 AISC 360-22 自動建議最佳接頭形式").clicked() {
+                        self.show_aisc_suggestion();
+                    }
+                });
+
+                ui.separator();
+
+                // ── 截面參數 ──
+                section_header(ui, "截面");
+                figma_group(ui, |ui| {
                     ui.label(egui::RichText::new("斷面:").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
                     egui::ComboBox::from_id_source("steel_profile_combo")
                         .width(ui.available_width() - 4.0)
@@ -243,17 +279,84 @@ impl KolibriApp {
                         .speed(10.0).prefix("柱高: ").suffix(" mm").range(100.0..=50000.0));
                 });
 
-                // Common tools (shared between modes)
+                // ── 接頭參數 ──
+                section_header(ui, "螺栓/焊接");
+                figma_group(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("螺栓:").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                        egui::ComboBox::from_id_source("conn_bolt_size")
+                            .width(60.0)
+                            .selected_text(self.editor.conn_bolt_size.label())
+                            .show_ui(ui, |ui| {
+                                for &bs in kolibri_core::steel_connection::BoltSize::ALL {
+                                    if ui.selectable_label(
+                                        self.editor.conn_bolt_size == bs,
+                                        format!("{} Ø{:.0} 孔Ø{:.0}", bs.label(), bs.diameter(), bs.hole_diameter()),
+                                    ).clicked() {
+                                        self.editor.conn_bolt_size = bs;
+                                    }
+                                }
+                            });
+                        egui::ComboBox::from_id_source("conn_bolt_grade")
+                            .width(55.0)
+                            .selected_text(self.editor.conn_bolt_grade.label())
+                            .show_ui(ui, |ui| {
+                                for &bg in kolibri_core::steel_connection::BoltGrade::ALL {
+                                    if ui.selectable_label(self.editor.conn_bolt_grade == bg, bg.label()).clicked() {
+                                        self.editor.conn_bolt_grade = bg;
+                                    }
+                                }
+                            });
+                    });
+                    // 顯示螺栓孔徑和邊距（即時計算）
+                    let bs = self.editor.conn_bolt_size;
+                    ui.label(egui::RichText::new(format!(
+                        "孔Ø{:.0}mm 邊距≥{:.0}mm 間距≥{:.0}mm",
+                        bs.hole_diameter(), bs.min_edge(), bs.min_spacing()
+                    )).size(8.5).color(egui::Color32::from_rgb(130, 140, 155)));
+                    ui.add(egui::DragValue::new(&mut self.editor.conn_weld_size)
+                        .speed(0.5).prefix("焊腳: ").suffix(" mm").range(4.0..=20.0));
+                    ui.checkbox(&mut self.editor.conn_add_stiffeners, "加勁板 (AISC J10)");
+                });
+
+                // ── 輸出功能 ──
                 ui.separator();
-                section_header(ui, "通用");
-                self.tool_row(ui, bsz, &[
-                    (Tool::Select, "選取 (Space)"),
-                    (Tool::Move, "移動 (M)"),
-                ]);
-                self.tool_row(ui, bsz, &[
-                    (Tool::Eraser, "刪除 (E)"),
-                    (Tool::TapeMeasure, "量測 (T)"),
-                ]);
+                section_header(ui, "輸出");
+                figma_group(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("料表").on_hover_text("CSV: 材料+螺栓+焊接+組裝件").clicked() {
+                            self.export_steel_report();
+                        }
+                        if ui.button("施工圖").on_hover_text("DXF: GA圖+單件圖").clicked() {
+                            self.export_steel_drawings();
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("NC").on_hover_text("DSTV NC1 (CNC)").clicked() {
+                            self.export_nc_files();
+                        }
+                        if ui.button("IFC").on_hover_text("IFC 2x3 (BIM)").clicked() {
+                            self.export_ifc_file();
+                        }
+                        if ui.button("編號").on_hover_text("自動編號 C1/B1").clicked() {
+                            self.run_auto_numbering();
+                        }
+                    });
+                    if ui.button("碰撞偵測").on_hover_text("AABB + 螺栓邊距檢查").clicked() {
+                        self.run_collision_check();
+                    }
+                });
+
+                // ── 統計 ──
+                {
+                    let (cols, beams, braces, plates) = self.count_steel_members();
+                    if cols + beams + braces + plates > 0 {
+                        ui.separator();
+                        ui.label(egui::RichText::new(format!(
+                            "柱:{} 梁:{} 撐:{} 板:{}", cols, beams, braces, plates
+                        )).size(9.5).color(egui::Color32::from_rgb(110, 118, 135)));
+                    }
+                }
             }
             #[cfg(feature = "piping")]
             WorkMode::Piping => {

@@ -6,7 +6,7 @@
 
 ---
 
-## 現有基礎 (as of 2026-04-01)
+## 現有基礎 (updated 2026-04-02)
 
 ### 已完成
 - [x] H 型鋼建模（CNS 386，15 種 H100~H900）
@@ -15,25 +15,32 @@
 - [x] 柱/梁/斜撐放置（3 組件 H 截面）
 - [x] 鋼板放置（矩形 + PushPull 調厚度）
 - [x] 軸線系統
-- [x] BOM 料表 CSV 匯出
+- [x] BOM 料表 CSV 匯出（含螺栓表/焊接表/組裝件）
 - [x] 材料等級選擇（SN400B/SN490B/SS400/A572）
 - [x] 截面參數面板（H/B/tw/tf/kg/m）
 - [x] ComponentKind 標籤（Column/Beam/Brace/Plate）
+- [x] **接頭系統 Phase A**（端板/腹板/底板/螺栓/焊接/肋板）
+- [x] **AISC 360-22 驗算**（J3 螺栓+J2 焊接+J10 加勁板）
+- [x] **AISC 接頭確認對話框**（選構件→彈出視窗→建議方案→確認繪製）
+- [x] **自動編號 Phase B**（C1/B1/BR1/PL1 + 組裝件 A1）
+- [x] **施工圖 Phase C**（GA 總裝圖 + 單件圖 → DXF 匯出）
+- [x] **NC/DSTV Phase D**（NC1 格式鑽孔+切割 → CNC 對接）
+- [x] **IFC 2x3 匯出**（IfcColumn/IfcBeam/IfcPlate/IfcMechanicalFastener）
+- [x] **碰撞偵測**（AABB + 螺栓邊距檢查）
+- [x] **旋轉工具修正**（實際旋轉物件位置+VCB角度輸入）
 
 ### 缺少
-- [ ] 接頭系統（螺栓/焊接/端板/肋板）
-- [ ] 自動編號
-- [ ] 施工圖（單件圖/組裝圖/GA 圖）
-- [ ] NC/DSTV 輸出
-- [ ] IFC 匯出
-- [ ] 碰撞偵測
 - [ ] C 型鋼/L 角鋼截面
+- [ ] XYZ 三軸旋轉（目前僅 Y 軸）
+- [ ] 耐震接頭（AISC 341 SMF/IMF）
+- [ ] 自訂接頭元件
 
 ---
 
-## Phase A — 接頭系統 (Connections)
+## Phase A — 接頭系統 (Connections) ✅ DONE
 
 **目標**: 選取兩個構件 → 自動生成接頭（螺栓+板+焊接）
+**狀態**: 已完成（2026-04-02），含 AISC 360-22 驗算 + AISC 對話框
 
 ### A.1 資料模型
 
@@ -134,7 +141,7 @@ pub enum WeldType {
 
 ---
 
-## Phase B — 自動編號 + 報表
+## Phase B — 自動編號 + 報表 ✅ DONE
 
 **目標**: 模型完成 → 一鍵自動編號 → 完整報表
 
@@ -159,7 +166,7 @@ pub enum WeldType {
 
 ---
 
-## Phase C — 施工圖自動生成
+## Phase C — 施工圖自動生成 ✅ DONE
 
 **目標**: 3D 模型 → 自動產生 2D 施工圖
 
@@ -188,7 +195,7 @@ pub enum WeldType {
 
 ---
 
-## Phase D — NC/CNC + IFC
+## Phase D — NC/CNC + IFC ✅ DONE
 
 ### D.1 DSTV NC 輸出
 - 格式: `.nc1` (Deutscher Stahlbau-Verband)
@@ -211,12 +218,10 @@ pub enum WeldType {
 ## 開發優先序
 
 ```
-Phase A (接頭)     ████████████████░░░░  ~80h   ← 最關鍵
-Phase B (編號+報表) ████████░░░░░░░░░░░░  ~40h
-Phase C (施工圖)    ████████████████████  ~120h  ← 最大工作量
-Phase D (NC+IFC)    ████████████████░░░░  ~80h
-                                         ─────
-                                         ~320h total
+Phase A (接頭)     ████████████████████  DONE ✅  AISC 360-22 + 對話框
+Phase B (編號+報表) ████████████████████  DONE ✅  CSV 完整報表
+Phase C (施工圖)    ████████████████████  DONE ✅  GA+單件圖 DXF
+Phase D (NC+IFC)    ████████████████████  DONE ✅  NC1+IFC2x3+碰撞偵測
 ```
 
 ---

@@ -465,6 +465,41 @@ impl Scene {
         id
     }
 
+    /// Insert a cylinder without calling snapshot() or bumping version.
+    pub fn insert_cylinder_raw(
+        &mut self, name: String, pos: [f32; 3],
+        r: f32, h: f32, seg: u32, mat: MaterialKind,
+    ) -> String {
+        let id = self.next_id();
+        self.objects.insert(id.clone(), SceneObject {
+            id: id.clone(), name,
+            shape: Shape::Cylinder { radius: r, height: h, segments: seg },
+            position: pos, material: mat,
+            rotation_y: 0.0, tag: default_tag(), visible: true,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+        });
+        id
+    }
+
+    /// Insert a weld line visualization (thick line segment).
+    pub fn insert_weld_line(
+        &mut self, name: String, start: [f32; 3], end: [f32; 3], size: f32,
+    ) -> String {
+        let id = self.next_id();
+        self.objects.insert(id.clone(), SceneObject {
+            id: id.clone(), name,
+            shape: Shape::Line {
+                points: vec![start, end],
+                thickness: size.max(3.0),
+                arc_center: None, arc_radius: None, arc_angle_deg: None,
+            },
+            position: start, material: MaterialKind::Custom([1.0, 0.85, 0.0, 1.0]),
+            rotation_y: 0.0, tag: "焊接".into(), visible: true,
+            roughness: 0.8, metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0,
+        });
+        id
+    }
+
     /// Insert a mesh object without snapshot/version bump.
     pub fn insert_mesh_raw(
         &mut self, name: String, pos: [f32; 3],

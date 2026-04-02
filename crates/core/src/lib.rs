@@ -11,3 +11,10 @@ pub mod dimensions;
 pub mod geometry;
 pub mod measure;
 pub mod transform;
+pub mod steel_connection;
+pub mod steel_numbering;
+pub mod steel_report;
+pub mod steel_drawing;
+
+#[cfg(test)]
+mod tests;

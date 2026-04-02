@@ -277,15 +277,36 @@ impl KolibriApp {
                 }
             }
             // D1: Rotate step 3 — type angle in degrees for precise rotation
-            DrawState::RotateAngle { ref obj_ids, ref_angle: _, ref original_rotations, .. } => {
+            DrawState::RotateAngle { ref obj_ids, center, ref_angle, current_angle, ref original_rotations } => {
                 if let Ok(angle) = self.editor.measure_input.parse::<f32>() {
                     let delta = angle.to_radians();
+                    let center = *center;
+                    let prev_delta = *current_angle - *ref_angle;
+
                     for (i, id) in obj_ids.iter().enumerate() {
-                        let orig = original_rotations.get(i).copied().unwrap_or(0.0);
+                        let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                         if let Some(obj) = self.scene.objects.get_mut(id) {
-                            obj.rotation_y = orig + delta;
+                            // 先還原上一幀的位置旋轉
+                            let cos_prev = (-prev_delta).cos();
+                            let sin_prev = (-prev_delta).sin();
+                            let cur_px = obj.position[0] - center[0];
+                            let cur_pz = obj.position[2] - center[2];
+                            let orig_px = cur_px * cos_prev - cur_pz * sin_prev;
+                            let orig_pz = cur_px * sin_prev + cur_pz * cos_prev;
+
+                            // 套用精確角度
+                            let cos_d = delta.cos();
+                            let sin_d = delta.sin();
+                            obj.position[0] = center[0] + orig_px * cos_d - orig_pz * sin_d;
+                            obj.position[2] = center[2] + orig_px * sin_d + orig_pz * cos_d;
+                            obj.rotation_y = orig_rot + delta;
                         }
                     }
+                    self.scene.version += 1;
+                    self.file_message = Some((
+                        format!("旋轉 {:.1}° ({} 個物件)", angle, obj_ids.len()),
+                        std::time::Instant::now(),
+                    ));
                     self.editor.draw_state = DrawState::Idle;
                 }
             }

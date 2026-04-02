@@ -62,6 +62,18 @@ pub enum Tool {
     SteelPlate,
     #[cfg(feature = "steel")]
     SteelConnection,
+    #[cfg(feature = "steel")]
+    SteelEndPlate,     // 端板接頭（梁-柱剛接）
+    #[cfg(feature = "steel")]
+    SteelShearTab,     // 腹板接頭（梁-柱鉸接）
+    #[cfg(feature = "steel")]
+    SteelBasePlate,    // 底板接頭（柱底+錨栓）
+    #[cfg(feature = "steel")]
+    SteelBolt,         // 螺栓放置
+    #[cfg(feature = "steel")]
+    SteelWeld,         // 焊接標記
+    #[cfg(feature = "steel")]
+    SteelStiffener,    // 肋板
     // ── Piping（管線外掛，feature gate）──
     #[cfg(feature = "piping")]
     PipeDraw,
@@ -392,6 +404,29 @@ pub(crate) struct CursorHint {
 
 // ─── EditorState ─────────────────────────────────────────────────────────────
 
+/// AISC 接頭確認對話框狀態
+#[cfg(feature = "steel")]
+#[derive(Clone)]
+pub(crate) struct ConnectionDialogState {
+    /// 選取的構件 ID
+    pub member_ids: Vec<String>,
+    /// 偵測到的截面
+    pub beam_section: (f32, f32, f32, f32),
+    pub col_section: (f32, f32, f32, f32),
+    /// 接頭意圖
+    pub intent: kolibri_core::steel_connection::ConnectionIntent,
+    /// AISC 建議結果
+    pub suggestions: Vec<kolibri_core::steel_connection::ConnectionSuggestion>,
+    /// 使用者選擇的方案 index
+    pub selected_idx: usize,
+    /// 使用者可調整的參數
+    pub bolt_size: kolibri_core::steel_connection::BoltSize,
+    pub bolt_grade: kolibri_core::steel_connection::BoltGrade,
+    pub plate_thickness: f32,
+    pub add_stiffeners: bool,
+    pub weld_size: f32,
+}
+
 pub(crate) struct EditorState {
     pub(crate) tool: Tool,
     pub(crate) draw_state: DrawState,
@@ -465,6 +500,21 @@ pub(crate) struct EditorState {
     pub(crate) gizmo_drag_axis: Option<u8>,
     /// 附近的 snap 候選點（SU-style：顯示附近所有端點/中點小圓點）
     pub(crate) nearby_snaps: Vec<([f32; 3], SnapType)>,
+
+    // ── Steel Connection（接頭）──
+    #[cfg(feature = "steel")]
+    pub(crate) conn_bolt_size: kolibri_core::steel_connection::BoltSize,
+    #[cfg(feature = "steel")]
+    pub(crate) conn_bolt_grade: kolibri_core::steel_connection::BoltGrade,
+    #[cfg(feature = "steel")]
+    pub(crate) conn_add_stiffeners: bool,
+    #[cfg(feature = "steel")]
+    pub(crate) conn_weld_type: kolibri_core::steel_connection::WeldType,
+    #[cfg(feature = "steel")]
+    pub(crate) conn_weld_size: f32,
+    /// AISC 接頭確認對話框狀態
+    #[cfg(feature = "steel")]
+    pub(crate) conn_dialog: Option<ConnectionDialogState>,
 
     // ── Piping（管線外掛）──
     #[cfg(feature = "piping")]

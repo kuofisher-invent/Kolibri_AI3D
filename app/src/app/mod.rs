@@ -383,6 +383,18 @@ impl KolibriApp {
                 gizmo_hovered_axis: None,
                 gizmo_drag_axis: None,
                 nearby_snaps: Vec::new(),
+                #[cfg(feature = "steel")]
+                conn_bolt_size: kolibri_core::steel_connection::BoltSize::M20,
+                #[cfg(feature = "steel")]
+                conn_bolt_grade: kolibri_core::steel_connection::BoltGrade::F10T,
+                #[cfg(feature = "steel")]
+                conn_add_stiffeners: true,
+                #[cfg(feature = "steel")]
+                conn_weld_type: kolibri_core::steel_connection::WeldType::Fillet,
+                #[cfg(feature = "steel")]
+                conn_weld_size: 6.0,
+                #[cfg(feature = "steel")]
+                conn_dialog: None,
                 #[cfg(feature = "piping")]
                 piping: kolibri_piping::PipingState::default(),
                 #[cfg(feature = "drafting")]

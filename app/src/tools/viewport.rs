@@ -101,9 +101,20 @@ impl KolibriApp {
             // ── SU-style Move click-click 即時預覽 ──
             if let DrawState::MoveFrom { from, ref obj_ids, ref original_positions } = self.editor.draw_state.clone() {
                 if let Some(to) = self.editor.mouse_ground {
-                    let dx = to[0] - from[0];
-                    let dy = to[1] - from[1];
-                    let dz = to[2] - from[2];
+                    // Ground plane 移動（XZ 方向）
+                    let mut dx = to[0] - from[0];
+                    let mut dy = 0.0_f32;
+                    let mut dz = to[2] - from[2];
+
+                    // 如果鎖定 Y 軸（按上/下鍵或 Shift），用螢幕垂直量映射到 Y
+                    if self.editor.locked_axis == Some(1) {
+                        let screen_delta = response.drag_delta();
+                        let scale = self.viewer.camera.distance * 0.003;
+                        dy = -screen_delta.y * scale; // 螢幕向上 = Y 向上
+                        dx = 0.0;
+                        dz = 0.0;
+                    }
+
                     for (i, id) in obj_ids.iter().enumerate() {
                         if let Some(obj) = self.scene.objects.get_mut(id) {
                             let orig = original_positions[i];
@@ -502,7 +513,7 @@ impl KolibriApp {
             }
         }
 
-        // D1: Rotate — live preview during step 3 (hover updates rotation)
+        // D1: Rotate — live preview during step 3 (hover updates rotation + position)
         if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations } = self.editor.draw_state.clone() {
             if let Some(pt) = self.editor.mouse_ground {
                 let dx = pt[0] - center[0];
@@ -517,16 +528,42 @@ impl KolibriApp {
                     delta = snapped;
                 }
 
-                // 即時套用旋轉到所有選取物件
+                // 記錄原始位置（第一次進入時計算）
+                // 用 original_rotations 的長度對齊，取當前位置減去已套用的旋轉來還原
+                let prev_delta = *current_angle - ref_angle;
+                let cos_prev = (-prev_delta).cos();
+                let sin_prev = (-prev_delta).sin();
+
+                // 即時套用旋轉+位置到所有選取物件
                 for (i, id) in obj_ids.iter().enumerate() {
-                    let orig = original_rotations.get(i).copied().unwrap_or(0.0);
+                    let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                     if let Some(obj) = self.scene.objects.get_mut(id) {
-                        obj.rotation_y = orig + delta;
+                        // 先還原到原始位置（撤銷上一幀的旋轉）
+                        let cur_px = obj.position[0] - center[0];
+                        let cur_pz = obj.position[2] - center[2];
+                        let orig_px = cur_px * cos_prev - cur_pz * sin_prev;
+                        let orig_pz = cur_px * sin_prev + cur_pz * cos_prev;
+
+                        // 套用新旋轉
+                        let cos_d = delta.cos();
+                        let sin_d = delta.sin();
+                        let new_px = orig_px * cos_d - orig_pz * sin_d;
+                        let new_pz = orig_px * sin_d + orig_pz * cos_d;
+
+                        obj.position[0] = center[0] + new_px;
+                        obj.position[2] = center[2] + new_pz;
+                        obj.rotation_y = orig_rot + delta;
                     }
                 }
+
+                // 更新 cursor dimension 顯示角度
+                let deg = delta.to_degrees();
+                self.editor.cursor_dimension = Some((deg, 0.0, format!("{:.1}°", deg)));
+
                 self.editor.draw_state = DrawState::RotateAngle {
                     obj_ids: obj_ids.to_vec(), center, ref_angle, current_angle: mouse_angle, original_rotations: original_rotations.to_vec(),
                 };
+                self.scene.version += 1;
             }
         }
 

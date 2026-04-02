@@ -8,5 +8,7 @@ mod ribbon;
 #[cfg(feature = "drafting")]
 pub(crate) mod draft_canvas;
 mod ai_analysis;
+#[cfg(feature = "steel")]
+mod steel_conn_dialog;
 
 pub(crate) use material_swatches::draw_material_swatch;

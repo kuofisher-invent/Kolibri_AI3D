@@ -113,9 +113,36 @@ impl KolibriApp {
                         }
                     }
                     DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations } => {
-                        // Step 3: confirm target angle
+                        // Step 3: 確認旋轉 — 套用 rotation_y + 繞中心旋轉位置
                         let delta = *current_angle - *ref_angle;
-                        let _ = (obj_ids, center, delta, original_rotations);
+                        let center = *center;
+                        let obj_ids = obj_ids.clone();
+                        let original_rotations = original_rotations.clone();
+
+                        for (i, id) in obj_ids.iter().enumerate() {
+                            let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
+                            if let Some(obj) = self.scene.objects.get_mut(id) {
+                                // 套用旋轉角
+                                obj.rotation_y = orig_rot + delta;
+
+                                // 繞中心點旋轉位置（XZ 平面）
+                                let px = obj.position[0] - center[0];
+                                let pz = obj.position[2] - center[2];
+                                let cos_d = delta.cos();
+                                let sin_d = delta.sin();
+                                let new_px = px * cos_d - pz * sin_d;
+                                let new_pz = px * sin_d + pz * cos_d;
+                                obj.position[0] = center[0] + new_px;
+                                obj.position[2] = center[2] + new_pz;
+                            }
+                        }
+                        self.scene.version += 1;
+
+                        let deg = delta.to_degrees();
+                        self.file_message = Some((
+                            format!("旋轉 {:.1}° ({} 個物件)", deg, obj_ids.len()),
+                            std::time::Instant::now(),
+                        ));
                         self.editor.draw_state = DrawState::Idle;
                         self.editor.drag_snapshot_taken = false;
                     }
@@ -575,17 +602,131 @@ impl KolibriApp {
                 }
             }
 
-            Tool::SteelConnection => {
+            Tool::SteelConnection | Tool::SteelEndPlate | Tool::SteelShearTab => {
+                // 已選 ≥2 構件 → 開啟 AISC 對話框
+                if self.editor.selected_ids.len() >= 2 {
+                    self.open_connection_dialog();
+                    self.editor.tool = Tool::Select;
+                } else {
+                    // pick 構件並追溯群組
+                    let picked = self.steel_pick_member();
+                    if let Some(id) = picked {
+                        if !self.editor.selected_ids.contains(&id) {
+                            self.editor.selected_ids.push(id);
+                            self.expand_selection_to_groups();
+                        }
+                        if self.editor.selected_ids.len() >= 2 {
+                            self.open_connection_dialog();
+                            self.editor.tool = Tool::Select;
+                        } else {
+                            self.file_message = Some(("✓ 已選第一構件 — 再點第二構件".into(), std::time::Instant::now()));
+                        }
+                    }
+                }
+            }
+
+            Tool::SteelBasePlate => {
+                if !self.editor.selected_ids.is_empty() {
+                    self.open_connection_dialog();
+                    self.editor.tool = Tool::Select;
+                } else {
+                    let picked = self.steel_pick_member();
+                    if let Some(id) = picked {
+                        self.editor.selected_ids = vec![id];
+                        self.expand_selection_to_groups();
+                        self.open_connection_dialog();
+                        self.editor.tool = Tool::Select;
+                    }
+                }
+            }
+
+            Tool::SteelBolt => {
+                // 螺栓放置：點擊面 → 在面上配置螺栓
                 let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
                 let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
                 if let Some(id) = self.pick(mx, my, vw, vh) {
-                    if !self.editor.selected_ids.contains(&id) {
-                        self.editor.selected_ids.push(id);
+                    if let Some(p) = self.ground_snapped() {
+                        self.scene.snapshot();
+                        let bolt_size = self.editor.conn_bolt_size;
+                        let bolt_r = bolt_size.diameter() / 2.0;
+                        let head_r = bolt_size.head_across_flats() / 2.0;
+                        let head_t = bolt_size.head_thickness();
+                        let bolt_name = self.next_name("BOLT");
+
+                        let shank_id = self.scene.insert_cylinder_raw(
+                            format!("{}_shank", bolt_name), p, bolt_r, 50.0, 8, MaterialKind::Metal,
+                        );
+                        let head_id = self.scene.insert_cylinder_raw(
+                            format!("{}_head", bolt_name), [p[0], p[1] + 50.0, p[2]], head_r, head_t, 8, MaterialKind::Metal,
+                        );
+                        for bid in [&shank_id, &head_id] {
+                            if let Some(obj) = self.scene.objects.get_mut(bid) {
+                                obj.component_kind = crate::collision::ComponentKind::Bolt;
+                            }
+                        }
+                        self.scene.create_group(bolt_name, vec![shank_id.clone(), head_id.clone()]);
+                        self.scene.version += 1;
+                        self.file_message = Some((format!("{} 螺栓已放置", bolt_size.label()), std::time::Instant::now()));
                     }
-                    if self.editor.selected_ids.len() >= 2 {
-                        self.file_message = Some(("接頭已標記（選取兩構件）".into(), std::time::Instant::now()));
-                    } else {
-                        self.file_message = Some(("選取第二個構件".into(), std::time::Instant::now()));
+                }
+            }
+
+            Tool::SteelWeld => {
+                // 焊接標記：兩點畫焊接線
+                match &self.editor.draw_state {
+                    DrawState::Idle => {
+                        if let Some(p) = self.ground_snapped() {
+                            self.editor.draw_state = DrawState::LineFrom { p1: p };
+                            self.file_message = Some(("焊接起點 — 點擊終點".into(), std::time::Instant::now()));
+                        }
+                    }
+                    DrawState::LineFrom { p1 } => {
+                        let p1 = *p1;
+                        if let Some(p2) = self.ground_snapped() {
+                            self.scene.snapshot();
+                            let weld_name = self.next_name("WELD");
+                            let weld_size = self.editor.conn_weld_size;
+                            let id = self.scene.insert_weld_line(weld_name, p1, p2, weld_size);
+                            if let Some(obj) = self.scene.objects.get_mut(&id) {
+                                obj.component_kind = crate::collision::ComponentKind::Weld;
+                            }
+                            self.scene.version += 1;
+                            let length = ((p2[0]-p1[0]).powi(2) + (p2[1]-p1[1]).powi(2) + (p2[2]-p1[2]).powi(2)).sqrt();
+                            self.file_message = Some((
+                                format!("焊接已標記: {} L={:.0}mm S={:.0}mm",
+                                    self.editor.conn_weld_type.label(), length, weld_size),
+                                std::time::Instant::now(),
+                            ));
+                            self.editor.draw_state = DrawState::Idle;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Tool::SteelStiffener => {
+                // 肋板：選取柱 → 在翼板內側加肋板
+                let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
+                let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
+                if let Some(id) = self.pick(mx, my, vw, vh) {
+                    if let Some(p) = self.ground_snapped() {
+                        self.scene.snapshot();
+                        let section = self.get_member_section(&id);
+                        let (h, b, tw, tf) = section;
+                        let stiff_w = (b - tw) / 2.0 - 2.0; // 翼板內淨寬
+                        let stiff_h = h - 2.0 * tf; // 翼板間淨高
+                        let stiff_t = tf.max(12.0_f32);
+                        let name_base = self.next_name("STIFF");
+
+                        let id = self.scene.insert_box_raw(
+                            name_base, [p[0] - stiff_w / 2.0, p[1], p[2]],
+                            stiff_w, stiff_h, stiff_t, MaterialKind::Metal,
+                        );
+                        if let Some(obj) = self.scene.objects.get_mut(&id) {
+                            obj.component_kind = crate::collision::ComponentKind::Plate;
+                        }
+                        self.scene.version += 1;
+                        self.file_message = Some(("肋板已建立".into(), std::time::Instant::now()));
                     }
                 }
             }

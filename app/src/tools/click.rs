@@ -304,7 +304,9 @@ impl KolibriApp {
             }
             #[cfg(feature = "steel")]
             Tool::SteelColumn | Tool::SteelBeam | Tool::SteelBrace
-            | Tool::SteelPlate | Tool::SteelGrid | Tool::SteelConnection => {
+            | Tool::SteelPlate | Tool::SteelGrid | Tool::SteelConnection
+            | Tool::SteelEndPlate | Tool::SteelShearTab | Tool::SteelBasePlate
+            | Tool::SteelBolt | Tool::SteelWeld | Tool::SteelStiffener => {
                 self.on_click_edit();
             }
 

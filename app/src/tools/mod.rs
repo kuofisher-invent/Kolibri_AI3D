@@ -7,3 +7,7 @@ mod measure;
 mod picking;
 mod menu_actions;
 pub(crate) mod geometry_ops;
+#[cfg(feature = "steel")]
+mod steel_connections;
+#[cfg(feature = "steel")]
+mod steel_exports;
