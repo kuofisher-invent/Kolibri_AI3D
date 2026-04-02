@@ -224,3 +224,60 @@ cargo clippy
 - 修改 `.git/` 目錄
 - 執行 `cargo publish`
 - 在未經確認下推送到遠端
+
+## 測試驗證規範（必須遵守）
+
+### 核心原則
+**修改完程式碼後，必須自己啟動 APP 視窗並用截圖驗證結果，不可以只跑單元測試就說完成。**
+
+### 測試流程
+1. **編譯**：`cargo build --release` 確認零錯誤
+2. **單元測試**：`cargo test` 確認不破壞既有功能
+3. **啟動 APP**：`start target/release/kolibri-cad.exe`
+4. **視窗操作**：用 Win32 API（AttachThreadInput + SetForegroundWindow）操控 APP 視窗
+5. **截圖比對**：每次操作後截圖，用 `Read` 工具查看截圖，確認 UI 和 3D 結果正確
+6. **Console 檢查**：打開 APP 的 Console 面板，查看日誌訊息是否有錯誤
+7. **只有截圖確認結果正確後，才能告訴使用者「已完成」**
+
+### 自動化操控 APP 的方法
+```powershell
+# 焦點控制（必須用 AttachThreadInput 才能穩定搶到焦點）
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Threading;
+public class WinAuto {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool c);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+    [DllImport("user32.dll")] public static extern void SetCursorPos(int X, int Y);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, uint e);
+    public static void ForceFG(IntPtr h) {
+        uint m=GetCurrentThreadId(),p;
+        uint f=GetWindowThreadProcessId(GetForegroundWindow(),out p);
+        uint t=GetWindowThreadProcessId(h,out p);
+        if(m!=f)AttachThreadInput(m,f,true);
+        if(m!=t)AttachThreadInput(m,t,true);
+        ShowWindow(h,3); BringWindowToTop(h); SetForegroundWindow(h);
+        if(m!=f)AttachThreadInput(m,f,false);
+        if(m!=t)AttachThreadInput(m,t,false);
+        Thread.Sleep(300);
+    }
+}
+'@
+```
+
+### 截圖後必須做的事
+- **用 `Read` 工具讀取截圖 PNG** — 確認 3D 場景中的物件位置、大小、形狀是否正確
+- **對比修改前後的差異** — 是否真的修好了問題
+- **如果截圖顯示問題仍在** — 繼續修正，不可以跟使用者說「請你手動測試」
+
+### 常見陷阱（必須避免）
+- **不可只看 `cargo test` 通過就說修好了** — 單元測試不涵蓋 GUI 行為
+- **不可用像素座標猜測按鈕位置** — egui ScrollArea 會讓按鈕座標變動，必須先裁剪截圖量測
+- **不可盲目重複修改同一段程式碼** — 先用 Console 日誌或截圖找出 root cause
+- **移動/旋轉工具的問題** — 通常是因為 selected_ids 裡有群組 ID（不在 scene.objects 中），需要先 expand_selection_to_groups

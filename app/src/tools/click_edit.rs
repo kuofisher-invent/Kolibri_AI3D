@@ -25,11 +25,28 @@ impl KolibriApp {
                         if !self.editor.selected_ids.is_empty() {
                             if let Some(from) = self.ground_snapped() {
                                 let ids = self.editor.selected_ids.clone();
+
+                                // DEBUG: 檢查 IDs 是否在 scene.objects 中
+                                let mut found = 0;
+                                let mut not_found = 0;
+                                for id in &ids {
+                                    if self.scene.objects.contains_key(id) { found += 1; }
+                                    else { not_found += 1; }
+                                }
+                                self.console_push("MOVE", format!(
+                                    "Move 開始: {} IDs (found={}, missing={}), from=[{:.0},{:.0},{:.0}]",
+                                    ids.len(), found, not_found, from[0], from[1], from[2]
+                                ));
+                                if not_found > 0 {
+                                    // 有些 ID 是群組 ID → 展開到子物件
+                                    self.console_push("MOVE", "有 missing IDs → 展開群組子物件".into());
+                                    self.expand_selection_to_groups();
+                                }
+                                let ids = self.editor.selected_ids.clone(); // 重新取（可能已展開）
+
                                 let orig_pos: Vec<[f32; 3]> = ids.iter()
                                     .map(|id| self.scene.objects.get(id).map_or([0.0; 3], |o| o.position))
                                     .collect();
-                                // Ctrl held = copy mode
-                                let ctrl = false; // 在 click 中不易取得 modifier，drag 模式中處理
                                 let snap_ids: Vec<&str> = ids.iter().map(|s| s.as_str()).collect();
                                 self.scene.snapshot_ids(&snap_ids, "移動");
                                 self.editor.draw_state = DrawState::MoveFrom {
@@ -41,20 +58,19 @@ impl KolibriApp {
                         }
                     }
                     DrawState::MoveFrom { from, obj_ids, original_positions } => {
-                        // 第二次點擊：確認移動終點
+                        // 第二次點擊：確認移動終點（ground plane XZ 差值）
                         if let Some(to) = self.ground_snapped() {
                             let dx = to[0] - from[0];
-                            let dy = to[1] - from[1];
                             let dz = to[2] - from[2];
-                            // 套用位移（以 original_positions 為基準）
                             for (i, id) in obj_ids.iter().enumerate() {
                                 if let Some(obj) = self.scene.objects.get_mut(id) {
                                     let orig = original_positions[i];
-                                    obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
+                                    obj.position = [orig[0] + dx, orig[1], orig[2] + dz];
+                                    obj.obj_version += 1;
                                 }
                             }
                             self.scene.version += 1;
-                            self.editor.last_move_delta = Some([dx, dy, dz]);
+                            self.editor.last_move_delta = Some([dx, 0.0, dz]);
                             self.editor.draw_state = DrawState::Idle;
                             self.editor.drag_snapshot_taken = false;
                         }
@@ -97,9 +113,11 @@ impl KolibriApp {
                             let dx = pt[0] - center[0];
                             let dz = pt[2] - center[2];
                             let ref_angle = dz.atan2(dx);
-                            // 記錄所有物件的原始旋轉角
                             let original_rotations: Vec<f32> = obj_ids.iter().map(|id| {
                                 self.scene.objects.get(id).map_or(0.0, |o| o.rotation_y)
+                            }).collect();
+                            let original_positions: Vec<[f32; 3]> = obj_ids.iter().map(|id| {
+                                self.scene.objects.get(id).map_or([0.0; 3], |o| o.position)
                             }).collect();
                             let ids: Vec<&str> = obj_ids.iter().map(|s| s.as_str()).collect();
                             self.scene.snapshot_ids(&ids, "旋轉");
@@ -109,31 +127,27 @@ impl KolibriApp {
                                 ref_angle,
                                 current_angle: ref_angle,
                                 original_rotations,
+                                original_positions,
                             };
                         }
                     }
-                    DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations } => {
-                        // Step 3: 確認旋轉 — 套用 rotation_y + 繞中心旋轉位置
+                    DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations, original_positions } => {
+                        // Step 3: 確認旋轉 — 從原始位置計算最終位置
                         let delta = *current_angle - *ref_angle;
                         let center = *center;
-                        let obj_ids = obj_ids.clone();
-                        let original_rotations = original_rotations.clone();
+                        let cos_d = delta.cos();
+                        let sin_d = delta.sin();
 
                         for (i, id) in obj_ids.iter().enumerate() {
                             let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
+                            let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
-                                // 套用旋轉角
                                 obj.rotation_y = orig_rot + delta;
-
-                                // 繞中心點旋轉位置（XZ 平面）
-                                let px = obj.position[0] - center[0];
-                                let pz = obj.position[2] - center[2];
-                                let cos_d = delta.cos();
-                                let sin_d = delta.sin();
-                                let new_px = px * cos_d - pz * sin_d;
-                                let new_pz = px * sin_d + pz * cos_d;
-                                obj.position[0] = center[0] + new_px;
-                                obj.position[2] = center[2] + new_pz;
+                                let px = orig_pos[0] - center[0];
+                                let pz = orig_pos[2] - center[2];
+                                obj.position[0] = center[0] + px * cos_d - pz * sin_d;
+                                obj.position[2] = center[2] + px * sin_d + pz * cos_d;
+                                obj.obj_version += 1;
                             }
                         }
                         self.scene.version += 1;

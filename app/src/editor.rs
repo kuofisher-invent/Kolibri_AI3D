@@ -254,7 +254,7 @@ pub(crate) enum DrawState {
     PieCenter { center: [f32; 3] },
     PieRadius { center: [f32; 3], edge1: [f32; 3] },
     RotateRef { obj_ids: Vec<String>, center: [f32; 3] },
-    RotateAngle { obj_ids: Vec<String>, center: [f32; 3], ref_angle: f32, current_angle: f32, original_rotations: Vec<f32> },
+    RotateAngle { obj_ids: Vec<String>, center: [f32; 3], ref_angle: f32, current_angle: f32, original_rotations: Vec<f32>, original_positions: Vec<[f32; 3]> },
     Scaling { obj_id: String, handle: ScaleHandle, original_dims: [f32; 3] },
     Offsetting { obj_id: String, face: PullFace, distance: f32 },
     FollowPath { source_id: String, path_points: Vec<[f32; 3]> },
