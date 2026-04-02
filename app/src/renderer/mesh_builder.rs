@@ -351,6 +351,10 @@ fn build_single_object_mesh(
         }
     }
 
+    // Apply XYZ rotation
+    apply_rotation(obj, 0, &mut face_verts);
+    apply_rotation(obj, 0, &mut edge_verts);
+
     ObjMeshCache { obj_version: 0, lod_bucket: 0, face_verts, face_idx, edge_verts }
 }
 
@@ -963,34 +967,8 @@ pub(crate) fn build_scene_mesh(
             }
         }
 
-        // Apply Y-axis rotation around object center
-        if obj.rotation_y.abs() > 0.001 {
-            let (sin, cos) = obj.rotation_y.sin_cos();
-            let (center_offset_x, center_offset_z) = match &obj.shape {
-                Shape::Box { width, depth, .. } => (*width / 2.0, *depth / 2.0),
-                Shape::Cylinder { radius, .. } => (*radius, *radius),
-                Shape::Sphere { radius, .. } => (*radius, *radius),
-                Shape::Line { .. } => (0.0, 0.0),
-                Shape::Mesh(ref mesh) => {
-                    let (min, max) = mesh.aabb();
-                    ((max[0] - min[0]) / 2.0, (max[2] - min[2]) / 2.0)
-                }
-            };
-            let cx = obj.position[0] + center_offset_x;
-            let cz = obj.position[2] + center_offset_z;
-
-            for v in &mut verts[start_idx..] {
-                let dx = v.position[0] - cx;
-                let dz = v.position[2] - cz;
-                v.position[0] = cx + dx * cos - dz * sin;
-                v.position[2] = cz + dx * sin + dz * cos;
-                // Also rotate normals
-                let nx = v.normal[0];
-                let nz = v.normal[2];
-                v.normal[0] = nx * cos - nz * sin;
-                v.normal[2] = nx * sin + nz * cos;
-            }
-        }
+        // Apply XYZ rotation around object center
+        apply_rotation(obj, start_idx, &mut verts);
     }
 
     // ── Render the shared free mesh ──────────────────────────────────────────
