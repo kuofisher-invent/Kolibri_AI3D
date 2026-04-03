@@ -54,6 +54,7 @@ pub enum McpCommand {
     ScaleObject { id: String, factor: [f32; 3] },
     DuplicateObject { id: String, offset: [f32; 3] },
     GetObjectInfo { id: String },
+    SelectObject { ids: Vec<String> },
     Undo,
     Redo,
     Shutdown,
@@ -259,6 +260,11 @@ fn handle_mcp_request(
                     "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } }
                 },
                 {
+                    "name": "select_object",
+                    "description": "選取物件（支援多選）",
+                    "inputSchema": { "type": "object", "required": ["ids"], "properties": { "ids":{"type":"array","items":{"type":"string"}} } }
+                },
+                {
                     "name": "undo",
                     "description": "撤銷上一步",
                     "inputSchema": { "type": "object", "properties": {} }
@@ -336,6 +342,11 @@ fn handle_mcp_request(
                 },
                 "get_object_info" => McpCommand::GetObjectInfo {
                     id: args["id"].as_str().unwrap_or("").into(),
+                },
+                "select_object" => McpCommand::SelectObject {
+                    ids: args.get("ids").and_then(|v| v.as_array()).map(|a|
+                        a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+                    ).unwrap_or_default(),
                 },
                 "undo" => McpCommand::Undo,
                 "redo" => McpCommand::Redo,
@@ -435,6 +446,7 @@ fn handle_tools_list(id: Option<Value>) -> JsonRpcResponse {
             { "name": "scale_object", "description": "縮放物件 factor=[x,y,z]倍率", "inputSchema": { "type": "object", "required": ["id","factor"], "properties": { "id":{"type":"string"}, "factor":{"type":"array","items":{"type":"number"}} } } },
             { "name": "duplicate_object", "description": "複製物件 offset=[x,y,z]mm", "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"}, "offset":{"type":"array","items":{"type":"number"},"default":[500,0,0]} } } },
             { "name": "get_object_info", "description": "取得單一物件詳細資訊", "inputSchema": { "type": "object", "required": ["id"], "properties": { "id":{"type":"string"} } } },
+            { "name": "select_object", "description": "選取物件（支援多選）", "inputSchema": { "type": "object", "required": ["ids"], "properties": { "ids":{"type":"array","items":{"type":"string"},"description":"物件 ID 陣列"} } } },
             { "name": "undo", "description": "撤銷上一步", "inputSchema": { "type": "object", "properties": {} } },
             { "name": "redo", "description": "重做", "inputSchema": { "type": "object", "properties": {} } },
             { "name": "shutdown", "description": "關閉應用程式", "inputSchema": { "type": "object", "properties": {} } }

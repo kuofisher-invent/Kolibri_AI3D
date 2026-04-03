@@ -181,6 +181,12 @@ impl KolibriApp {
                     McpResult { success: false, data: json!({ "error": "Object not found" }) }
                 }
             }
+            McpCommand::SelectObject { ids } => {
+                self.editor.selected_ids = ids.iter().cloned().collect();
+                self.editor.selected_face = None;
+                let count = self.editor.selected_ids.len();
+                McpResult { success: true, data: json!({ "selected": count, "ids": ids }) }
+            }
             McpCommand::Undo => {
                 let ok = self.scene.undo();
                 McpResult { success: ok, data: json!({ "undo": ok, "undo_count": self.scene.undo_count() }) }
