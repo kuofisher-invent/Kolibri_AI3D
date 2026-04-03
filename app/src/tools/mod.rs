@@ -10,4 +10,6 @@ pub(crate) mod geometry_ops;
 #[cfg(feature = "steel")]
 mod steel_connections;
 #[cfg(feature = "steel")]
+mod steel_conn_helpers;
+#[cfg(feature = "steel")]
 mod steel_exports;
