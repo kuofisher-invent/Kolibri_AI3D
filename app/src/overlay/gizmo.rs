@@ -62,6 +62,38 @@ impl KolibriApp {
                     }
                 }
 
+                // ── 世界空間角點標記（每個物件 8 個角點 + 3D 座標文字）──
+                {
+                    let corner_colors = [
+                        egui::Color32::from_rgb(255, 80, 80),   // 紅
+                        egui::Color32::from_rgb(80, 255, 80),   // 綠
+                        egui::Color32::from_rgb(80, 120, 255),  // 藍
+                        egui::Color32::from_rgb(255, 200, 40),  // 黃
+                    ];
+                    for (obj_idx, sel_id) in self.editor.selected_ids.iter().enumerate() {
+                        if let Some(obj) = self.scene.objects.get(sel_id) {
+                            let color = corner_colors[obj_idx % corner_colors.len()];
+                            let bg = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180);
+                            let corners = crate::tools::steel_conn_helpers::rotated_obj_corners(obj);
+                            let short_name = obj.name.chars().take(6).collect::<String>();
+                            for (ci, c) in corners.iter().enumerate() {
+                                if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
+                                    ui.painter().circle_filled(sp, 4.0, color);
+                                    // 座標文字：物件名_角點編號 (X, Y, Z)
+                                    let label = format!("{}_{} ({:.0},{:.0},{:.0})",
+                                        short_name, ci, c[0], c[1], c[2]);
+                                    let pos = egui::pos2(sp.x + 6.0, sp.y - 2.0);
+                                    let galley = ui.painter().layout_no_wrap(
+                                        label, egui::FontId::monospace(9.0), color);
+                                    let text_rect = egui::Rect::from_min_size(pos, galley.size()).expand(1.0);
+                                    ui.painter().rect_filled(text_rect, 2.0, bg);
+                                    ui.painter().galley(pos, galley, color);
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ── Object center pivot（選取物件中心十字）──
                 if self.editor.selected_ids.len() == 1 {
                     if let Some(obj) = self.editor.selected_ids.first()
@@ -197,36 +229,22 @@ impl KolibriApp {
                             _ => (0.0, 0.0, 0.0),
                         };
                         if sx > 0.0 {
-                            // 旋轉函式：將局部偏移繞物件中心旋轉
+                            // 旋轉函式：將局部偏移繞物件中心旋轉（四元數版）
                             let rot_fn = {
-                                let [rx, ry, rz] = obj.rotation_xyz;
-                                let has_rot = rx.abs() > 1e-6 || ry.abs() > 1e-6 || rz.abs() > 1e-6 || obj.rotation_y.abs() > 1e-6;
-                                let eff_ry = if rx.abs() < 1e-6 && rz.abs() < 1e-6 && ry.abs() < 1e-6 { obj.rotation_y } else { ry };
+                                let q_arr = crate::tools::rotation_math::effective_quat(
+                                    obj.rotation_quat, obj.rotation_xyz, obj.rotation_y,
+                                );
+                                let q = glam::Quat::from_array(q_arr);
+                                let has_rot = !q.is_near_identity();
                                 let half = [sx / 2.0, sy / 2.0, sz / 2.0];
-                                let (sin_x, cos_x) = rx.sin_cos();
-                                let (sin_y, cos_y) = eff_ry.sin_cos();
-                                let (sin_z, cos_z) = rz.sin_cos();
-                                let r00 = cos_y*cos_z + sin_y*sin_x*sin_z;
-                                let r01 = -cos_y*sin_z + sin_y*sin_x*cos_z;
-                                let r02 = sin_y*cos_x;
-                                let r10 = cos_x*sin_z;
-                                let r11 = cos_x*cos_z;
-                                let r12 = -sin_x;
-                                let r20 = -sin_y*cos_z + cos_y*sin_x*sin_z;
-                                let r21 = sin_y*sin_z + cos_y*sin_x*cos_z;
-                                let r22 = cos_y*cos_x;
+                                let mat = glam::Mat3::from_quat(q);
                                 move |local: [f32; 3]| -> [f32; 3] {
                                     if !has_rot {
                                         return [pos.x + local[0], pos.y + local[1], pos.z + local[2]];
                                     }
-                                    let dx = local[0] - half[0];
-                                    let dy = local[1] - half[1];
-                                    let dz = local[2] - half[2];
-                                    [
-                                        pos.x + half[0] + r00*dx + r01*dy + r02*dz,
-                                        pos.y + half[1] + r10*dx + r11*dy + r12*dz,
-                                        pos.z + half[2] + r20*dx + r21*dy + r22*dz,
-                                    ]
+                                    let d = glam::Vec3::new(local[0] - half[0], local[1] - half[1], local[2] - half[2]);
+                                    let r = mat * d;
+                                    [pos.x + half[0] + r.x, pos.y + half[1] + r.y, pos.z + half[2] + r.z]
                                 }
                             };
                             // 8 corners + 6 face centers = 14 grip points

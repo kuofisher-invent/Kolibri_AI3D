@@ -247,6 +247,8 @@ impl KolibriApp {
             clone.name = format!("{}_{}", profile.name, i);
             clone.position = [mid_x, profile.position[1], mid_z];
             clone.rotation_y = angle;
+            clone.rotation_xyz[1] = angle;
+            clone.rotation_quat = glam::Quat::from_rotation_y(angle).to_array();
 
             // Stretch width to fill the segment length
             if let Shape::Box { ref mut width, .. } = clone.shape {

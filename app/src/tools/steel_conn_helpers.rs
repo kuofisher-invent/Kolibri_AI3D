@@ -47,48 +47,22 @@ pub(crate) fn rotated_obj_corners(obj: &SceneObject) -> Vec<[f32; 3]> {
         [0.0, ext[1], ext[2]], [ext[0], ext[1], ext[2]],
     ];
 
-    let [rx, ry, rz] = obj.rotation_xyz;
-    let has_rotation = rx.abs() > 1e-6 || ry.abs() > 1e-6 || rz.abs() > 1e-6
-        || obj.rotation_y.abs() > 1e-6;
+    let q_arr = crate::tools::rotation_math::effective_quat(
+        obj.rotation_quat, obj.rotation_xyz, obj.rotation_y,
+    );
+    let q = glam::Quat::from_array(q_arr);
 
-    if !has_rotation {
+    if q.is_near_identity() {
         return local_corners.iter().map(|c| [p[0]+c[0], p[1]+c[1], p[2]+c[2]]).collect();
     }
 
-    // 旋轉中心 = position + center_offset
-    let cx = p[0] + center_off[0];
-    let cy = p[1] + center_off[1];
-    let cz = p[2] + center_off[2];
-
-    // 決定有效的 Y 旋轉角（與 mesh_builder 一致）
-    let use_y_only = rx.abs() < 1e-6 && rz.abs() < 1e-6;
-    let eff_ry = if use_y_only {
-        if ry.abs() > 1e-6 { ry } else { obj.rotation_y }
-    } else { ry };
-
-    // 旋轉矩陣 R = Ry * Rx * Rz（與 mesh_builder 一致）
-    let (sx, cx_r) = rx.sin_cos();
-    let (sy, cy_r) = eff_ry.sin_cos();
-    let (sz, cz_r) = rz.sin_cos();
-    let r00 = cy_r * cz_r + sy * sx * sz;
-    let r01 = -cy_r * sz + sy * sx * cz_r;
-    let r02 = sy * cx_r;
-    let r10 = cx_r * sz;
-    let r11 = cx_r * cz_r;
-    let r12 = -sx;
-    let r20 = -sy * cz_r + cy_r * sx * sz;
-    let r21 = sy * sz + cy_r * sx * cz_r;
-    let r22 = cy_r * cx_r;
+    let center = glam::Vec3::new(p[0] + center_off[0], p[1] + center_off[1], p[2] + center_off[2]);
+    let mat = glam::Mat3::from_quat(q);
 
     local_corners.iter().map(|lc| {
-        let dx = p[0] + lc[0] - cx;
-        let dy = p[1] + lc[1] - cy;
-        let dz = p[2] + lc[2] - cz;
-        [
-            cx + r00 * dx + r01 * dy + r02 * dz,
-            cy + r10 * dx + r11 * dy + r12 * dz,
-            cz + r20 * dx + r21 * dy + r22 * dz,
-        ]
+        let d = glam::Vec3::new(p[0] + lc[0] - center.x, p[1] + lc[1] - center.y, p[2] + lc[2] - center.z);
+        let r = mat * d;
+        [center.x + r.x, center.y + r.y, center.z + r.z]
     }).collect()
 }
 
@@ -584,6 +558,7 @@ impl KolibriApp {
             if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
                 obj.component_kind = ComponentKind::Bolt;
                 obj.rotation_xyz = bolt_rotation;
+                let qy = glam::Quat::from_rotation_y(bolt_rotation[1]); let qx = glam::Quat::from_rotation_x(bolt_rotation[0]); let qz = glam::Quat::from_rotation_z(bolt_rotation[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
             }
             ids.push(shank_id);
 
@@ -604,6 +579,7 @@ impl KolibriApp {
             if let Some(obj) = self.scene.objects.get_mut(&head_id) {
                 obj.component_kind = ComponentKind::Bolt;
                 obj.rotation_xyz = bolt_rotation;
+                let qy = glam::Quat::from_rotation_y(bolt_rotation[1]); let qx = glam::Quat::from_rotation_x(bolt_rotation[0]); let qz = glam::Quat::from_rotation_z(bolt_rotation[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
             }
             ids.push(head_id);
         }

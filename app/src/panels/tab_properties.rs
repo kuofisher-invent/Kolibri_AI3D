@@ -623,6 +623,8 @@ impl KolibriApp {
             let mut deg = obj.rotation_y.to_degrees();
             if ui.add(egui::DragValue::new(&mut deg).speed(1.0).prefix("Y軸: ").suffix("°").range(-360.0..=360.0)).changed() {
                 obj.rotation_y = deg.to_radians();
+                obj.rotation_xyz[1] = obj.rotation_y;
+                obj.rotation_quat = glam::Quat::from_rotation_y(obj.rotation_y).to_array();
             }
         });
         ui.add_space(8.0);

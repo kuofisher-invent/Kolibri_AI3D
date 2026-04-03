@@ -251,6 +251,23 @@ impl KolibriApp {
     }
 
     /// 停止 debug trace 並寫入 JSON 檔
+    /// 將目前記錄 flush 到檔案（不停止、不清空）
+    pub(crate) fn flush_debug_trace(&mut self) {
+        let count = self.editor.debug_trace_records.len();
+        if count == 0 { return; }
+        if let Some(path) = &self.editor.debug_trace_path {
+            let data = serde_json::json!({
+                "version": "2.0",
+                "mode": "delta",
+                "total_records": count,
+                "records": &self.editor.debug_trace_records,
+            });
+            if let Ok(json_str) = serde_json::to_string_pretty(&data) {
+                let _ = std::fs::write(path, json_str);
+            }
+        }
+    }
+
     pub(crate) fn stop_debug_trace(&mut self) {
         self.editor.debug_trace_active = false;
         let count = self.editor.debug_trace_records.len();
@@ -331,15 +348,57 @@ impl KolibriApp {
         let objects: Vec<crate::editor::DebugTraceObject> = target_ids.iter()
             .filter_map(|id| {
                 self.scene.objects.get(id).map(|obj| {
+                    // 取得 shape 尺寸和世界空間 8 角點
+                    let (dimensions, world_corners) = match &obj.shape {
+                        kolibri_core::scene::Shape::Box { width, height, depth } => {
+                            let w = *width; let h = *height; let d = *depth;
+                            let p = obj.position;
+                            // 8 個角點（未旋轉）
+                            let local_corners: [[f32; 3]; 8] = [
+                                [p[0],   p[1],   p[2]  ], [p[0]+w, p[1],   p[2]  ],
+                                [p[0]+w, p[1]+h, p[2]  ], [p[0],   p[1]+h, p[2]  ],
+                                [p[0],   p[1],   p[2]+d], [p[0]+w, p[1],   p[2]+d],
+                                [p[0]+w, p[1]+h, p[2]+d], [p[0],   p[1]+h, p[2]+d],
+                            ];
+                            // 旋轉中心
+                            let center = glam::Vec3::new(p[0] + w/2.0, p[1] + h/2.0, p[2] + d/2.0);
+                            // 四元數旋轉
+                            let q_arr = crate::tools::rotation_math::effective_quat(
+                                obj.rotation_quat, obj.rotation_xyz, obj.rotation_y,
+                            );
+                            let q = glam::Quat::from_array(q_arr);
+                            let corners: Vec<[f32; 3]> = if !q.is_near_identity() {
+                                let mat = glam::Mat3::from_quat(q);
+                                local_corners.iter().map(|v| {
+                                    let d = glam::Vec3::new(v[0]-center.x, v[1]-center.y, v[2]-center.z);
+                                    let r = mat * d;
+                                    [center.x + r.x, center.y + r.y, center.z + r.z]
+                                }).collect()
+                            } else {
+                                local_corners.to_vec()
+                            };
+                            (Some([w, h, d]), Some(corners))
+                        }
+                        _ => (None, None),
+                    };
                     crate::editor::DebugTraceObject {
                         id: id.clone(),
                         name: obj.name.clone(),
                         position: obj.position,
                         rotation_xyz: obj.rotation_xyz,
+                        dimensions,
+                        world_corners,
                     }
                 })
             })
             .collect();
+
+        // 取旋轉盤中心和旋轉軸
+        let (rotate_center, rotate_axis) = match &self.editor.draw_state {
+            DrawState::RotateRef { center, rotate_axis, .. } => (Some(*center), Some(*rotate_axis)),
+            DrawState::RotateAngle { center, rotate_axis, .. } => (Some(*center), Some(*rotate_axis)),
+            _ => (None, None),
+        };
 
         let record = crate::editor::DebugTraceRecord {
             t_ms,
@@ -347,10 +406,17 @@ impl KolibriApp {
             draw_state,
             mouse_screen: self.editor.mouse_screen,
             mouse_ground: self.editor.mouse_ground,
+            rotate_center,
+            rotate_axis,
             objects,
         };
 
         self.editor.debug_trace_records.push(record);
+
+        // 每 100 筆自動 flush 到檔案（避免資料遺失）
+        if self.editor.debug_trace_records.len() % 100 == 0 && self.editor.debug_trace_records.len() > 0 {
+            self.flush_debug_trace();
+        }
 
         // 安全限制：超過 100,000 筆自動停止
         if self.editor.debug_trace_records.len() >= 100_000 {

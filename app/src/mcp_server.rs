@@ -576,6 +576,8 @@ fn execute_tool(scene: &mut crate::scene::Scene, ai_log: &mut crate::ai_log::AiL
             let deg = args["angle_deg"].as_f64().unwrap_or(0.0) as f32;
             if let Some(obj) = scene.objects.get_mut(&oid) {
                 obj.rotation_y += deg.to_radians();
+                obj.rotation_xyz[1] = obj.rotation_y;
+                obj.rotation_quat = glam::Quat::from_rotation_y(obj.rotation_y).to_array();
                 scene.version += 1;
                 json!({ "success": true, "rotated": oid })
             } else {

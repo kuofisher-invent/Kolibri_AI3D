@@ -141,6 +141,8 @@ impl KolibriApp {
                                 clone.position[0] = cx + dx * cos_a - dz * sin_a;
                                 clone.position[2] = cz + dx * sin_a + dz * cos_a;
                                 clone.rotation_y += angle;
+                                clone.rotation_xyz[1] = clone.rotation_y;
+                                clone.rotation_quat = glam::Quat::from_rotation_y(clone.rotation_y).to_array();
                                 new_ids.push(clone.id.clone());
                                 self.scene.objects.insert(clone.id.clone(), clone);
                             }
@@ -282,30 +284,20 @@ impl KolibriApp {
                     let delta = angle.to_radians();
                     let center = *center;
                     let axis = *rotate_axis;
-                    let cos_d = delta.cos();
-                    let sin_d = delta.sin();
 
                     for (i, id) in obj_ids.iter().enumerate() {
-                        let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
+                        let orig_quat = original_rotations.get(i).copied().unwrap_or([0.0, 0.0, 0.0, 1.0]);
                         let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                         if let Some(obj) = self.scene.objects.get_mut(id) {
-                            obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
-                            // 永遠同步 rotation_y
-                            obj.rotation_y = obj.rotation_xyz[1];
-                            let cos_d = delta.cos();
-                            let sin_d = delta.sin();
-                            let (pa, pb) = match axis {
-                                0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]),
-                                2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]),
-                                _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]),
-                            };
-                            let na = pa * cos_d - pb * sin_d;
-                            let nb = pa * sin_d + pb * cos_d;
-                            match axis {
-                                0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
-                                2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
-                                _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
-                            }
+                            let half = crate::tools::rotation_math::shape_half_dims(&obj.shape);
+                            let (new_pos, new_quat) = crate::tools::rotation_math::orbit_object(
+                                orig_pos, orig_quat, half, center, axis, delta,
+                            );
+                            obj.position = new_pos;
+                            obj.rotation_quat = new_quat;
+                            let euler = crate::tools::rotation_math::quat_to_euler(new_quat);
+                            obj.rotation_xyz = euler;
+                            obj.rotation_y = euler[1];
                             obj.obj_version += 1;
                         }
                     }

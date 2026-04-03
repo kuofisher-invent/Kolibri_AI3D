@@ -2012,6 +2012,7 @@ dependencies = [
  "async-stream",
  "axum",
  "futures-core",
+ "glam",
  "kolibri-core",
  "kolibri-io",
  "kolibri-skp",

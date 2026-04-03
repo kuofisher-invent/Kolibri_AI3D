@@ -420,6 +420,7 @@ impl KolibriApp {
                 if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
                     obj.component_kind = ComponentKind::Bolt;
                     obj.rotation_xyz = bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(bolt_rot[1]); let qx = glam::Quat::from_rotation_x(bolt_rot[0]); let qz = glam::Quat::from_rotation_z(bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
                 }
                 child_ids.push(shank_id);
 
@@ -438,6 +439,7 @@ impl KolibriApp {
                 if let Some(obj) = self.scene.objects.get_mut(&head_id) {
                     obj.component_kind = ComponentKind::Bolt;
                     obj.rotation_xyz = bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(bolt_rot[1]); let qx = glam::Quat::from_rotation_x(bolt_rot[0]); let qz = glam::Quat::from_rotation_z(bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
                 }
                 child_ids.push(head_id);
             }
@@ -797,6 +799,7 @@ impl KolibriApp {
             if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
                 obj.component_kind = ComponentKind::Bolt;
                 obj.rotation_xyz = bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(bolt_rot[1]); let qx = glam::Quat::from_rotation_x(bolt_rot[0]); let qz = glam::Quat::from_rotation_z(bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
             }
             child_ids.push(shank_id);
 
@@ -809,6 +812,7 @@ impl KolibriApp {
             if let Some(obj) = self.scene.objects.get_mut(&head_id) {
                 obj.component_kind = ComponentKind::Bolt;
                 obj.rotation_xyz = bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(bolt_rot[1]); let qx = glam::Quat::from_rotation_x(bolt_rot[0]); let qz = glam::Quat::from_rotation_z(bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
             }
             child_ids.push(head_id);
         }
@@ -842,6 +846,7 @@ impl KolibriApp {
                 if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
                     obj.component_kind = ComponentKind::Bolt;
                     obj.rotation_xyz = col_bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(col_bolt_rot[1]); let qx = glam::Quat::from_rotation_x(col_bolt_rot[0]); let qz = glam::Quat::from_rotation_z(col_bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
                 }
                 child_ids.push(shank_id);
 
@@ -853,6 +858,7 @@ impl KolibriApp {
                 if let Some(obj) = self.scene.objects.get_mut(&head_id) {
                     obj.component_kind = ComponentKind::Bolt;
                     obj.rotation_xyz = col_bolt_rot;
+                    let qy = glam::Quat::from_rotation_y(col_bolt_rot[1]); let qx = glam::Quat::from_rotation_x(col_bolt_rot[0]); let qz = glam::Quat::from_rotation_z(col_bolt_rot[2]); obj.rotation_quat = (qy * qx * qz).normalize().to_array();
                 }
                 child_ids.push(head_id);
             }

@@ -385,7 +385,7 @@ fn imported_mesh_object(
         shape: crate::scene::Shape::Mesh(mesh),
         position,
         material,
-        rotation_y: 0.0, rotation_xyz: [0.0; 3],
+        rotation_y: 0.0, rotation_xyz: [0.0; 3], rotation_quat: [0.0, 0.0, 0.0, 1.0],
         tag: "匯入".into(),
         visible: true,
         roughness: 0.5,

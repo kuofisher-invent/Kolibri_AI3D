@@ -721,7 +721,7 @@ mod tests {
             id: "test".into(), name: "COL_1".into(),
             shape: Shape::Box { width: 150.0, height: 4200.0, depth: 150.0 },
             position: [0.0; 3], material: MaterialKind::Steel,
-            rotation_y: 0.0, rotation_xyz: [0.0; 3], tag: "鋼構".into(), visible: true,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], rotation_quat: [0.0, 0.0, 0.0, 1.0], tag: "鋼構".into(), visible: true,
             roughness: 0.5, metallic: 0.0, texture_path: None,
             component_kind: ComponentKind::Column, parent_id: None,
             component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,

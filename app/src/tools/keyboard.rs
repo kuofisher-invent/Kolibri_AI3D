@@ -52,12 +52,17 @@ impl KolibriApp {
                         self.editor.draw_state = DrawState::Idle;
                         self.editor.selected_face = None;
                     }
-                    // RotateAngle: ESC cancels — restore original rotations
-                    else if let DrawState::RotateAngle { ref obj_ids, ref original_rotations, .. } = self.editor.draw_state.clone() {
+                    // RotateAngle: ESC cancels — restore original rotations + positions
+                    else if let DrawState::RotateAngle { ref obj_ids, ref original_rotations, ref original_positions, .. } = self.editor.draw_state.clone() {
                         for (i, id) in obj_ids.iter().enumerate() {
-                            let orig = original_rotations.get(i).copied().unwrap_or(0.0);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
-                                obj.rotation_y = orig;
+                                let orig_quat = original_rotations.get(i).copied().unwrap_or([0.0, 0.0, 0.0, 1.0]);
+                                let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
+                                obj.rotation_quat = orig_quat;
+                                let euler = crate::tools::rotation_math::quat_to_euler(orig_quat);
+                                obj.rotation_xyz = euler;
+                                obj.rotation_y = euler[1];
+                                obj.position = orig_pos;
                             }
                         }
                         self.scene.undo(); // 撤銷 snapshot

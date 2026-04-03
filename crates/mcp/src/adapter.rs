@@ -415,6 +415,11 @@ impl KolibriAdapter {
                         "z" => { obj.rotation_xyz[2] += rad; }
                         _ => { obj.rotation_xyz[1] += rad; obj.rotation_y = obj.rotation_xyz[1]; }
                     }
+                    // 同步四元數
+                    let qy = glam::Quat::from_rotation_y(obj.rotation_xyz[1]);
+                    let qx = glam::Quat::from_rotation_x(obj.rotation_xyz[0]);
+                    let qz = glam::Quat::from_rotation_z(obj.rotation_xyz[2]);
+                    obj.rotation_quat = (qy * qx * qz).normalize().to_array();
                     obj.obj_version += 1;
                     self.scene.version += 1;
                     json!({ "rotated": id, "angle_deg": deg })

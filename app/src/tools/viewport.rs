@@ -633,67 +633,19 @@ impl KolibriApp {
                 let snapped = (delta / snap_angle).round() * snap_angle;
                 if (delta - snapped).abs() < 3.0_f32.to_radians() { delta = snapped; }
 
-                let cos_d = delta.cos();
-                let sin_d = delta.sin();
-
-                // 先算群組幾何中心（所有被旋轉物件的平均中心）
-                let mut group_center = [0.0_f32; 3];
-                let mut group_count = 0u32;
                 for (i, id) in obj_ids.iter().enumerate() {
-                    let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
-                    if let Some(obj) = self.scene.objects.get(id) {
-                        let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                        group_center[0] += orig_pos[0] + half[0];
-                        group_center[1] += orig_pos[1] + half[1];
-                        group_center[2] += orig_pos[2] + half[2];
-                        group_count += 1;
-                    }
-                }
-                if group_count > 0 {
-                    group_center[0] /= group_count as f32;
-                    group_center[1] /= group_count as f32;
-                    group_center[2] /= group_count as f32;
-                }
-
-                // 群組中心繞璇盤中心公轉
-                let new_gc = {
-                    let (pa, pb) = match rotate_axis {
-                        0 => (group_center[1] - group_center[1], group_center[2] - center[2]),
-                        2 => (group_center[0] - center[0], group_center[1] - group_center[1]),
-                        _ => (group_center[0] - center[0], group_center[2] - center[2]),
-                    };
-                    let na = pa * cos_d - pb * sin_d;
-                    let nb = pa * sin_d + pb * cos_d;
-                    match rotate_axis {
-                        0 => [group_center[0], group_center[1] + na, center[2] + nb],
-                        2 => [center[0] + na, group_center[1] + nb, group_center[2]],
-                        _ => [center[0] + na, group_center[1], center[2] + nb],
-                    }
-                };
-
-                for (i, id) in obj_ids.iter().enumerate() {
-                    let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
+                    let orig_quat = original_rotations.get(i).copied().unwrap_or([0.0, 0.0, 0.0, 1.0]);
                     let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                     if let Some(obj) = self.scene.objects.get_mut(id) {
-                        obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
-                        // 永遠同步 rotation_y（mesh_builder Y-only 快速路徑需要）
-                        obj.rotation_y = obj.rotation_xyz[1];
-
-                        // 角點繞群組中心公轉：P_new = new_gc + R(P+half - gc) - half
-                        let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                        let d = [
-                            (orig_pos[0] + half[0]) - group_center[0],
-                            (orig_pos[1] + half[1]) - group_center[1],
-                            (orig_pos[2] + half[2]) - group_center[2],
-                        ];
-                        let rd = match rotate_axis {
-                            0 => [d[0], d[1]*cos_d - d[2]*sin_d, d[1]*sin_d + d[2]*cos_d],
-                            2 => [d[0]*cos_d - d[1]*sin_d, d[0]*sin_d + d[1]*cos_d, d[2]],
-                            _ => [d[0]*cos_d - d[2]*sin_d, d[1], d[0]*sin_d + d[2]*cos_d],
-                        };
-                        obj.position[0] = new_gc[0] + rd[0] - half[0];
-                        obj.position[1] = new_gc[1] + rd[1] - half[1];
-                        obj.position[2] = new_gc[2] + rd[2] - half[2];
+                        let half = crate::tools::rotation_math::shape_half_dims(&obj.shape);
+                        let (new_pos, new_quat) = crate::tools::rotation_math::orbit_object(
+                            orig_pos, orig_quat, half, center, rotate_axis, delta,
+                        );
+                        obj.position = new_pos;
+                        obj.rotation_quat = new_quat;
+                        let euler = crate::tools::rotation_math::quat_to_euler(new_quat);
+                        obj.rotation_xyz = euler;
+                        obj.rotation_y = euler[1];
                         obj.obj_version += 1;
                     }
                 }

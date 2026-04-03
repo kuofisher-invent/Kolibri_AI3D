@@ -19,6 +19,12 @@ pub(crate) struct DebugTraceRecord {
     pub(crate) mouse_screen: [f32; 2],
     /// 滑鼠 ground 座標 [x, y, z]（若有）
     pub(crate) mouse_ground: Option<[f32; 3]>,
+    /// 旋轉盤中心（世界座標）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rotate_center: Option<[f32; 3]>,
+    /// 旋轉軸 (0=X, 1=Y, 2=Z)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rotate_axis: Option<u8>,
     /// 被操作物件的快照
     pub(crate) objects: Vec<DebugTraceObject>,
 }
@@ -30,6 +36,12 @@ pub(crate) struct DebugTraceObject {
     pub(crate) name: String,
     pub(crate) position: [f32; 3],
     pub(crate) rotation_xyz: [f32; 3],
+    /// 形狀尺寸 [width, height, depth]（Box 才有值）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dimensions: Option<[f32; 3]>,
+    /// 世界空間 8 角點（position + self-rotation 後的實際頂點）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) world_corners: Option<Vec<[f32; 3]>>,
 }
 
 // ─── Tool ────────────────────────────────────────────────────────────────────
@@ -287,7 +299,7 @@ pub(crate) enum DrawState {
     PieCenter { center: [f32; 3] },
     PieRadius { center: [f32; 3], edge1: [f32; 3] },
     RotateRef { obj_ids: Vec<String>, center: [f32; 3], rotate_axis: u8 },
-    RotateAngle { obj_ids: Vec<String>, center: [f32; 3], ref_angle: f32, current_angle: f32, original_rotations: Vec<f32>, original_positions: Vec<[f32; 3]>, rotate_axis: u8 },
+    RotateAngle { obj_ids: Vec<String>, center: [f32; 3], ref_angle: f32, current_angle: f32, original_rotations: Vec<[f32; 4]>, original_positions: Vec<[f32; 3]>, rotate_axis: u8 },
     Scaling { obj_id: String, handle: ScaleHandle, original_dims: [f32; 3] },
     Offsetting { obj_id: String, face: PullFace, distance: f32 },
     FollowPath { source_id: String, path_points: Vec<[f32; 3]> },

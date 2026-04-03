@@ -108,6 +108,9 @@ impl KolibriApp {
                 self.scene.snapshot_ids(&[&id], "MCP旋轉");
                 if let Some(obj) = self.scene.objects.get_mut(&id) {
                     obj.rotation_y += angle_deg.to_radians();
+                    obj.rotation_xyz[1] = obj.rotation_y;
+                    let qy = glam::Quat::from_rotation_y(obj.rotation_y);
+                    obj.rotation_quat = qy.to_array();
                     obj.obj_version += 1;
                     self.scene.version += 1;
                     self.ai_log.log(&actor, "旋轉物件", &format!("{} {:.0}°", id, angle_deg), vec![id.clone()]);
@@ -188,6 +191,12 @@ impl KolibriApp {
             }
             McpCommand::Shutdown => {
                 self.ai_log.log(&actor, "關閉應用", "MCP shutdown", vec![]);
+                // 關閉前自動儲存 trace
+                if self.editor.debug_trace_active {
+                    self.stop_debug_trace();
+                } else {
+                    self.flush_debug_trace();
+                }
                 std::thread::spawn(|| {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     std::process::exit(0);
