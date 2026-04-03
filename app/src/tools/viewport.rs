@@ -317,6 +317,7 @@ impl KolibriApp {
                                 obj.position[0] += dx;
                                 obj.position[1] += dy;
                                 obj.position[2] += dz;
+                                obj.obj_version += 1;
                             }
                         }
                         self.scene.version += 1; // 拖曳時即時更新渲染
@@ -589,6 +590,22 @@ impl KolibriApp {
                     group_center[2] /= group_count as f32;
                 }
 
+                // 群組中心繞璇盤中心公轉
+                let new_gc = {
+                    let (pa, pb) = match rotate_axis {
+                        0 => (group_center[1] - group_center[1], group_center[2] - center[2]),
+                        2 => (group_center[0] - center[0], group_center[1] - group_center[1]),
+                        _ => (group_center[0] - center[0], group_center[2] - center[2]),
+                    };
+                    let na = pa * cos_d - pb * sin_d;
+                    let nb = pa * sin_d + pb * cos_d;
+                    match rotate_axis {
+                        0 => [group_center[0], group_center[1] + na, center[2] + nb],
+                        2 => [center[0] + na, group_center[1] + nb, group_center[2]],
+                        _ => [center[0] + na, group_center[1], center[2] + nb],
+                    }
+                };
+
                 for (i, id) in obj_ids.iter().enumerate() {
                     let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                     let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
@@ -596,39 +613,24 @@ impl KolibriApp {
                         obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
                         if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
 
+                        // 子物件相對於群組中心的偏移（用 corner position，非 center）
+                        let d = [
+                            orig_pos[0] - (group_center[0] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[0]),
+                            orig_pos[1] - (group_center[1] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[1]),
+                            orig_pos[2] - (group_center[2] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[2]),
+                        ];
                         let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                        let oc = [orig_pos[0]+half[0], orig_pos[1]+half[1], orig_pos[2]+half[2]];
 
-                        // 繞璇盤中心軸公轉，X/Z 軸的 Y 用群組中心（避免 ground Y=0）
-                        match rotate_axis {
-                            0 => {
-                                // X 軸：YZ 平面，Y 相對群組中心偏移
-                                let pa = oc[1] - group_center[1];
-                                let pb = oc[2] - center[2];
-                                let na = pa * cos_d - pb * sin_d;
-                                let nb = pa * sin_d + pb * cos_d;
-                                obj.position[1] = group_center[1] + na - half[1];
-                                obj.position[2] = center[2] + nb - half[2];
-                            }
-                            2 => {
-                                // Z 軸：XY 平面，Y 相對群組中心偏移
-                                let pa = oc[0] - center[0];
-                                let pb = oc[1] - group_center[1];
-                                let na = pa * cos_d - pb * sin_d;
-                                let nb = pa * sin_d + pb * cos_d;
-                                obj.position[0] = center[0] + na - half[0];
-                                obj.position[1] = group_center[1] + nb - half[1];
-                            }
-                            _ => {
-                                // Y 軸：XZ 平面
-                                let pa = oc[0] - center[0];
-                                let pb = oc[2] - center[2];
-                                let na = pa * cos_d - pb * sin_d;
-                                let nb = pa * sin_d + pb * cos_d;
-                                obj.position[0] = center[0] + na - half[0];
-                                obj.position[2] = center[2] + nb - half[2];
-                            }
-                        }
+                        // 旋轉偏移向量（只旋轉對應平面的兩個分量）
+                        let rd = match rotate_axis {
+                            0 => [d[0], d[1]*cos_d - d[2]*sin_d, d[1]*sin_d + d[2]*cos_d],
+                            2 => [d[0]*cos_d - d[1]*sin_d, d[0]*sin_d + d[1]*cos_d, d[2]],
+                            _ => [d[0]*cos_d - d[2]*sin_d, d[1], d[0]*sin_d + d[2]*cos_d],
+                        };
+
+                        obj.position[0] = new_gc[0] - half[0] + rd[0];
+                        obj.position[1] = new_gc[1] - half[1] + rd[1];
+                        obj.position[2] = new_gc[2] - half[2] + rd[2];
                         obj.obj_version += 1;
                     }
                 }

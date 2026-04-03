@@ -183,6 +183,143 @@ impl KolibriApp {
                 });
                 McpResult { success: true, data: json!({ "message": "Shutting down..." }) }
             }
+            // ── 鋼構 MCP 命令 ──
+            #[cfg(feature = "steel")]
+            McpCommand::CreateSteelColumn { position, profile, height } => {
+                self.scene.snapshot();
+                let (h_sec, b_sec, tw, tf) = crate::tools::geometry_ops::parse_h_profile(&profile);
+                let name_base = self.next_name("COL");
+                let cx = position[0];
+                let cz = position[2];
+                let base_y = position[1];
+
+                let f1_id = self.scene.insert_box_raw(
+                    format!("{}_F1", name_base),
+                    [cx - b_sec / 2.0, base_y, cz - h_sec / 2.0],
+                    b_sec, height, tf, crate::scene::MaterialKind::Steel,
+                );
+                let f2_id = self.scene.insert_box_raw(
+                    format!("{}_F2", name_base),
+                    [cx - b_sec / 2.0, base_y, cz + h_sec / 2.0 - tf],
+                    b_sec, height, tf, crate::scene::MaterialKind::Steel,
+                );
+                let web_id = self.scene.insert_box_raw(
+                    format!("{}_W", name_base),
+                    [cx - tw / 2.0, base_y, cz - h_sec / 2.0 + tf],
+                    tw, height, h_sec - 2.0 * tf, crate::scene::MaterialKind::Steel,
+                );
+                for id in [&f1_id, &f2_id, &web_id] {
+                    if let Some(obj) = self.scene.objects.get_mut(id) {
+                        obj.component_kind = crate::collision::ComponentKind::Column;
+                    }
+                }
+                let child_ids = vec![f1_id.clone(), f2_id.clone(), web_id.clone()];
+                self.scene.create_group(name_base.clone(), child_ids);
+                self.scene.version += 1;
+                McpResult { success: true, data: json!({ "column": name_base, "profile": profile, "height": height }) }
+            }
+            #[cfg(feature = "steel")]
+            McpCommand::CreateSteelBeam { p1, p2, profile } => {
+                self.scene.snapshot();
+                let (h_sec, b_sec, tw, tf) = crate::tools::geometry_ops::parse_h_profile(&profile);
+                let name_base = self.next_name("BM");
+                let dx = p2[0] - p1[0];
+                let dz = p2[2] - p1[2];
+                let length = (dx * dx + dz * dz).sqrt();
+                let beam_y = p1[1]; // 梁底 Y
+                let is_x_dir = dx.abs() > dz.abs();
+
+                let ids = if is_x_dir {
+                    let min_x = p1[0].min(p2[0]);
+                    let cz = p1[2];
+                    let f1 = self.scene.insert_box_raw(
+                        format!("{}_TF", name_base),
+                        [min_x, beam_y + h_sec - tf, cz - b_sec / 2.0],
+                        length, tf, b_sec, crate::scene::MaterialKind::Steel,
+                    );
+                    let f2 = self.scene.insert_box_raw(
+                        format!("{}_BF", name_base),
+                        [min_x, beam_y, cz - b_sec / 2.0],
+                        length, tf, b_sec, crate::scene::MaterialKind::Steel,
+                    );
+                    let w = self.scene.insert_box_raw(
+                        format!("{}_W", name_base),
+                        [min_x, beam_y + tf, cz - tw / 2.0],
+                        length, h_sec - 2.0 * tf, tw, crate::scene::MaterialKind::Steel,
+                    );
+                    vec![f1, f2, w]
+                } else {
+                    let min_z = p1[2].min(p2[2]);
+                    let cx = p1[0];
+                    let f1 = self.scene.insert_box_raw(
+                        format!("{}_TF", name_base),
+                        [cx - b_sec / 2.0, beam_y + h_sec - tf, min_z],
+                        b_sec, tf, length, crate::scene::MaterialKind::Steel,
+                    );
+                    let f2 = self.scene.insert_box_raw(
+                        format!("{}_BF", name_base),
+                        [cx - b_sec / 2.0, beam_y, min_z],
+                        b_sec, tf, length, crate::scene::MaterialKind::Steel,
+                    );
+                    let w = self.scene.insert_box_raw(
+                        format!("{}_W", name_base),
+                        [cx - tw / 2.0, beam_y + tf, min_z],
+                        tw, h_sec - 2.0 * tf, length, crate::scene::MaterialKind::Steel,
+                    );
+                    vec![f1, f2, w]
+                };
+                for id in &ids {
+                    if let Some(obj) = self.scene.objects.get_mut(id) {
+                        obj.component_kind = crate::collision::ComponentKind::Beam;
+                    }
+                }
+                self.scene.create_group(name_base.clone(), ids);
+                self.scene.version += 1;
+                McpResult { success: true, data: json!({ "beam": name_base, "profile": profile, "length": length }) }
+            }
+            #[cfg(feature = "steel")]
+            McpCommand::CreateSteelConnection { member_ids, conn_type } => {
+                // 選取指定構件後建立接頭
+                self.editor.selected_ids = member_ids.clone();
+                self.expand_selection_to_groups();
+                match conn_type.as_str() {
+                    "end_plate" | "endplate" => {
+                        self.create_end_plate_connection();
+                    }
+                    "shear_tab" | "sheartab" => {
+                        self.create_shear_tab_connection();
+                    }
+                    "base_plate" | "baseplate" => {
+                        self.create_base_plate_connection();
+                    }
+                    _ => {
+                        self.create_end_plate_connection(); // 預設端板
+                    }
+                }
+                let count = self.scene.objects.len();
+                McpResult { success: true, data: json!({ "connection": conn_type, "total_objects": count }) }
+            }
+
+            // ── Debug Trace 遠端控制 ──
+            McpCommand::StartTrace { interval_ms } => {
+                self.editor.debug_trace_interval_ms = interval_ms.max(10).min(1500);
+                self.start_debug_trace();
+                McpResult { success: true, data: json!({ "started": true, "interval_ms": self.editor.debug_trace_interval_ms }) }
+            }
+            McpCommand::StopTrace => {
+                let count = self.editor.debug_trace_records.len();
+                self.stop_debug_trace();
+                McpResult { success: true, data: json!({ "stopped": true, "records": count, "path": self.editor.debug_trace_path }) }
+            }
+            McpCommand::GetTraceStatus => {
+                McpResult { success: true, data: json!({
+                    "active": self.editor.debug_trace_active,
+                    "records": self.editor.debug_trace_records.len(),
+                    "interval_ms": self.editor.debug_trace_interval_ms,
+                    "path": self.editor.debug_trace_path,
+                }) }
+            }
+
             McpCommand::ImportFile { path } => {
                 let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
                 // 根據目前模式決定 DXF/DWG 匯入路徑

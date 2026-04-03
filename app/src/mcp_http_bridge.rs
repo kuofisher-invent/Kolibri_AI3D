@@ -296,6 +296,32 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
         "set_layout_mode" => Some(McpCommand::SetLayoutMode {
             enabled: args["enabled"].as_bool().unwrap_or(true),
         }),
+        // ── Debug Trace ──
+        "start_trace" => Some(McpCommand::StartTrace {
+            interval_ms: args["interval_ms"].as_u64().unwrap_or(50) as u32,
+        }),
+        "stop_trace" => Some(McpCommand::StopTrace),
+        "get_trace_status" => Some(McpCommand::GetTraceStatus),
+        // ── 鋼構工具 ──
+        #[cfg(feature = "steel")]
+        "create_steel_column" => Some(McpCommand::CreateSteelColumn {
+            position: parse_pos(&args["position"]),
+            profile: args["profile"].as_str().unwrap_or("H300x300x10x15").into(),
+            height: args["height"].as_f64().unwrap_or(4200.0) as f32,
+        }),
+        #[cfg(feature = "steel")]
+        "create_steel_beam" => Some(McpCommand::CreateSteelBeam {
+            p1: parse_pos(&args["p1"]),
+            p2: parse_pos(&args["p2"]),
+            profile: args["profile"].as_str().unwrap_or("H300x300x10x15").into(),
+        }),
+        #[cfg(feature = "steel")]
+        "create_steel_connection" => Some(McpCommand::CreateSteelConnection {
+            member_ids: args["member_ids"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            conn_type: args["conn_type"].as_str().unwrap_or("end_plate").into(),
+        }),
         _ => {
             #[cfg(feature = "drafting")]
             if let Some(cmd) = parse_draft_command(tool, args) { return Some(cmd); }

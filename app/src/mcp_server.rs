@@ -61,6 +61,17 @@ pub enum McpCommand {
     Screenshot { path: String },
     ExportScene { path: String },
     SetLayoutMode { enabled: bool },
+    // ── 鋼構 ──
+    #[cfg(feature = "steel")]
+    CreateSteelColumn { position: [f32; 3], profile: String, height: f32 },
+    #[cfg(feature = "steel")]
+    CreateSteelBeam { p1: [f32; 3], p2: [f32; 3], profile: String },
+    #[cfg(feature = "steel")]
+    CreateSteelConnection { member_ids: Vec<String>, conn_type: String },
+    // ── Debug Trace ──
+    StartTrace { interval_ms: u32 },
+    StopTrace,
+    GetTraceStatus,
     // ── 2D Drafting ──
     #[cfg(feature = "drafting")]
     DraftAddLine { p1: [f64; 2], p2: [f64; 2] },

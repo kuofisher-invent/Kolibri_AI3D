@@ -15,51 +15,61 @@ impl KolibriApp {
         response: &egui::Response,
     ) {
                 // ── Selection outline（螢幕空間 AABB 描邊）──
-                for sel_id in &self.editor.selected_ids {
-                    if let Some(obj) = self.scene.objects.get(sel_id) {
-                        let p = obj.position;
-                        let ext = match &obj.shape {
-                            Shape::Box { width, height, depth } => [*width, *height, *depth],
-                            Shape::Cylinder { radius, height, .. } => [*radius*2.0, *height, *radius*2.0],
-                            Shape::Sphere { radius, .. } => [*radius*2.0; 3],
-                            _ => continue,
-                        };
-                        // 8 corners → screen → 2D bounding rect
-                        let corners = [
-                            [p[0],p[1],p[2]], [p[0]+ext[0],p[1],p[2]],
-                            [p[0],p[1]+ext[1],p[2]], [p[0]+ext[0],p[1]+ext[1],p[2]],
-                            [p[0],p[1],p[2]+ext[2]], [p[0]+ext[0],p[1],p[2]+ext[2]],
-                            [p[0],p[1]+ext[1],p[2]+ext[2]], [p[0]+ext[0],p[1]+ext[1],p[2]+ext[2]],
-                        ];
-                        let mut min_s = egui::pos2(f32::MAX, f32::MAX);
-                        let mut max_s = egui::pos2(f32::MIN, f32::MIN);
-                        let mut visible = 0;
-                        for c in &corners {
-                            if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
-                                min_s.x = min_s.x.min(sp.x); min_s.y = min_s.y.min(sp.y);
-                                max_s.x = max_s.x.max(sp.x); max_s.y = max_s.y.max(sp.y);
-                                visible += 1;
+                // 群組物件合併成一個大 bounding box，不分開畫
+                {
+                    let mut min_s = egui::pos2(f32::MAX, f32::MAX);
+                    let mut max_s = egui::pos2(f32::MIN, f32::MIN);
+                    let mut visible = 0u32;
+                    // 3D 世界空間的整體 AABB（用於尺寸標籤）
+                    let mut world_min = [f32::MAX; 3];
+                    let mut world_max = [f32::MIN; 3];
+
+                    for sel_id in &self.editor.selected_ids {
+                        if let Some(obj) = self.scene.objects.get(sel_id) {
+                            let p = obj.position;
+                            let ext = match &obj.shape {
+                                Shape::Box { width, height, depth } => [*width, *height, *depth],
+                                Shape::Cylinder { radius, height, .. } => [*radius*2.0, *height, *radius*2.0],
+                                Shape::Sphere { radius, .. } => [*radius*2.0; 3],
+                                _ => continue,
+                            };
+                            for i in 0..3 {
+                                world_min[i] = world_min[i].min(p[i]);
+                                world_max[i] = world_max[i].max(p[i] + ext[i]);
+                            }
+                            let corners = [
+                                [p[0],p[1],p[2]], [p[0]+ext[0],p[1],p[2]],
+                                [p[0],p[1]+ext[1],p[2]], [p[0]+ext[0],p[1]+ext[1],p[2]],
+                                [p[0],p[1],p[2]+ext[2]], [p[0]+ext[0],p[1],p[2]+ext[2]],
+                                [p[0],p[1]+ext[1],p[2]+ext[2]], [p[0]+ext[0],p[1]+ext[1],p[2]+ext[2]],
+                            ];
+                            for c in &corners {
+                                if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
+                                    min_s.x = min_s.x.min(sp.x); min_s.y = min_s.y.min(sp.y);
+                                    max_s.x = max_s.x.max(sp.x); max_s.y = max_s.y.max(sp.y);
+                                    visible += 1;
+                                }
                             }
                         }
-                        if visible >= 2 {
-                            let outline_rect = egui::Rect::from_min_max(min_s, max_s).expand(3.0);
-                            ui.painter().rect_stroke(outline_rect, 4.0,
-                                egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 140)));
-                            // 尺寸標籤（寬×高×深）
-                            let dim_color = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 200);
-                            let dim_font = egui::FontId::proportional(9.0);
-                            let fmt = |v: f32| if v >= 1000.0 { format!("{:.2}m", v/1000.0) } else { format!("{:.0}", v) };
-                            // 底部：寬度
-                            ui.painter().text(
-                                egui::pos2(outline_rect.center().x, outline_rect.max.y + 10.0),
-                                egui::Align2::CENTER_TOP, &fmt(ext[0]),
-                                dim_font.clone(), dim_color);
-                            // 右側：高度
-                            ui.painter().text(
-                                egui::pos2(outline_rect.max.x + 8.0, outline_rect.center().y),
-                                egui::Align2::LEFT_CENTER, &fmt(ext[1]),
-                                dim_font.clone(), dim_color);
-                        }
+                    }
+                    if visible >= 2 {
+                        let outline_rect = egui::Rect::from_min_max(min_s, max_s).expand(3.0);
+                        ui.painter().rect_stroke(outline_rect, 4.0,
+                            egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(76, 139, 245, 140)));
+                        // 尺寸標籤（整體 AABB 尺寸）
+                        let dim_color = egui::Color32::from_rgba_unmultiplied(76, 139, 245, 200);
+                        let dim_font = egui::FontId::proportional(9.0);
+                        let fmt = |v: f32| if v >= 1000.0 { format!("{:.2}m", v/1000.0) } else { format!("{:.0}", v) };
+                        let total_w = world_max[0] - world_min[0];
+                        let total_h = world_max[1] - world_min[1];
+                        ui.painter().text(
+                            egui::pos2(outline_rect.center().x, outline_rect.max.y + 10.0),
+                            egui::Align2::CENTER_TOP, &fmt(total_w),
+                            dim_font.clone(), dim_color);
+                        ui.painter().text(
+                            egui::pos2(outline_rect.max.x + 8.0, outline_rect.center().y),
+                            egui::Align2::LEFT_CENTER, &fmt(total_h),
+                            dim_font, dim_color);
                     }
                 }
 

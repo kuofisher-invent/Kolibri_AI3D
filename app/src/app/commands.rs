@@ -302,12 +302,11 @@ impl KolibriApp {
             _ => format!("{:?}", std::mem::discriminant(&self.editor.draw_state)),
         };
 
-        // 採樣被選取的物件（或所有正在被操作的物件）
+        // 採樣物件：有選取就記選取的，沒選取就記全部（最多 50 個）
         let target_ids: Vec<String> = if !self.editor.selected_ids.is_empty() {
             self.editor.selected_ids.clone()
         } else {
-            // 沒有選取時不記錄物件
-            Vec::new()
+            self.scene.objects.keys().take(50).cloned().collect()
         };
 
         let objects: Vec<crate::editor::DebugTraceObject> = target_ids.iter()

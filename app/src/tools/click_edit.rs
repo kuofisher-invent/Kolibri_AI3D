@@ -176,6 +176,22 @@ impl KolibriApp {
                         }
                         if gc_n > 0 { gc[0]/=gc_n as f32; gc[1]/=gc_n as f32; gc[2]/=gc_n as f32; }
 
+                        // 群組中心繞璇盤公轉
+                        let new_gc = {
+                            let (pa, pb) = match axis {
+                                0 => (0.0_f32, gc[2] - center[2]),
+                                2 => (gc[0] - center[0], 0.0_f32),
+                                _ => (gc[0] - center[0], gc[2] - center[2]),
+                            };
+                            let na = pa * cos_d - pb * sin_d;
+                            let nb = pa * sin_d + pb * cos_d;
+                            match axis {
+                                0 => [gc[0], gc[1] + na, center[2] + nb],
+                                2 => [center[0] + na, gc[1] + nb, gc[2]],
+                                _ => [center[0] + na, gc[1], center[2] + nb],
+                            }
+                        };
+
                         for (i, id) in obj_ids.iter().enumerate() {
                             let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                             let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
@@ -184,34 +200,19 @@ impl KolibriApp {
                                 if axis == 1 { obj.rotation_y = orig_rot + delta; }
 
                                 let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                                let oc = [orig_pos[0]+half[0], orig_pos[1]+half[1], orig_pos[2]+half[2]];
-
-                                match axis {
-                                    0 => {
-                                        let pa = oc[1] - gc[1];
-                                        let pb = oc[2] - center[2];
-                                        let na = pa * cos_d - pb * sin_d;
-                                        let nb = pa * sin_d + pb * cos_d;
-                                        obj.position[1] = gc[1] + na - half[1];
-                                        obj.position[2] = center[2] + nb - half[2];
-                                    }
-                                    2 => {
-                                        let pa = oc[0] - center[0];
-                                        let pb = oc[1] - gc[1];
-                                        let na = pa * cos_d - pb * sin_d;
-                                        let nb = pa * sin_d + pb * cos_d;
-                                        obj.position[0] = center[0] + na - half[0];
-                                        obj.position[1] = gc[1] + nb - half[1];
-                                    }
-                                    _ => {
-                                        let pa = oc[0] - center[0];
-                                        let pb = oc[2] - center[2];
-                                        let na = pa * cos_d - pb * sin_d;
-                                        let nb = pa * sin_d + pb * cos_d;
-                                        obj.position[0] = center[0] + na - half[0];
-                                        obj.position[2] = center[2] + nb - half[2];
-                                    }
-                                }
+                                let d = [
+                                    orig_pos[0] - (gc[0] - half[0]),
+                                    orig_pos[1] - (gc[1] - half[1]),
+                                    orig_pos[2] - (gc[2] - half[2]),
+                                ];
+                                let rd = match axis {
+                                    0 => [d[0], d[1]*cos_d - d[2]*sin_d, d[1]*sin_d + d[2]*cos_d],
+                                    2 => [d[0]*cos_d - d[1]*sin_d, d[0]*sin_d + d[1]*cos_d, d[2]],
+                                    _ => [d[0]*cos_d - d[2]*sin_d, d[1], d[0]*sin_d + d[2]*cos_d],
+                                };
+                                obj.position[0] = new_gc[0] - half[0] + rd[0];
+                                obj.position[1] = new_gc[1] - half[1] + rd[1];
+                                obj.position[2] = new_gc[2] - half[2] + rd[2];
                                 obj.obj_version += 1;
                             }
                         }
