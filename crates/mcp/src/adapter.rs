@@ -407,9 +407,17 @@ impl KolibriAdapter {
             "rotate_object" => {
                 let id = args["id"].as_str().unwrap_or("").to_string();
                 let deg = args["angle_deg"].as_f64().unwrap_or(0.0) as f32;
+                let axis = args.get("axis").and_then(|a| a.as_str()).unwrap_or("y");
                 if let Some(obj) = self.scene.objects.get_mut(&id) {
-                    obj.rotation_y += deg.to_radians(); self.scene.version += 1;
-                    json!({ "success": true })
+                    let rad = deg.to_radians();
+                    match axis {
+                        "x" => { obj.rotation_xyz[0] += rad; }
+                        "z" => { obj.rotation_xyz[2] += rad; }
+                        _ => { obj.rotation_xyz[1] += rad; obj.rotation_y = obj.rotation_xyz[1]; }
+                    }
+                    obj.obj_version += 1;
+                    self.scene.version += 1;
+                    json!({ "rotated": id, "angle_deg": deg })
                 } else { json!({ "error": "Object not found" }) }
             }
             "scale_object" => {

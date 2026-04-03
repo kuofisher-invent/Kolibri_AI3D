@@ -334,6 +334,16 @@ impl KolibriApp {
                         };
 
                         let raw_delta = hit_cur - hit_prev;
+
+                        // 安全限制：每幀最大移動量 = 相機距離 × 0.05
+                        // 防止相機接近水平時投影到無窮遠
+                        let max_per_frame = self.viewer.camera.distance * 0.05;
+                        let raw_delta = glam::Vec3::new(
+                            raw_delta.x.clamp(-max_per_frame, max_per_frame),
+                            raw_delta.y,
+                            raw_delta.z.clamp(-max_per_frame, max_per_frame),
+                        );
+
                         let vert_scale = self.viewer.camera.distance * 0.001;
                         let vert_delta = -d.y * vert_scale;
 
@@ -666,7 +676,8 @@ impl KolibriApp {
                     let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                     if let Some(obj) = self.scene.objects.get_mut(id) {
                         obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
-                        if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
+                        // 永遠同步 rotation_y（mesh_builder Y-only 快速路徑需要）
+                        obj.rotation_y = obj.rotation_xyz[1];
 
                         // 角點繞群組中心公轉：P_new = new_gc + R(P+half - gc) - half
                         let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);

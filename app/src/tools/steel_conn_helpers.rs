@@ -60,9 +60,11 @@ pub(crate) fn rotated_obj_corners(obj: &SceneObject) -> Vec<[f32; 3]> {
     let cy = p[1] + center_off[1];
     let cz = p[2] + center_off[2];
 
-    // 決定有效的 Y 旋轉角
+    // 決定有效的 Y 旋轉角（與 mesh_builder 一致）
     let use_y_only = rx.abs() < 1e-6 && rz.abs() < 1e-6;
-    let eff_ry = if use_y_only && ry.abs() < 1e-6 { obj.rotation_y } else { ry };
+    let eff_ry = if use_y_only {
+        if ry.abs() > 1e-6 { ry } else { obj.rotation_y }
+    } else { ry };
 
     // 旋轉矩陣 R = Ry * Rx * Rz（與 mesh_builder 一致）
     let (sx, cx_r) = rx.sin_cos();

@@ -405,9 +405,12 @@ fn apply_rotation(obj: &SceneObject, start_idx: usize, verts: &mut [Vertex]) {
     let [rx, ry, rz] = obj.rotation_xyz;
     // 如果 rotation_xyz 全為 0 但 rotation_y 不為 0 → 用 legacy rotation_y
     let use_y_only = rx.abs() < 1e-6 && rz.abs() < 1e-6;
-    let eff_ry = if use_y_only { obj.rotation_y } else { ry };
+    // 優先用 rotation_xyz[1]；若為 0 才 fallback 到 legacy rotation_y
+    let eff_ry = if use_y_only {
+        if ry.abs() > 1e-6 { ry } else { obj.rotation_y }
+    } else { ry };
 
-    let has_rotation = obj.rotation_y.abs() > 1e-6 || rx.abs() > 1e-6 || rz.abs() > 1e-6;
+    let has_rotation = obj.rotation_y.abs() > 1e-6 || rx.abs() > 1e-6 || ry.abs() > 1e-6 || rz.abs() > 1e-6;
     if !has_rotation { return; }
 
     // 計算物件中心

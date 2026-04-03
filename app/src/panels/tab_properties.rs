@@ -370,13 +370,94 @@ impl KolibriApp {
                 ui.label(egui::RichText::new(format!("已選取 {} 個物件", self.editor.selected_ids.len())).strong());
                 ui.add_space(4.0);
                 for sid in &self.editor.selected_ids {
-                    if let Some(obj) = self.scene.objects.get(sid) {
-                        let icon = match &obj.shape {
-                            Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇",
-                        };
-                        ui.small(format!("{} {}", icon, obj.name));
+                    // 直接物件或群組 ID
+                    let display_ids: Vec<String> = if self.scene.objects.contains_key(sid) {
+                        vec![sid.clone()]
+                    } else {
+                        // 群組：列出子物件
+                        self.scene.objects.iter()
+                            .filter(|(_, o)| o.parent_id.as_deref() == Some(sid.as_str()))
+                            .map(|(id, _)| id.clone())
+                            .collect()
+                    };
+                    for did in &display_ids {
+                        if let Some(obj) = self.scene.objects.get(did) {
+                            let icon = match &obj.shape {
+                                Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇",
+                            };
+                            let kind_short = match obj.component_kind {
+                                crate::collision::ComponentKind::Column => " [柱]",
+                                crate::collision::ComponentKind::Beam => " [梁]",
+                                crate::collision::ComponentKind::Brace => " [撐]",
+                                crate::collision::ComponentKind::Plate => " [板]",
+                                _ => "",
+                            };
+                            ui.small(format!("{} {}{}", icon, obj.name, kind_short));
+                        }
                     }
                 }
+            });
+            // 批次設定元件類型
+            section_frame_full(ui, |ui| {
+                section_header_text(ui, "批次設定元件類型");
+                use crate::collision::ComponentKind;
+                let batch_label = |k: ComponentKind| -> &'static str {
+                    match k {
+                        ComponentKind::Column => "柱 (Column)",
+                        ComponentKind::Beam => "梁 (Beam)",
+                        ComponentKind::Brace => "斜撐 (Brace)",
+                        ComponentKind::Plate => "板 (Plate)",
+                        ComponentKind::Foundation => "基礎 (Foundation)",
+                        ComponentKind::Equipment => "設備 (Equipment)",
+                        ComponentKind::Generic => "一般 (Generic)",
+                        _ => "—",
+                    }
+                };
+                let batch_kinds = [
+                    ComponentKind::Column, ComponentKind::Beam,
+                    ComponentKind::Brace, ComponentKind::Plate,
+                    ComponentKind::Generic,
+                ];
+                ui.horizontal_wrapped(|ui| {
+                    for k in batch_kinds {
+                        if ui.button(batch_label(k)).clicked() {
+                            let prefix = match k {
+                                ComponentKind::Column => "COL_",
+                                ComponentKind::Beam => "BM_",
+                                ComponentKind::Brace => "BR_",
+                                ComponentKind::Plate => "PL_",
+                                _ => "",
+                            };
+                            let old_prefixes = ["COL_", "BM_", "BR_", "PL_", "FND_", "EQ_"];
+                            // 展開群組 ID → 子物件 ID（鋼構群組的 ID 不在 objects 中）
+                            let mut ids: Vec<String> = Vec::new();
+                            for sid in &self.editor.selected_ids {
+                                if self.scene.objects.contains_key(sid) {
+                                    ids.push(sid.clone());
+                                } else {
+                                    // 群組 ID：找所有 parent_id == sid 的子物件
+                                    for (cid, obj) in &self.scene.objects {
+                                        if obj.parent_id.as_deref() == Some(sid.as_str()) {
+                                            ids.push(cid.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            for sid in &ids {
+                                if let Some(obj) = self.scene.objects.get_mut(sid) {
+                                    obj.component_kind = k;
+                                    let mut base = obj.name.clone();
+                                    for op in &old_prefixes {
+                                        if let Some(s) = base.strip_prefix(op) { base = s.to_string(); break; }
+                                    }
+                                    obj.name = if prefix.is_empty() { base } else { format!("{}{}", prefix, base) };
+                                    obj.obj_version += 1;
+                                }
+                            }
+                            self.scene.version += 1;
+                        }
+                    }
+                });
             });
             return;
         }
@@ -555,23 +636,70 @@ impl KolibriApp {
         });
         ui.add_space(4.0);
 
-        // Component Kind (collision)
+        // Component Kind (collision) — 可編輯下拉選單
         section_frame_full(ui, |ui| {
             section_header_text(ui, "COMPONENT");
             ui.horizontal(|ui| {
                 ui.label("元件類型:");
-                let kind_name = match obj.component_kind {
-                    crate::collision::ComponentKind::Column => "柱",
-                    crate::collision::ComponentKind::Beam => "梁",
-                    crate::collision::ComponentKind::Brace => "斜撐",
-                    crate::collision::ComponentKind::Plate => "板",
-                    crate::collision::ComponentKind::Bolt => "螺栓",
-                    crate::collision::ComponentKind::Weld => "焊接",
-                    crate::collision::ComponentKind::Foundation => "基礎",
-                    crate::collision::ComponentKind::Equipment => "設備",
-                    crate::collision::ComponentKind::Generic => "一般",
+                use crate::collision::ComponentKind;
+                let kind_label = |k: ComponentKind| -> &'static str {
+                    match k {
+                        ComponentKind::Column => "柱 (Column)",
+                        ComponentKind::Beam => "梁 (Beam)",
+                        ComponentKind::Brace => "斜撐 (Brace)",
+                        ComponentKind::Plate => "板 (Plate)",
+                        ComponentKind::Bolt => "螺栓 (Bolt)",
+                        ComponentKind::Weld => "焊接 (Weld)",
+                        ComponentKind::Foundation => "基礎 (Foundation)",
+                        ComponentKind::Equipment => "設備 (Equipment)",
+                        ComponentKind::Generic => "一般 (Generic)",
+                    }
                 };
-                ui.label(kind_name);
+                let prev_kind = obj.component_kind;
+                egui::ComboBox::from_id_source("comp_kind_combo")
+                    .width(140.0)
+                    .selected_text(kind_label(obj.component_kind))
+                    .show_ui(ui, |ui| {
+                        let kinds = [
+                            ComponentKind::Generic, ComponentKind::Column,
+                            ComponentKind::Beam, ComponentKind::Brace,
+                            ComponentKind::Plate, ComponentKind::Foundation,
+                            ComponentKind::Equipment,
+                        ];
+                        for k in kinds {
+                            if ui.selectable_label(obj.component_kind == k, kind_label(k)).clicked() {
+                                obj.component_kind = k;
+                            }
+                        }
+                    });
+                if obj.component_kind != prev_kind {
+                    // 自動更新名稱前綴
+                    let prefix = match obj.component_kind {
+                        ComponentKind::Column => "COL_",
+                        ComponentKind::Beam => "BM_",
+                        ComponentKind::Brace => "BR_",
+                        ComponentKind::Plate => "PL_",
+                        ComponentKind::Foundation => "FND_",
+                        ComponentKind::Equipment => "EQ_",
+                        _ => "",
+                    };
+                    // 移除舊前綴
+                    let old_prefixes = ["COL_", "BM_", "BR_", "PL_", "FND_", "EQ_"];
+                    let mut base_name = obj.name.clone();
+                    for op in &old_prefixes {
+                        if let Some(stripped) = base_name.strip_prefix(op) {
+                            base_name = stripped.to_string();
+                            break;
+                        }
+                    }
+                    if !prefix.is_empty() {
+                        obj.name = format!("{}{}", prefix, base_name);
+                    } else {
+                        obj.name = base_name;
+                    }
+                    obj.obj_version += 1;
+                    self.scene.version += 1;
+                }
             });
         });
         ui.add_space(8.0);

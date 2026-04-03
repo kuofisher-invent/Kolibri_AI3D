@@ -214,7 +214,8 @@ impl KolibriApp {
                             let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
                                 obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
-                                if axis == 1 { obj.rotation_y = orig_rot + delta; }
+                                // 永遠同步 rotation_y（mesh_builder Y-only 快速路徑需要）
+                                obj.rotation_y = obj.rotation_xyz[1];
 
                                 // 角點繞群組中心公轉：P_new = new_gc + R(P+half - gc) - half
                                 let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);

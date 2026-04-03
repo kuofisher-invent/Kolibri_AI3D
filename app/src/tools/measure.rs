@@ -290,7 +290,8 @@ impl KolibriApp {
                         let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                         if let Some(obj) = self.scene.objects.get_mut(id) {
                             obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
-                            if axis == 1 { obj.rotation_y = orig_rot + delta; }
+                            // 永遠同步 rotation_y
+                            obj.rotation_y = obj.rotation_xyz[1];
                             let cos_d = delta.cos();
                             let sin_d = delta.sin();
                             let (pa, pb) = match axis {
@@ -315,6 +316,90 @@ impl KolibriApp {
                     ));
                     self.editor.draw_state = DrawState::Idle;
                 }
+            }
+            // MoveFrom: 數值輸入移動距離
+            // 格式：單值 "500" = 沿當前方向移動 500mm
+            //       兩值 "300,200" = X=300, Z=200
+            //       三值 "300,100,200" = X=300, Y=100, Z=200
+            DrawState::MoveFrom { from, ref obj_ids, ref original_positions } => {
+                let from = *from;
+                let obj_ids = obj_ids.clone();
+                let original_positions = original_positions.clone();
+
+                // 解析輸入：支援逗號分隔 x,y,z 或單值（沿方向）
+                let vals: Vec<f32> = self.editor.measure_input
+                    .split(',')
+                    .filter_map(|s| s.trim().parse().ok())
+                    .collect();
+
+                let (dx, dy, dz) = if vals.len() >= 3 {
+                    // 三值: X, Y, Z 絕對偏移
+                    (vals[0], vals[1], vals[2])
+                } else if vals.len() == 2 {
+                    // 兩值: X, Z（Y=0）
+                    (vals[0], 0.0, vals[1])
+                } else if vals.len() == 1 {
+                    let dist = vals[0];
+                    match self.editor.locked_axis {
+                        Some(0) => {
+                            // X 軸鎖定
+                            let sign = self.editor.mouse_ground
+                                .map(|to| if to[0] >= from[0] { 1.0 } else { -1.0 })
+                                .unwrap_or(1.0);
+                            (dist * sign, 0.0, 0.0)
+                        }
+                        Some(1) => {
+                            // Y 軸鎖定
+                            let sign = self.current_vertical_y(from);
+                            let dir = if sign >= from[1] { 1.0 } else { -1.0 };
+                            (0.0, dist * dir, 0.0)
+                        }
+                        Some(2) => {
+                            // Z 軸鎖定
+                            let sign = self.editor.mouse_ground
+                                .map(|to| if to[2] >= from[2] { 1.0 } else { -1.0 })
+                                .unwrap_or(1.0);
+                            (0.0, 0.0, dist * sign)
+                        }
+                        _ => {
+                            // 自由方向：沿 from→mouse 方向移動 dist
+                            if let Some(to) = self.editor.mouse_ground {
+                                let dir_x = to[0] - from[0];
+                                let dir_z = to[2] - from[2];
+                                let len = (dir_x * dir_x + dir_z * dir_z).sqrt();
+                                if len > 0.1 {
+                                    (dist * dir_x / len, 0.0, dist * dir_z / len)
+                                } else {
+                                    (dist, 0.0, 0.0)
+                                }
+                            } else {
+                                (dist, 0.0, 0.0)
+                            }
+                        }
+                    }
+                } else {
+                    (0.0, 0.0, 0.0)
+                };
+
+                if dx.abs() > 0.001 || dy.abs() > 0.001 || dz.abs() > 0.001 {
+                    for (i, id) in obj_ids.iter().enumerate() {
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            let orig = original_positions[i];
+                            obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
+                            obj.obj_version += 1;
+                        }
+                    }
+                    self.scene.version += 1;
+                    self.editor.last_move_delta = Some([dx, dy, dz]);
+                    self.file_message = Some((
+                        format!("移動 [{:.0}, {:.0}, {:.0}]mm", dx, dy, dz),
+                        std::time::Instant::now(),
+                    ));
+                }
+                self.editor.draw_state = DrawState::Idle;
+                self.editor.locked_axis = None;
+                self.editor.ctrl_was_down = false;
+                self.editor.axis_locked_by_ctrl = false;
             }
             _ => {}
         }
