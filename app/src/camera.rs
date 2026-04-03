@@ -104,6 +104,18 @@ impl OrbitCamera {
         self.pitch = -0.5;
     }
 
+    /// Zoom extents: 調整相機讓所有物件在視野內（Fit All）
+    pub fn zoom_extents(&mut self, scene_min: Vec3, scene_max: Vec3) {
+        let center = (scene_min + scene_max) * 0.5;
+        let size = scene_max - scene_min;
+        let max_dim = size.x.max(size.y).max(size.z).max(100.0);
+
+        self.target = center;
+        // 距離 = 最大尺寸 / tan(fov/2) × 安全係數
+        let half_fov = self.fov * 0.5;
+        self.distance = (max_dim * 0.6 / half_fov.tan()).clamp(100.0, 150_000.0);
+    }
+
     /// Linearly interpolate between two cameras. `t` should be in [0, 1].
     pub fn lerp(a: &OrbitCamera, b: &OrbitCamera, t: f32) -> OrbitCamera {
         let t = t.clamp(0.0, 1.0);

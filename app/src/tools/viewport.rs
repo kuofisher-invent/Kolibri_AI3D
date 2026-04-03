@@ -307,12 +307,35 @@ impl KolibriApp {
                         }
                         self.editor.ctrl_was_down = ctrl_now;
 
-                        let scale = self.viewer.camera.distance * 0.001;
-                        let (sy, cy) = self.viewer.camera.yaw.sin_cos();
-                        let right = glam::Vec3::new(-sy, 0.0, cy);
-                        let fwd = glam::Vec3::new(-cy, 0.0, -sy);
-                        let raw_delta = right * (-d.x) * scale + fwd * (d.y * scale);
-                        let vert_delta = -d.y * scale;
+                        // 用地面投影計算精確的世界座標差（不受相機距離影響）
+                        let mx = self.editor.mouse_screen[0];
+                        let my = self.editor.mouse_screen[1];
+                        let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
+                        let prev_mx = mx - d.x;
+                        let prev_my = my - d.y;
+
+                        // 當前和上一幀的地面投影
+                        let (orig_cur, dir_cur) = self.viewer.camera.screen_ray(mx, my, vw, vh);
+                        let (orig_prev, dir_prev) = self.viewer.camera.screen_ray(prev_mx, prev_my, vw, vh);
+
+                        // 取物件 Y 高度作為投影平面（而非 Y=0 地面）
+                        let obj_y = self.editor.selected_ids.first()
+                            .and_then(|id| self.scene.objects.get(id))
+                            .map(|o| o.position[1])
+                            .unwrap_or(0.0);
+
+                        let hit_cur = {
+                            let t = if dir_cur.y.abs() > 1e-6 { (obj_y - orig_cur.y) / dir_cur.y } else { 0.0 };
+                            if t > 0.0 { orig_cur + dir_cur * t } else { orig_cur }
+                        };
+                        let hit_prev = {
+                            let t = if dir_prev.y.abs() > 1e-6 { (obj_y - orig_prev.y) / dir_prev.y } else { 0.0 };
+                            if t > 0.0 { orig_prev + dir_prev * t } else { orig_prev }
+                        };
+
+                        let raw_delta = hit_cur - hit_prev;
+                        let vert_scale = self.viewer.camera.distance * 0.001;
+                        let vert_delta = -d.y * vert_scale;
 
                         // Apply movement based on locked axis
                         let (dx, dy, dz) = match self.editor.locked_axis {
@@ -645,24 +668,21 @@ impl KolibriApp {
                         obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
                         if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
 
-                        // 子物件相對於群組中心的偏移（用 corner position，非 center）
-                        let d = [
-                            orig_pos[0] - (group_center[0] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[0]),
-                            orig_pos[1] - (group_center[1] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[1]),
-                            orig_pos[2] - (group_center[2] - crate::renderer::mesh_builder::shape_half_size(&obj.shape)[2]),
-                        ];
+                        // 角點繞群組中心公轉：P_new = new_gc + R(P+half - gc) - half
                         let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-
-                        // 旋轉偏移向量（只旋轉對應平面的兩個分量）
+                        let d = [
+                            (orig_pos[0] + half[0]) - group_center[0],
+                            (orig_pos[1] + half[1]) - group_center[1],
+                            (orig_pos[2] + half[2]) - group_center[2],
+                        ];
                         let rd = match rotate_axis {
                             0 => [d[0], d[1]*cos_d - d[2]*sin_d, d[1]*sin_d + d[2]*cos_d],
                             2 => [d[0]*cos_d - d[1]*sin_d, d[0]*sin_d + d[1]*cos_d, d[2]],
                             _ => [d[0]*cos_d - d[2]*sin_d, d[1], d[0]*sin_d + d[2]*cos_d],
                         };
-
-                        obj.position[0] = new_gc[0] - half[0] + rd[0];
-                        obj.position[1] = new_gc[1] - half[1] + rd[1];
-                        obj.position[2] = new_gc[2] - half[2] + rd[2];
+                        obj.position[0] = new_gc[0] + rd[0] - half[0];
+                        obj.position[1] = new_gc[1] + rd[1] - half[1];
+                        obj.position[2] = new_gc[2] + rd[2] - half[2];
                         obj.obj_version += 1;
                     }
                 }

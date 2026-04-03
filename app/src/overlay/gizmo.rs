@@ -26,24 +26,13 @@ impl KolibriApp {
 
                     for sel_id in &self.editor.selected_ids {
                         if let Some(obj) = self.scene.objects.get(sel_id) {
-                            let p = obj.position;
-                            let ext = match &obj.shape {
-                                Shape::Box { width, height, depth } => [*width, *height, *depth],
-                                Shape::Cylinder { radius, height, .. } => [*radius*2.0, *height, *radius*2.0],
-                                Shape::Sphere { radius, .. } => [*radius*2.0; 3],
-                                _ => continue,
-                            };
-                            for i in 0..3 {
-                                world_min[i] = world_min[i].min(p[i]);
-                                world_max[i] = world_max[i].max(p[i] + ext[i]);
-                            }
-                            let corners = [
-                                [p[0],p[1],p[2]], [p[0]+ext[0],p[1],p[2]],
-                                [p[0],p[1]+ext[1],p[2]], [p[0]+ext[0],p[1]+ext[1],p[2]],
-                                [p[0],p[1],p[2]+ext[2]], [p[0]+ext[0],p[1],p[2]+ext[2]],
-                                [p[0],p[1]+ext[1],p[2]+ext[2]], [p[0]+ext[0],p[1]+ext[1],p[2]+ext[2]],
-                            ];
+                            // 使用旋轉感知的角落計算
+                            let corners = crate::tools::steel_conn_helpers::rotated_obj_corners(obj);
                             for c in &corners {
+                                for i in 0..3 {
+                                    world_min[i] = world_min[i].min(c[i]);
+                                    world_max[i] = world_max[i].max(c[i]);
+                                }
                                 if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
                                     min_s.x = min_s.x.min(sp.x); min_s.y = min_s.y.min(sp.y);
                                     max_s.x = max_s.x.max(sp.x); max_s.y = max_s.y.max(sp.y);
@@ -208,12 +197,45 @@ impl KolibriApp {
                             _ => (0.0, 0.0, 0.0),
                         };
                         if sx > 0.0 {
+                            // 旋轉函式：將局部偏移繞物件中心旋轉
+                            let rot_fn = {
+                                let [rx, ry, rz] = obj.rotation_xyz;
+                                let has_rot = rx.abs() > 1e-6 || ry.abs() > 1e-6 || rz.abs() > 1e-6 || obj.rotation_y.abs() > 1e-6;
+                                let eff_ry = if rx.abs() < 1e-6 && rz.abs() < 1e-6 && ry.abs() < 1e-6 { obj.rotation_y } else { ry };
+                                let half = [sx / 2.0, sy / 2.0, sz / 2.0];
+                                let (sin_x, cos_x) = rx.sin_cos();
+                                let (sin_y, cos_y) = eff_ry.sin_cos();
+                                let (sin_z, cos_z) = rz.sin_cos();
+                                let r00 = cos_y*cos_z + sin_y*sin_x*sin_z;
+                                let r01 = -cos_y*sin_z + sin_y*sin_x*cos_z;
+                                let r02 = sin_y*cos_x;
+                                let r10 = cos_x*sin_z;
+                                let r11 = cos_x*cos_z;
+                                let r12 = -sin_x;
+                                let r20 = -sin_y*cos_z + cos_y*sin_x*sin_z;
+                                let r21 = sin_y*sin_z + cos_y*sin_x*cos_z;
+                                let r22 = cos_y*cos_x;
+                                move |local: [f32; 3]| -> [f32; 3] {
+                                    if !has_rot {
+                                        return [pos.x + local[0], pos.y + local[1], pos.z + local[2]];
+                                    }
+                                    let dx = local[0] - half[0];
+                                    let dy = local[1] - half[1];
+                                    let dz = local[2] - half[2];
+                                    [
+                                        pos.x + half[0] + r00*dx + r01*dy + r02*dz,
+                                        pos.y + half[1] + r10*dx + r11*dy + r12*dz,
+                                        pos.z + half[2] + r20*dx + r21*dy + r22*dz,
+                                    ]
+                                }
+                            };
                             // 8 corners + 6 face centers = 14 grip points
-                            let corners = [
+                            let corners_local = [
                                 [0.0, 0.0, 0.0], [sx, 0.0, 0.0], [sx, 0.0, sz], [0.0, 0.0, sz],
                                 [0.0, sy, 0.0], [sx, sy, 0.0], [sx, sy, sz], [0.0, sy, sz],
                             ];
-                            let face_centers = [
+                            let corners: Vec<[f32; 3]> = corners_local.iter().map(|c| rot_fn(*c)).collect();
+                            let face_centers_local = [
                                 [sx / 2.0, sy / 2.0, 0.0],  // Front
                                 [sx / 2.0, sy / 2.0, sz],   // Back
                                 [0.0, sy / 2.0, sz / 2.0],  // Left
@@ -221,6 +243,7 @@ impl KolibriApp {
                                 [sx / 2.0, 0.0, sz / 2.0],  // Bottom
                                 [sx / 2.0, sy, sz / 2.0],   // Top
                             ];
+                            let face_centers: Vec<[f32; 3]> = face_centers_local.iter().map(|c| rot_fn(*c)).collect();
                             let grip_size = 4.0;
                             let corner_color = egui::Color32::from_rgb(80, 200, 120); // green = uniform
                             // Face center grip colors: axis-coded (R=X, G=Y, B=Z)
@@ -234,7 +257,7 @@ impl KolibriApp {
                             ];
                             // 角落 grip (uniform scale)
                             for c in &corners {
-                                let wp = [pos.x + c[0], pos.y + c[1], pos.z + c[2]];
+                                let wp = *c; // 已經是世界座標
                                 if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
                                     let r = egui::Rect::from_center_size(sp, egui::vec2(grip_size * 2.0, grip_size * 2.0));
                                     ui.painter().rect_filled(r, 0.0, corner_color);
@@ -243,7 +266,7 @@ impl KolibriApp {
                             }
                             // 面中心 grip（per-axis scale, color-coded）
                             for (fi, fc) in face_centers.iter().enumerate() {
-                                let wp = [pos.x + fc[0], pos.y + fc[1], pos.z + fc[2]];
+                                let wp = *fc; // 已經是世界座標
                                 if let Some(sp) = Self::world_to_screen_vp(wp, &vp, &rect) {
                                     let r = egui::Rect::from_center_size(sp, egui::vec2(grip_size * 1.5, grip_size * 1.5));
                                     ui.painter().rect_filled(r, 0.0, face_colors[fi]);
@@ -258,8 +281,8 @@ impl KolibriApp {
                             ];
                             let edge_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(80, 200, 120, 120));
                             for (a, b) in &edges {
-                                let wa = [pos.x + corners[*a][0], pos.y + corners[*a][1], pos.z + corners[*a][2]];
-                                let wb = [pos.x + corners[*b][0], pos.y + corners[*b][1], pos.z + corners[*b][2]];
+                                let wa = corners[*a]; // 已經是世界座標
+                                let wb = corners[*b];
                                 if let (Some(sa), Some(sb)) = (
                                     Self::world_to_screen_vp(wa, &vp, &rect),
                                     Self::world_to_screen_vp(wb, &vp, &rect),

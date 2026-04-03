@@ -281,3 +281,17 @@ public class WinAuto {
 - **不可用像素座標猜測按鈕位置** — egui ScrollArea 會讓按鈕座標變動，必須先裁剪截圖量測
 - **不可盲目重複修改同一段程式碼** — 先用 Console 日誌或截圖找出 root cause
 - **移動/旋轉工具的問題** — 通常是因為 selected_ids 裡有群組 ID（不在 scene.objects 中），需要先 expand_selection_to_groups
+
+## 對話接續規範
+
+### 對話窗 90% 時強制寫出 next_session.md
+當對話上下文使用量接近 90%（大量工具呼叫、長時間工作後），**必須強制寫出** `next_session.md`，確保下一輪對話可以接續。
+
+**檔案位置**：`C:\Users\localadmin\.claude\projects\d--AI-Design-Kolibri-Ai3D\memory\next_session.md`
+
+**必須包含的內容**：
+1. **本次完成了什麼** — 列出已完成的修改/功能，含關鍵檔案路徑
+2. **未完成的工作** — 列出正在做但沒做完的事項，含目前卡在哪裡
+3. **目前狀態** — 編譯是否通過、APP 是否在跑、有無未提交的變更
+4. **下一步該做什麼** — 明確的接續指示，讓下一輪對話可以直接開始
+5. **關鍵發現/決策** — 任何影響後續工作的技術發現或設計決策

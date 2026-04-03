@@ -291,6 +291,8 @@ impl KolibriApp {
                         if let Some(obj) = self.scene.objects.get_mut(id) {
                             obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
                             if axis == 1 { obj.rotation_y = orig_rot + delta; }
+                            let cos_d = delta.cos();
+                            let sin_d = delta.sin();
                             let (pa, pb) = match axis {
                                 0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]),
                                 2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]),

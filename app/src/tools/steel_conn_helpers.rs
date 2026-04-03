@@ -6,19 +6,88 @@ use crate::scene::{MaterialKind, SceneObject, Shape};
 use kolibri_core::collision::ComponentKind;
 use kolibri_core::steel_connection::*;
 
-/// 計算物件 AABB 邊界 (min, max)
+/// 計算物件 AABB 邊界 (min, max)，考慮 rotation_xyz
 pub(crate) fn obj_bounds(obj: &SceneObject) -> ([f32; 3], [f32; 3]) {
+    let corners = rotated_obj_corners(obj);
+    if corners.is_empty() {
+        return (obj.position, obj.position);
+    }
+    let mut min = corners[0];
+    let mut max = corners[0];
+    for c in &corners[1..] {
+        for i in 0..3 {
+            min[i] = min[i].min(c[i]);
+            max[i] = max[i].max(c[i]);
+        }
+    }
+    (min, max)
+}
+
+/// 計算物件的 8 個角落世界座標（含旋轉）
+pub(crate) fn rotated_obj_corners(obj: &SceneObject) -> Vec<[f32; 3]> {
     let p = obj.position;
-    match &obj.shape {
+    let (ext, center_off) = match &obj.shape {
         Shape::Box { width, height, depth } => {
-            (p, [p[0] + width, p[1] + height, p[2] + depth])
+            ([*width, *height, *depth], [*width / 2.0, *height / 2.0, *depth / 2.0])
         }
         Shape::Cylinder { radius, height, .. } => {
-            ([p[0] - radius, p[1], p[2] - radius],
-             [p[0] + radius, p[1] + height, p[2] + radius])
+            ([*radius * 2.0, *height, *radius * 2.0], [0.0, *height / 2.0, 0.0])
         }
-        _ => (p, p),
+        Shape::Sphere { radius, .. } => {
+            ([*radius * 2.0; 3], [*radius, *radius, *radius])
+        }
+        _ => return vec![p],
+    };
+
+    // 8 個未旋轉的角落（相對於 position）
+    let local_corners = [
+        [0.0, 0.0, 0.0], [ext[0], 0.0, 0.0],
+        [0.0, ext[1], 0.0], [ext[0], ext[1], 0.0],
+        [0.0, 0.0, ext[2]], [ext[0], 0.0, ext[2]],
+        [0.0, ext[1], ext[2]], [ext[0], ext[1], ext[2]],
+    ];
+
+    let [rx, ry, rz] = obj.rotation_xyz;
+    let has_rotation = rx.abs() > 1e-6 || ry.abs() > 1e-6 || rz.abs() > 1e-6
+        || obj.rotation_y.abs() > 1e-6;
+
+    if !has_rotation {
+        return local_corners.iter().map(|c| [p[0]+c[0], p[1]+c[1], p[2]+c[2]]).collect();
     }
+
+    // 旋轉中心 = position + center_offset
+    let cx = p[0] + center_off[0];
+    let cy = p[1] + center_off[1];
+    let cz = p[2] + center_off[2];
+
+    // 決定有效的 Y 旋轉角
+    let use_y_only = rx.abs() < 1e-6 && rz.abs() < 1e-6;
+    let eff_ry = if use_y_only && ry.abs() < 1e-6 { obj.rotation_y } else { ry };
+
+    // 旋轉矩陣 R = Ry * Rx * Rz（與 mesh_builder 一致）
+    let (sx, cx_r) = rx.sin_cos();
+    let (sy, cy_r) = eff_ry.sin_cos();
+    let (sz, cz_r) = rz.sin_cos();
+    let r00 = cy_r * cz_r + sy * sx * sz;
+    let r01 = -cy_r * sz + sy * sx * cz_r;
+    let r02 = sy * cx_r;
+    let r10 = cx_r * sz;
+    let r11 = cx_r * cz_r;
+    let r12 = -sx;
+    let r20 = -sy * cz_r + cy_r * sx * sz;
+    let r21 = sy * sz + cy_r * sx * cz_r;
+    let r22 = cy_r * cx_r;
+
+    local_corners.iter().map(|lc| {
+        let dx = p[0] + lc[0] - cx;
+        let dy = p[1] + lc[1] - cy;
+        let dz = p[2] + lc[2] - cz;
+        [
+            cx + r00 * dx + r01 * dy + r02 * dz,
+            cy + r10 * dx + r11 * dy + r12 * dz,
+            cz + r20 * dx + r21 * dy + r22 * dz,
+        ]
+    }).collect()
 }
 
 /// 計算物件幾何中心

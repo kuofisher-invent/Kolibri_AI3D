@@ -216,20 +216,21 @@ impl KolibriApp {
                                 obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
                                 if axis == 1 { obj.rotation_y = orig_rot + delta; }
 
+                                // 角點繞群組中心公轉：P_new = new_gc + R(P+half - gc) - half
                                 let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
                                 let d = [
-                                    orig_pos[0] - (gc[0] - half[0]),
-                                    orig_pos[1] - (gc[1] - half[1]),
-                                    orig_pos[2] - (gc[2] - half[2]),
+                                    (orig_pos[0] + half[0]) - gc[0],
+                                    (orig_pos[1] + half[1]) - gc[1],
+                                    (orig_pos[2] + half[2]) - gc[2],
                                 ];
                                 let rd = match axis {
                                     0 => [d[0], d[1]*cos_d - d[2]*sin_d, d[1]*sin_d + d[2]*cos_d],
                                     2 => [d[0]*cos_d - d[1]*sin_d, d[0]*sin_d + d[1]*cos_d, d[2]],
                                     _ => [d[0]*cos_d - d[2]*sin_d, d[1], d[0]*sin_d + d[2]*cos_d],
                                 };
-                                obj.position[0] = new_gc[0] - half[0] + rd[0];
-                                obj.position[1] = new_gc[1] - half[1] + rd[1];
-                                obj.position[2] = new_gc[2] - half[2] + rd[2];
+                                obj.position[0] = new_gc[0] + rd[0] - half[0];
+                                obj.position[1] = new_gc[1] + rd[1] - half[1];
+                                obj.position[2] = new_gc[2] + rd[2] - half[2];
                                 obj.obj_version += 1;
                             }
                         }

@@ -406,6 +406,27 @@ impl KolibriApp {
                         }
                     }
 
+                    // Zoom Extents（Home 鍵 / Shift+Z）— 一鍵顯示全貌
+                    let zoom_extents = i.key_pressed(egui::Key::Home)
+                        || (i.modifiers.shift && i.key_pressed(egui::Key::Z));
+                    if zoom_extents && !self.scene.objects.is_empty() {
+                        let mut smin = [f32::MAX; 3];
+                        let mut smax = [f32::MIN; 3];
+                        for obj in self.scene.objects.values() {
+                            if !obj.visible { continue; }
+                            let corners = crate::tools::steel_conn_helpers::rotated_obj_corners(obj);
+                            for c in &corners {
+                                for k in 0..3 { smin[k] = smin[k].min(c[k]); smax[k] = smax[k].max(c[k]); }
+                            }
+                        }
+                        if smin[0] < f32::MAX {
+                            self.viewer.camera.zoom_extents(
+                                glam::Vec3::from(smin), glam::Vec3::from(smax),
+                            );
+                            self.file_message = Some(("Zoom Extents — 全景".into(), std::time::Instant::now()));
+                        }
+                    }
+
                     // Axis locking / Rotation axis switching
                     if i.key_pressed(egui::Key::ArrowRight) {
                         // → = X 軸 (紅)
