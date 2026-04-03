@@ -466,6 +466,8 @@ pub(crate) struct EditorState {
     pub(crate) rubber_band: Option<(egui::Pos2, egui::Pos2)>,
     pub(crate) shift_held: bool,
     pub(crate) ctrl_was_down: bool,
+    /// Ctrl 循環設定的軸鎖定（MoveFrom 期間不被 Shift-lock cleanup 清除）
+    pub(crate) axis_locked_by_ctrl: bool,
     pub(crate) mouse_ground: Option<[f32; 3]>,
     pub(crate) mouse_screen: [f32; 2],
     pub(crate) measure_input: String,
@@ -653,6 +655,11 @@ pub(crate) struct EditorState {
     pub(crate) debug_trace_records: Vec<DebugTraceRecord>,
     /// 當前 session 的輸出檔路徑
     pub(crate) debug_trace_path: Option<String>,
+    /// 上次記錄的 fingerprint（差異偵測用）
+    /// (tool, draw_state, scene_version, selected_count, mouse_ground_quantized)
+    pub(crate) debug_trace_last_fingerprint: (String, String, u64, usize, [i32; 3]),
+    /// Trace 啟動時間（用於計算 t_ms）
+    pub(crate) debug_trace_start: std::time::Instant,
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────

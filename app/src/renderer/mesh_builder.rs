@@ -413,7 +413,7 @@ fn apply_rotation(obj: &SceneObject, start_idx: usize, verts: &mut [Vertex]) {
     // 計算物件中心
     let (coff_x, coff_y, coff_z) = match &obj.shape {
         Shape::Box { width, height, depth } => (*width / 2.0, *height / 2.0, *depth / 2.0),
-        Shape::Cylinder { radius, height, .. } => (*radius, *height / 2.0, *radius),
+        Shape::Cylinder { height, .. } => (0.0, *height / 2.0, 0.0), // 底面圓心=position，旋轉繞幾何中心
         Shape::Sphere { radius, .. } => (*radius, *radius, *radius),
         Shape::Line { .. } => (0.0, 0.0, 0.0),
         Shape::Mesh(ref mesh) => {

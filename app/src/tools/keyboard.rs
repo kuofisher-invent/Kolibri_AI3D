@@ -14,9 +14,25 @@ impl KolibriApp {
             ui.input(|i| {
                 if i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace) {
                     let ids = std::mem::take(&mut self.editor.selected_ids);
+                    // 收集需要刪除的群組（避免重複刪除）
+                    let mut deleted_groups = std::collections::HashSet::new();
                     for id in &ids {
-                        self.ai_log.log(&self.current_actor.clone(), "刪除���件", id, vec![id.clone()]);
-                        self.scene.delete(id);
+                        // 查物件是否屬於某群組 → 整組刪除
+                        let parent_group = self.scene.objects.get(id)
+                            .and_then(|o| o.parent_id.clone());
+                        if let Some(gid) = parent_group {
+                            if deleted_groups.insert(gid.clone()) {
+                                self.ai_log.log(&self.current_actor.clone(), "刪除群組", &gid, vec![gid.clone()]);
+                                self.scene.delete_group(&gid);
+                            }
+                        } else if self.scene.delete_group(id) {
+                            // id 本身是群組 → 已刪除
+                            deleted_groups.insert(id.clone());
+                        } else {
+                            // 不屬於群組也不是群組 → 刪除個別物件
+                            self.ai_log.log(&self.current_actor.clone(), "刪除物件", id, vec![id.clone()]);
+                            self.scene.delete(id);
+                        }
                     }
                 }
                 if i.key_pressed(egui::Key::Escape) {

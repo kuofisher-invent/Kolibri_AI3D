@@ -609,6 +609,22 @@ impl Scene {
         id
     }
 
+    /// 刪除群組及其所有子物件（用於接頭刪除等）
+    pub fn delete_group(&mut self, group_id: &str) -> bool {
+        if let Some(group) = self.groups.get(group_id) {
+            let children = group.children.clone();
+            self.snapshot();
+            for cid in &children {
+                self.objects.remove(cid);
+            }
+            self.groups.remove(group_id);
+            self.version += 1;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn dissolve_group(&mut self, group_id: &str) {
         // 清除子物件的 parent_id
         if let Some(group) = self.groups.get(group_id) {

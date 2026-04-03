@@ -579,7 +579,7 @@ impl KolibriApp {
                                 .on_hover_text(if trace_on {
                                     format!("停止 Debug Trace（{} 筆記錄）", self.editor.debug_trace_records.len())
                                 } else {
-                                    format!("啟動 Debug Trace（{}ms 間隔）", self.editor.debug_trace_interval_ms)
+                                    "啟動 Debug Trace（差異偵測：只記錄變化）".into()
                                 })
                                 .clicked()
                             {
@@ -591,17 +591,7 @@ impl KolibriApp {
                                     self.start_debug_trace();
                                 }
                             }
-                            // 頻率調整（10~1500ms，步進 10）
-                            if !trace_on {
-                                let mut interval = self.editor.debug_trace_interval_ms as f32;
-                                let slider = egui::Slider::new(&mut interval, 10.0..=1500.0)
-                                    .step_by(10.0)
-                                    .suffix("ms")
-                                    .text_color(egui::Color32::from_gray(160));
-                                if ui.add_sized([120.0, 16.0], slider).changed() {
-                                    self.editor.debug_trace_interval_ms = interval as u32;
-                                }
-                            } else {
+                            if trace_on {
                                 // 錄製中：顯示記錄數
                                 ui.label(egui::RichText::new(
                                     format!("REC {} 筆", self.editor.debug_trace_records.len())

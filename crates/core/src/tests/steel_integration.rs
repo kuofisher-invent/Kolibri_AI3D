@@ -78,10 +78,11 @@ fn test_end_plate_full_workflow() {
     assert_eq!(bg.rows, 4, "H400 梁應有 4 列螺栓");
     assert_eq!(bg.cols, 2);
     assert_eq!(bg.positions.len(), (bg.rows * bg.cols) as usize);
-    // 螺栓間距 ≥ 2.5d = 50mm
-    assert!(bg.row_spacing >= 50.0, "行距 {:.0} < 2.5d=50", bg.row_spacing);
-    // 邊距 ≥ AISC 最小 34mm
-    assert!(bg.edge_dist >= 34.0, "邊距 {:.0} < AISC 34mm", bg.edge_dist);
+    // 螺栓間距 ≥ 2.667d（AISC J3.3）
+    let min_sp = (bg.bolt_size.diameter() * 2.667).ceil();
+    assert!(bg.row_spacing >= min_sp - 1.0, "行距 {:.0} < AISC {:.0}", bg.row_spacing, min_sp);
+    // 邊距 ≥ AISC Table J3.4
+    assert!(bg.edge_dist >= bg.bolt_size.min_edge(), "邊距 {:.0} < AISC {:.0}", bg.edge_dist, bg.bolt_size.min_edge());
     println!("螺栓: {}×{} = {} 顆, 間距={:.0}, 邊距={:.0}",
         bg.rows, bg.cols, bg.positions.len(), bg.row_spacing, bg.edge_dist);
 
@@ -386,8 +387,8 @@ fn test_hole_layout() {
     let layout = calc_hole_layout(268.0, 508.0, BoltSize::M20, 4, 2);
     assert_eq!(layout.holes.len(), 8);
     assert_eq!(layout.hole_diameter, 22.0); // M20 + 2mm
-    assert!(layout.pitch >= 60.0, "行距 {:.0} 太小", layout.pitch);
-    assert!(layout.edge_x >= 34.0, "X邊距 {:.0} 不足", layout.edge_x);
+    assert!(layout.pitch >= BoltSize::M20.min_spacing(), "行距 {:.0} < AISC {:.0}", layout.pitch, BoltSize::M20.min_spacing());
+    assert!(layout.edge_x >= BoltSize::M20.min_edge(), "X邊距 {:.0} < AISC {:.0}", layout.edge_x, BoltSize::M20.min_edge());
 
     println!("孔位佈置 4×2 = {} 孔:", layout.holes.len());
     println!("  孔徑: Ø{:.0}mm | 邊距: X={:.0} Y={:.0} | 行距={:.0} 列距={:.0}",

@@ -479,63 +479,60 @@ impl KolibriApp {
             bg.hole_diameter, bg.edge_dist, bg.row_spacing,
         ));
 
+        // 端板螺栓方向：垂直於端板最大面
+        // 端板在 YZ 平面（梁沿X）或 XY 平面（梁沿Z）→ 最薄方向就是螺栓方向
+        // Cylinder 預設沿 Y，需要旋轉到正確方向
+        let bolt_rotation = if is_x_dir {
+            // 端板最薄方向 = X → 螺栓沿 X → 繞 Z 轉 90° (Y→X)
+            [0.0, 0.0, std::f32::consts::FRAC_PI_2 * sign]
+        } else {
+            // 端板最薄方向 = Z → 螺栓沿 Z → 繞 X 轉 90° (Y→Z)
+            [std::f32::consts::FRAC_PI_2 * sign, 0.0, 0.0]
+        };
+
+        // 螺栓方向向量（板最薄方向）
+        let bolt_dir: [f32; 3] = if is_x_dir {
+            [sign, 0.0, 0.0] // 沿 X
+        } else {
+            [0.0, 0.0, sign] // 沿 Z
+        };
+
         for (i, bp) in bg.positions.iter().enumerate() {
             let bolt_name = format!("{}_{}", bg.bolt_size.label(), i + 1);
-
-            // bp = [local_x, local_y, 0] → 轉世界座標
-            // 螺栓軸向沿板件法線（local_z）
             let bolt_center = self.conn_local_to_world(conn_pos, *bp, is_x_dir, sign);
 
-            // 螺栓沿 local_z 方向延伸 — 在世界座標中是哪個軸？
-            let bolt_axis_offset = if is_x_dir {
-                // local_z → world X (× sign)
-                [sign, 0.0, 0.0]
-            } else {
-                // local_z → world Z (× sign)
-                [0.0, 0.0, sign]
-            };
-
-            // 孔標記（圓柱沿 Y 軸，穿透板件）
-            let hole_id = self.scene.insert_cylinder_raw(
-                format!("{}_hole", bolt_name),
-                [bolt_center[0], bolt_center[1] - grip / 2.0, bolt_center[2]],
-                hole_r, grip, 12,
-                MaterialKind::Custom([0.2, 0.2, 0.2, 0.3]),
-            );
-            if let Some(obj) = self.scene.objects.get_mut(&hole_id) {
-                obj.component_kind = ComponentKind::Bolt;
-            }
-            ids.push(hole_id);
-
-            // 螺栓桿身（沿板法線方向 = 用 bolt_axis_offset）
-            // 簡化：螺栓都沿 Y 軸放（垂直），因為端板也是垂直的
-            // 實際上螺栓穿透端板方向是水平的，但 Cylinder 只能沿 Y 軸
-            // 所以用多個小 Box 代替或直接用 Y 軸 cylinder
+            // Cylinder position = 底面圓心（修正後不需 -radius 偏移）
+            // 桿身：沿 bolt_dir 方向，中心在 bolt_center
+            let shank_pos = [
+                bolt_center[0], bolt_center[1] - grip / 2.0, bolt_center[2],
+            ];
             let shank_id = self.scene.insert_cylinder_raw(
-                format!("{}_shank", bolt_name),
-                [bolt_center[0] - bolt_axis_offset[0] * grip / 2.0,
-                 bolt_center[1],
-                 bolt_center[2] - bolt_axis_offset[2] * grip / 2.0],
+                format!("{}_shank", bolt_name), shank_pos,
                 bolt_r, grip, 8, MaterialKind::Metal,
             );
             if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
                 obj.component_kind = ComponentKind::Bolt;
+                obj.rotation_xyz = bolt_rotation;
             }
             ids.push(shank_id);
 
-            // 螺栓頭（板外側）
+            // 螺栓頭：在桿身外端（沿 bolt_dir 偏移 grip/2 + head_t/2）
+            let head_offset = grip / 2.0 + head_t / 2.0;
+            let head_center = [
+                bolt_center[0] + bolt_dir[0] * head_offset,
+                bolt_center[1] + bolt_dir[1] * head_offset,
+                bolt_center[2] + bolt_dir[2] * head_offset,
+            ];
             let head_pos = [
-                bolt_center[0] + bolt_axis_offset[0] * (grip / 2.0 + head_t / 2.0),
-                bolt_center[1],
-                bolt_center[2] + bolt_axis_offset[2] * (grip / 2.0 + head_t / 2.0),
+                head_center[0], head_center[1] - head_t / 2.0, head_center[2],
             ];
             let head_id = self.scene.insert_cylinder_raw(
-                format!("{}_head", bolt_name),
-                head_pos,
+                format!("{}_head", bolt_name), head_pos,
                 head_r, head_t, 6, MaterialKind::Metal,
             );
             if let Some(obj) = self.scene.objects.get_mut(&head_id) {
                 obj.component_kind = ComponentKind::Bolt;
+                obj.rotation_xyz = bolt_rotation;
             }
             ids.push(head_id);
         }

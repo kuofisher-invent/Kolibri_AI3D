@@ -85,8 +85,19 @@ impl KolibriApp {
             MenuAction::Undo => { self.scene.undo(); }
             MenuAction::Redo => { self.scene.redo(); }
             MenuAction::Delete => {
+                let mut deleted_groups = std::collections::HashSet::new();
                 for id in self.editor.selected_ids.drain(..).collect::<Vec<_>>() {
-                    self.scene.delete(&id);
+                    let parent_group = self.scene.objects.get(&id)
+                        .and_then(|o| o.parent_id.clone());
+                    if let Some(gid) = parent_group {
+                        if deleted_groups.insert(gid.clone()) {
+                            self.scene.delete_group(&gid);
+                        }
+                    } else if self.scene.delete_group(&id) {
+                        deleted_groups.insert(id);
+                    } else {
+                        self.scene.delete(&id);
+                    }
                 }
             }
             MenuAction::SelectAll => {

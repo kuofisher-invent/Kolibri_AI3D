@@ -53,14 +53,15 @@ impl KolibriApp {
                 if let Some(ref snap) = self.editor.snap_result {
                     match snap.snap_type {
                         crate::app::SnapType::AxisX => self.editor.locked_axis = Some(0),
+                        crate::app::SnapType::AxisY => self.editor.locked_axis = Some(1),
                         crate::app::SnapType::AxisZ => self.editor.locked_axis = Some(2),
                         _ => {} // keep current lock if any
                     }
                 }
             } else if !shift && !ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd) {
-                // Release Shift-lock when Shift is released (unless Ctrl-locked)
-                // Only clear if it was a Shift-lock (not a Ctrl-cycle lock)
-                if self.editor.locked_axis.is_some() && !self.editor.ctrl_was_down {
+                // Release Shift-lock when Shift is released
+                // 但不清除 Ctrl 循環設定的軸鎖定
+                if self.editor.locked_axis.is_some() && !self.editor.axis_locked_by_ctrl {
                     self.editor.locked_axis = None;
                 }
             }
@@ -98,33 +99,64 @@ impl KolibriApp {
                 }
             }
 
+            // ── MoveFrom: Ctrl 循環切換軸鎖定 ──
+            if matches!(self.editor.draw_state, DrawState::MoveFrom { .. }) {
+                let ctrl_now = ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd);
+                if ctrl_now && !self.editor.ctrl_was_down {
+                    self.editor.locked_axis = match self.editor.locked_axis {
+                        None => Some(0),
+                        Some(0) => Some(1),
+                        Some(1) => Some(2),
+                        Some(2) => None,
+                        Some(_) => None,
+                    };
+                    self.editor.axis_locked_by_ctrl = self.editor.locked_axis.is_some();
+                    let axis_name = match self.editor.locked_axis {
+                        Some(0) => "X (紅)",
+                        Some(1) => "Y (綠)",
+                        Some(2) => "Z (藍)",
+                        _ => "自由",
+                    };
+                    self.file_message = Some((
+                        format!("Move 鎖定軸: {} (Ctrl 切換)", axis_name),
+                        std::time::Instant::now(),
+                    ));
+                }
+                self.editor.ctrl_was_down = ctrl_now;
+            }
+
             // ── SU-style Move click-click 即時預覽 ──
-            // 用 ground plane 的 XZ 差值移動物件（Y 方向不動）
             if let DrawState::MoveFrom { from, ref obj_ids, ref original_positions } = self.editor.draw_state.clone() {
-                if let Some(to) = self.editor.mouse_ground {
-                    let mut dx = to[0] - from[0];
-                    let mut dz = to[2] - from[2];
+                // Y 軸鎖定時用垂直投影，否則用 ground plane XZ
+                let (mut dx, mut dy, mut dz) = if self.editor.locked_axis == Some(1) {
+                    let y = self.current_vertical_y(from);
+                    (0.0, y - from[1], 0.0)
+                } else if let Some(to) = self.editor.mouse_ground {
+                    (to[0] - from[0], 0.0, to[2] - from[2])
+                } else {
+                    (0.0, 0.0, 0.0)
+                };
 
-                    // 鎖定軸
-                    match self.editor.locked_axis {
-                        Some(0) => { dz = 0.0; }
-                        Some(2) => { dx = 0.0; }
-                        _ => {}
-                    }
+                // 鎖定軸
+                match self.editor.locked_axis {
+                    Some(0) => { dy = 0.0; dz = 0.0; }
+                    Some(1) => { dx = 0.0; dz = 0.0; }
+                    Some(2) => { dx = 0.0; dy = 0.0; }
+                    _ => {}
+                }
 
-                    if dx.abs() > 0.01 || dz.abs() > 0.01 {
-                        for (i, id) in obj_ids.iter().enumerate() {
-                            if let Some(obj) = self.scene.objects.get_mut(id) {
-                                let orig = original_positions[i];
-                                obj.position = [orig[0] + dx, orig[1], orig[2] + dz];
-                                obj.obj_version += 1; // 觸發渲染 mesh 重建
-                            }
+                if dx.abs() > 0.01 || dy.abs() > 0.01 || dz.abs() > 0.01 {
+                    for (i, id) in obj_ids.iter().enumerate() {
+                        if let Some(obj) = self.scene.objects.get_mut(id) {
+                            let orig = original_positions[i];
+                            obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
+                            obj.obj_version += 1;
                         }
-                        self.scene.version += 1;
-
-                        let dist = (dx*dx + dz*dz).sqrt();
-                        self.editor.cursor_dimension = Some((dist, 0.0, format!("{:.0}mm", dist)));
                     }
+                    self.scene.version += 1;
+
+                    let dist = (dx*dx + dy*dy + dz*dz).sqrt();
+                    self.editor.cursor_dimension = Some((dist, 0.0, format!("{:.0}mm", dist)));
                 }
             }
 

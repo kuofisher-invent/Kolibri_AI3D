@@ -200,3 +200,14 @@ pub fn ray_vertical_height(origin: Vec3, dir: Vec3, base: Vec3) -> f32 {
     let hit = origin + dir * s.max(0.0);
     (hit.y - base.y).max(10.0)  // min 10mm
 }
+
+/// 同上但回傳帶正負號的 Y 座標（用於 Move Y 方向）
+pub fn ray_vertical_y(origin: Vec3, dir: Vec3, base: Vec3) -> f32 {
+    let dx = origin.x - base.x;
+    let dz = origin.z - base.z;
+    let denom = dir.x * dir.x + dir.z * dir.z;
+    if denom < 1e-6 { return base.y; }
+    let s = -(dx * dir.x + dz * dir.z) / denom;
+    let hit = origin + dir * s.max(0.0);
+    hit.y
+}

@@ -119,24 +119,31 @@ impl BoltSize {
         }
     }
 
-    /// 標準孔徑 (mm) — 螺栓直徑 + 2mm
+    /// 標準孔徑 (AISC Table J3.3M)
     pub fn hole_diameter(&self) -> f32 {
-        self.diameter() + 2.0
-    }
-
-    /// 螺栓頭部對邊距離 (mm)
-    pub fn head_across_flats(&self) -> f32 {
         match self {
-            Self::M16 => 24.0,
-            Self::M20 => 30.0,
-            Self::M22 => 34.0,
-            Self::M24 => 36.0,
-            Self::M27 => 41.0,
-            Self::M30 => 46.0,
+            Self::M16 => 18.0,
+            Self::M20 => 22.0,
+            Self::M22 => 24.0,
+            Self::M24 => 27.0, // AISC: +3mm
+            Self::M27 => 30.0,
+            Self::M30 => 33.0,
         }
     }
 
-    /// 螺栓頭部厚度 (mm)
+    /// 螺栓頭對邊距 — Heavy Hex (AISC/ASTM F3125)
+    pub fn head_across_flats(&self) -> f32 {
+        match self {
+            Self::M16 => 27.0,
+            Self::M20 => 34.0,
+            Self::M22 => 36.0,
+            Self::M24 => 41.0,
+            Self::M27 => 46.0,
+            Self::M30 => 50.0,
+        }
+    }
+
+    /// 螺栓頭厚 (ISO 4014 / ASTM)
     pub fn head_thickness(&self) -> f32 {
         match self {
             Self::M16 => 10.0,
@@ -148,20 +155,62 @@ impl BoltSize {
         }
     }
 
-    /// 最小螺栓間距 (mm) — 2.5d（台灣鋼構規範）
-    pub fn min_spacing(&self) -> f32 {
-        self.diameter() * 2.5
+    /// 螺帽厚 (Heavy Hex Nut, ASTM)
+    pub fn nut_thickness(&self) -> f32 {
+        match self {
+            Self::M16 => 14.8,
+            Self::M20 => 18.0,
+            Self::M22 => 19.4,
+            Self::M24 => 21.5,
+            Self::M27 => 23.8,
+            Self::M30 => 25.6,
+        }
     }
 
-    /// 最小邊距 (mm)（台灣鋼構規範：剪力邊距 ≥ 1.5d，拉力邊距 ≥ 2d）
+    /// 墊圈外徑 (ASTM F436)
+    pub fn washer_od(&self) -> f32 {
+        match self {
+            Self::M16 => 33.0,
+            Self::M20 => 37.0,
+            Self::M22 => 44.0,
+            Self::M24 => 51.0,
+            Self::M27 => 57.0,
+            Self::M30 => 64.0,
+        }
+    }
+
+    /// 最小螺栓間距 (mm) — 2.5d（台灣鋼構規範）
+    /// 最小間距 (AISC J3.3: 2.667d，建議 3d)
+    pub fn min_spacing(&self) -> f32 {
+        (self.diameter() * 2.667).ceil()
+    }
+
+    /// 建議間距 (AISC: 3d)
+    pub fn preferred_spacing(&self) -> f32 {
+        self.diameter() * 3.0
+    }
+
+    /// 最小邊距 (AISC Table J3.4, 滾軋/切割邊)
     pub fn min_edge(&self) -> f32 {
         match self {
-            Self::M16 => 28.0,
-            Self::M20 => 34.0,
+            Self::M16 => 22.0,
+            Self::M20 => 25.0,
+            Self::M22 => 29.0,
+            Self::M24 => 32.0,
+            Self::M27 => 38.0,
+            Self::M30 => 41.0,
+        }
+    }
+
+    /// 最小邊距 — 剪切邊 (AISC Table J3.4)
+    pub fn min_edge_sheared(&self) -> f32 {
+        match self {
+            Self::M16 => 29.0,
+            Self::M20 => 32.0,
             Self::M22 => 38.0,
-            Self::M24 => 42.0,
-            Self::M27 => 48.0,
-            Self::M30 => 52.0,
+            Self::M24 => 44.0,
+            Self::M27 => 51.0,
+            Self::M30 => 57.0,
         }
     }
 
@@ -886,14 +935,15 @@ pub fn minimum_fillet_weld_size(thicker_part: f32) -> f32 {
 
 /// AISC J3.3 Table J3.4M: 最小螺栓邊距 (mm)
 /// (已在 BoltSize::min_edge() 中實作，此為交叉驗證)
+/// AISC Table J3.4 最小邊距（滾軋/切割邊）
 pub fn aisc_min_edge_distance(bolt_diameter: f32) -> f32 {
-    if bolt_diameter <= 16.0 { 28.0 }
-    else if bolt_diameter <= 20.0 { 34.0 }
-    else if bolt_diameter <= 22.0 { 38.0 }
-    else if bolt_diameter <= 24.0 { 42.0 }
-    else if bolt_diameter <= 27.0 { 48.0 }
-    else if bolt_diameter <= 30.0 { 52.0 }
-    else { bolt_diameter * 1.75 }
+    if bolt_diameter <= 16.0 { 22.0 }
+    else if bolt_diameter <= 20.0 { 25.0 }
+    else if bolt_diameter <= 22.0 { 29.0 }
+    else if bolt_diameter <= 24.0 { 32.0 }
+    else if bolt_diameter <= 27.0 { 38.0 }
+    else if bolt_diameter <= 30.0 { 41.0 }
+    else { bolt_diameter * 1.25 }
 }
 
 // ─── AISC 智慧接頭建議引擎 ─────────────────────────────────────────────────
@@ -1323,9 +1373,9 @@ mod tests {
     #[test]
     fn test_bolt_dimensions() {
         assert_eq!(BoltSize::M20.diameter(), 20.0);
-        assert_eq!(BoltSize::M20.hole_diameter(), 22.0);
-        assert_eq!(BoltSize::M20.min_spacing(), 50.0);
-        assert!(BoltSize::M20.min_edge() >= 30.0);
+        assert_eq!(BoltSize::M20.hole_diameter(), 22.0); // AISC Table J3.3M
+        assert!(BoltSize::M20.min_spacing() >= 53.0);    // AISC J3.3: 2.667d
+        assert!(BoltSize::M20.min_edge() >= 22.0);       // AISC Table J3.4
     }
 
     #[test]

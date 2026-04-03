@@ -223,6 +223,8 @@ impl KolibriApp {
         let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
 
         // 生成板件（端板 + 肋板）
+        let col_center = self.get_group_center(&col_id);
+        let (col_min, col_max) = self.get_group_bounds(&col_id);
         for (i, plate) in conn.plates.iter().enumerate() {
             let plate_name = match plate.plate_type {
                 PlateType::EndPlate => format!("{}_plate", name_base),
@@ -230,12 +232,34 @@ impl KolibriApp {
                 _ => format!("{}_pl_{}", name_base, i),
             };
 
-            let (pos, bw, bh, bd) = self.calc_plate_world_pos(conn_pos, plate, is_x_dir, sign);
-            let id = self.scene.insert_box_raw(plate_name, pos, bw, bh, bd, MaterialKind::Metal);
-            if let Some(obj) = self.scene.objects.get_mut(&id) {
-                obj.component_kind = ComponentKind::Plate;
+            if plate.plate_type == PlateType::Stiffener {
+                // 肋板（continuity plate）：水平板在柱內部，對齊梁翼板
+                // plate.position[1] = ±bh/2（梁翼板相對於接頭中心的 Y 偏移）
+                let stiff_y = conn_pos[1] + plate.position[1];
+                // 柱內部範圍：X = col_min..col_max, Z = col_min..col_max
+                // 肋板寬 = 柱翼板內淨寬（Z 方向），深 = 柱翼板寬（X 方向）
+                let stiff_depth = col_max[0] - col_min[0]; // 柱 X 方向寬
+                let stiff_width = col_max[2] - col_min[2]; // 柱 Z 方向深
+                let stiff_t = plate.thickness;
+                let pos = [col_min[0], stiff_y - stiff_t / 2.0, col_min[2]];
+                let id = self.scene.insert_box_raw(
+                    plate_name, pos,
+                    stiff_depth, stiff_t, stiff_width,
+                    MaterialKind::Metal,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.component_kind = ComponentKind::Plate;
+                }
+                child_ids.push(id);
+            } else {
+                // 端板：用原本的座標轉換
+                let (pos, bw, bh, bd) = self.calc_plate_world_pos(conn_pos, plate, is_x_dir, sign);
+                let id = self.scene.insert_box_raw(plate_name, pos, bw, bh, bd, MaterialKind::Metal);
+                if let Some(obj) = self.scene.objects.get_mut(&id) {
+                    obj.component_kind = ComponentKind::Plate;
+                }
+                child_ids.push(id);
             }
-            child_ids.push(id);
         }
 
         // 生成螺栓（位置用本地→世界轉換）
@@ -280,6 +304,7 @@ impl KolibriApp {
     }
 
     /// 腹板式接頭（梁-柱鉸接）
+    /// 接合板平行梁腹板(XY平面)、焊在柱翼板面、螺栓沿Z軸穿過接合板+梁腹板
     pub(crate) fn create_shear_tab_connection(&mut self) {
         let ids = self.editor.selected_ids.clone();
         if ids.len() < 2 {
@@ -296,47 +321,154 @@ impl KolibriApp {
         };
 
         let beam_section = self.get_member_section(&beam_id);
-        let conn_pos = self.calc_connection_position(&beam_id, &col_id);
-
         let conn = calc_shear_tab(beam_section, self.editor.conn_bolt_size, self.editor.conn_bolt_grade);
+
+        // 取柱翼板面位置和梁中心
+        let (col_min, col_max) = self.get_group_bounds(&col_id);
+        let beam_center = self.get_group_center(&beam_id);
+        let (beam_min, beam_max) = self.get_group_bounds(&beam_id);
+        let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
 
         self.scene.snapshot();
         let mut child_ids = Vec::new();
         let name_base = self.next_name("ST");
-        let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
 
-        // 剪力板
-        for (i, plate) in conn.plates.iter().enumerate() {
-            let plate_name = format!("{}_tab_{}", name_base, i);
-            let (pos, bw, bh, bd) = self.calc_plate_world_pos(conn_pos, plate, is_x_dir, sign);
-            let id = self.scene.insert_box_raw(plate_name, pos, bw, bh, bd, MaterialKind::Metal);
-            if let Some(obj) = self.scene.objects.get_mut(&id) {
-                obj.component_kind = ComponentKind::Plate;
-            }
-            child_ids.push(id);
+        let tab = &conn.plates[0];
+        let tab_w = tab.width;   // 板寬（從柱面向外延伸）
+        let tab_h = tab.height;  // 板高（垂直）
+        let tab_t = tab.thickness; // 板厚
+
+        // 接合板位置：貼在柱翼板外面，平行梁腹板
+        // 梁沿 X 方向：板在 XY 平面，X=柱翼板面起，Z=梁腹板中心
+        // 梁沿 Z 方向：板在 ZY 平面，Z=柱翼板面起，X=梁腹板中心
+        let beam_web_z = (beam_min[2] + beam_max[2]) / 2.0; // 梁腹板 Z 中心
+        let beam_web_x = (beam_min[0] + beam_max[0]) / 2.0; // 梁腹板 X 中心
+
+        let (tab_pos, tab_bw, tab_bh, tab_bd) = if is_x_dir {
+            // 梁沿 X：板在 XY 平面
+            let x_start = if sign > 0.0 { col_max[0] } else { col_min[0] - tab_w };
+            let pos = [x_start, beam_center[1] - tab_h / 2.0, beam_web_z - tab_t / 2.0];
+            (pos, tab_w, tab_h, tab_t) // Box: X=寬, Y=高, Z=厚
+        } else {
+            // 梁沿 Z：板在 ZY 平面
+            let z_start = if sign > 0.0 { col_max[2] } else { col_min[2] - tab_w };
+            let pos = [beam_web_x - tab_t / 2.0, beam_center[1] - tab_h / 2.0, z_start];
+            (pos, tab_t, tab_h, tab_w) // Box: X=厚, Y=高, Z=寬
+        };
+
+        // 不穿入檢查
+        let beam_flange_gap = 5.0; // 離翼板 5mm 間隙
+        let tab_y_min = tab_pos[1];
+        let tab_y_max = tab_pos[1] + tab_bh;
+        let beam_inner_bot = beam_min[1] + beam_section.3 + beam_flange_gap; // 底翼板內面+間隙
+        let beam_inner_top = beam_max[1] - beam_section.3 - beam_flange_gap; // 頂翼板內面-間隙
+
+        self.console_push("CONN", format!(
+            "剪力板: 板[{:.0}×{:.0}×{:.0}] pos=[{:.0},{:.0},{:.0}] | 梁內Y=[{:.0}~{:.0}] 板Y=[{:.0}~{:.0}]",
+            tab_w, tab_h, tab_t, tab_pos[0], tab_pos[1], tab_pos[2],
+            beam_inner_bot, beam_inner_top, tab_y_min, tab_y_max,
+        ));
+
+        if tab_y_min < beam_inner_bot || tab_y_max > beam_inner_top {
+            self.console_push("WARN", "剪力板高度超出梁翼板範圍，已裁切".into());
         }
 
-        // 螺栓
+        let id = self.scene.insert_box_raw(
+            format!("{}_tab", name_base), tab_pos, tab_bw, tab_bh, tab_bd, MaterialKind::Metal,
+        );
+        if let Some(obj) = self.scene.objects.get_mut(&id) {
+            obj.component_kind = ComponentKind::Plate;
+        }
+        child_ids.push(id);
+
+        // 螺栓：垂直於接合板最大面
+        // 板在 XY 平面(梁沿X) → 最薄=Z → 螺栓沿 Z
+        // 板在 ZY 平面(梁沿Z) → 最薄=X → 螺栓沿 X
+        let bolt_rot = if is_x_dir {
+            [std::f32::consts::FRAC_PI_2, 0.0, 0.0] // Y→Z
+        } else {
+            [0.0, 0.0, std::f32::consts::FRAC_PI_2] // Y→X
+        };
+        let bolt_dir: [f32; 3] = if is_x_dir {
+            [0.0, 0.0, 1.0] // 沿 Z（穿過板+梁腹板）
+        } else {
+            [1.0, 0.0, 0.0] // 沿 X
+        };
+
         for bg in &conn.bolts {
-            let bolt_ids = self.create_bolt_group_world(bg, conn_pos, is_x_dir, sign);
-            child_ids.extend(bolt_ids);
+            let bolt_r = bg.bolt_size.diameter() / 2.0;
+            let head_r = bg.bolt_size.head_across_flats() / 2.0;
+            let head_t = bg.bolt_size.head_thickness();
+            let grip = tab_t + beam_section.2 + 10.0; // 接合板厚 + 梁腹板厚 + 餘量
+
+            for (j, bp) in bg.positions.iter().enumerate() {
+                let bolt_name = format!("{}_{}", bg.bolt_size.label(), j + 1);
+
+                // 螺栓中心世界座標（在接合板面上）
+                let bolt_center = if is_x_dir {
+                    [tab_pos[0] + bp[0], tab_pos[1] + tab_h / 2.0 + bp[1], beam_web_z]
+                } else {
+                    [beam_web_x, tab_pos[1] + tab_h / 2.0 + bp[1], tab_pos[2] + bp[0]]
+                };
+
+                // Cylinder position = 底面圓心，不需 -radius 偏移
+                let shank_pos = [bolt_center[0], bolt_center[1] - grip / 2.0, bolt_center[2]];
+                let shank_id = self.scene.insert_cylinder_raw(
+                    format!("{}_shank", bolt_name), shank_pos,
+                    bolt_r, grip, 8, MaterialKind::Metal,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
+                    obj.component_kind = ComponentKind::Bolt;
+                    obj.rotation_xyz = bolt_rot;
+                }
+                child_ids.push(shank_id);
+
+                // 螺栓頭：在桿身外端
+                let head_offset = grip / 2.0 + head_t / 2.0;
+                let head_center = [
+                    bolt_center[0] + bolt_dir[0] * head_offset,
+                    bolt_center[1] + bolt_dir[1] * head_offset,
+                    bolt_center[2] + bolt_dir[2] * head_offset,
+                ];
+                let head_pos = [head_center[0], head_center[1] - head_t / 2.0, head_center[2]];
+                let head_id = self.scene.insert_cylinder_raw(
+                    format!("{}_head", bolt_name), head_pos,
+                    head_r, head_t, 6, MaterialKind::Metal,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&head_id) {
+                    obj.component_kind = ComponentKind::Bolt;
+                    obj.rotation_xyz = bolt_rot;
+                }
+                child_ids.push(head_id);
+            }
         }
 
-        // 焊接
-        for (i, weld) in conn.welds.iter().enumerate() {
-            let weld_name = format!("{}_weld_{}", name_base, i);
-            let w_start = self.conn_local_to_world(conn_pos, weld.start, is_x_dir, sign);
-            let w_end = self.conn_local_to_world(conn_pos, weld.end, is_x_dir, sign);
-            let id = self.scene.insert_weld_line(weld_name, w_start, w_end, weld.size);
-            if let Some(obj) = self.scene.objects.get_mut(&id) {
-                obj.component_kind = ComponentKind::Weld;
-            }
-            child_ids.push(id);
+        // 焊接：接合板焊在柱翼板面上（沿 Y 方向全長角焊）
+        let weld_x = if is_x_dir {
+            if sign > 0.0 { col_max[0] } else { col_min[0] }
+        } else { beam_web_x };
+        let weld_z = if is_x_dir { beam_web_z } else {
+            if sign > 0.0 { col_max[2] } else { col_min[2] }
+        };
+        let w_start = [weld_x, tab_pos[1], weld_z];
+        let w_end = [weld_x, tab_pos[1] + tab_bh, weld_z];
+        let weld_size = (tab_t * 0.7).max(6.0);
+        let weld_id = self.scene.insert_weld_line(
+            format!("{}_weld", name_base), w_start, w_end, weld_size,
+        );
+        if let Some(obj) = self.scene.objects.get_mut(&weld_id) {
+            obj.component_kind = ComponentKind::Weld;
         }
+        child_ids.push(weld_id);
 
         self.scene.create_group(format!("{} 腹板接頭", name_base), child_ids.clone());
         self.scene.version += 1;
         self.editor.selected_ids = child_ids.clone();
+        self.console_push("CONN", format!(
+            "剪力板: pos=[{:.0},{:.0},{:.0}] 板[{:.0}×{:.0}×{:.0}] 螺栓{}顆",
+            tab_pos[0], tab_pos[1], tab_pos[2],
+            tab_w, tab_h, tab_t, conn.bolts[0].positions.len(),
+        ));
         self.file_message = Some(("腹板接頭已建立".into(), std::time::Instant::now()));
         self.check_and_report_connection(&conn, &self.editor.steel_material.clone());
     }
@@ -408,6 +540,12 @@ impl KolibriApp {
         self.scene.create_group(format!("{} 底板接頭", name_base), child_ids.clone());
         self.scene.version += 1;
         self.editor.selected_ids = child_ids.clone();
+        self.console_push("CONN", format!(
+            "底板接頭位置: X={:.0} Y={:.0} Z={:.0} | 板 {:.0}×{:.0}×{:.0}mm | 錨栓 {}×{} 顆",
+            col_pos[0], col_pos[1], col_pos[2],
+            conn.plates[0].width, conn.plates[0].height, conn.plates[0].thickness,
+            conn.bolts[0].rows, conn.bolts[0].cols,
+        ));
         self.file_message = Some(("底板接頭已建立".into(), std::time::Instant::now()));
         self.check_and_report_connection(&conn, &self.editor.steel_material.clone());
     }

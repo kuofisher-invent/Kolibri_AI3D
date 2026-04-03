@@ -188,6 +188,15 @@ impl KolibriApp {
         camera::ray_vertical_height(origin, dir, glam::Vec3::from(base))
     }
 
+    /// 取得滑鼠在 base 垂直軸上的 Y 座標（帶正負號，用於 Move Y）
+    pub(crate) fn current_vertical_y(&self, base: [f32; 3]) -> f32 {
+        let (origin, dir) = self.viewer.camera.screen_ray(
+            self.editor.mouse_screen[0], self.editor.mouse_screen[1],
+            self.viewer.viewport_size[0], self.viewer.viewport_size[1],
+        );
+        camera::ray_vertical_y(origin, dir, glam::Vec3::from(base))
+    }
+
     pub(crate) fn zoom_extents(&mut self) {
         if self.scene.objects.is_empty() {
             self.viewer.camera = OrbitCamera::default();
@@ -234,9 +243,11 @@ impl KolibriApp {
         let _ = std::fs::create_dir_all("logs");
         self.editor.debug_trace_active = true;
         self.editor.debug_trace_last_sample = std::time::Instant::now();
+        self.editor.debug_trace_start = std::time::Instant::now();
         self.editor.debug_trace_records.clear();
+        self.editor.debug_trace_last_fingerprint = (String::new(), String::new(), 0, 0, [0; 3]);
         self.editor.debug_trace_path = Some(path.clone());
-        self.console_push("TRACE", format!("Debug Trace 啟動（{}ms 間隔）→ {}", self.editor.debug_trace_interval_ms, path));
+        self.console_push("TRACE", "Debug Trace 啟動（差異偵測模式）".into());
     }
 
     /// 停止 debug trace 並寫入 JSON 檔
@@ -250,8 +261,8 @@ impl KolibriApp {
         // 寫檔
         if let Some(path) = &self.editor.debug_trace_path {
             let data = serde_json::json!({
-                "version": "1.0",
-                "interval_ms": self.editor.debug_trace_interval_ms,
+                "version": "2.0",
+                "mode": "delta",
                 "total_records": count,
                 "records": &self.editor.debug_trace_records,
             });
@@ -268,26 +279,14 @@ impl KolibriApp {
         self.editor.debug_trace_path = None;
     }
 
-    /// 每幀呼叫：根據時間間隔採樣
+    /// 每幀呼叫：只在狀態有變化時才記錄（差異偵測式 Trace）
     pub(crate) fn sample_debug_trace(&mut self) {
         if !self.editor.debug_trace_active { return; }
 
+        // 最小間隔 10ms（避免同一幀重複記錄）
         let now = std::time::Instant::now();
         let elapsed = now.duration_since(self.editor.debug_trace_last_sample);
-        let interval = std::time::Duration::from_millis(self.editor.debug_trace_interval_ms as u64);
-        if elapsed < interval { return; }
-
-        self.editor.debug_trace_last_sample = now;
-
-        // 計算自啟動後的毫秒數
-        let t_ms = if let Some(first) = self.editor.debug_trace_records.first() {
-            // 從第一筆的 t_ms 推算
-            let base = self.editor.debug_trace_records.len() as u64
-                * self.editor.debug_trace_interval_ms as u64;
-            base
-        } else {
-            0
-        };
+        if elapsed < std::time::Duration::from_millis(10) { return; }
 
         // 工具名稱
         let tool = format!("{:?}", self.editor.tool);
@@ -301,6 +300,26 @@ impl KolibriApp {
             DrawState::RotateAngle { .. } => "RotateAngle".into(),
             _ => format!("{:?}", std::mem::discriminant(&self.editor.draw_state)),
         };
+
+        // 差異偵測：tool + draw_state + scene.version + selected + mouse_ground（量化 50mm）
+        let mouse_q = self.editor.mouse_ground.map_or([0i32; 3], |g| {
+            [(g[0] / 50.0) as i32, (g[1] / 50.0) as i32, (g[2] / 50.0) as i32]
+        });
+        let fingerprint = (
+            tool.clone(),
+            draw_state.clone(),
+            self.scene.version,
+            self.editor.selected_ids.len(),
+            mouse_q,
+        );
+        if fingerprint == self.editor.debug_trace_last_fingerprint {
+            return; // 沒變化，跳過
+        }
+        self.editor.debug_trace_last_fingerprint = fingerprint;
+        self.editor.debug_trace_last_sample = now;
+
+        // 計算自啟動後的毫秒數
+        let t_ms = now.duration_since(self.editor.debug_trace_start).as_millis() as u64;
 
         // 採樣物件：有選取就記選取的，沒選取就記全部（最多 50 個）
         let target_ids: Vec<String> = if !self.editor.selected_ids.is_empty() {

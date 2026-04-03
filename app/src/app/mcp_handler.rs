@@ -54,10 +54,21 @@ impl KolibriApp {
                 McpResult { success: true, data: json!({ "id": id }) }
             }
             McpCommand::DeleteObject { id } => {
-                self.scene.snapshot();
-                self.scene.delete(&id);
-                self.ai_log.log(&actor, "\u{522a}\u{9664}\u{7269}\u{4ef6}", &id, vec![id.clone()]);
-                McpResult { success: true, data: json!({ "deleted": id }) }
+                // 查物件是否屬於群組 → 整組刪除
+                let parent_group = self.scene.objects.get(&id)
+                    .and_then(|o| o.parent_id.clone());
+                if let Some(gid) = parent_group {
+                    self.scene.delete_group(&gid);
+                    self.ai_log.log(&actor, "\u{522a}\u{9664}\u{7fa4}\u{7d44}", &gid, vec![gid.clone()]);
+                    McpResult { success: true, data: json!({ "deleted_group": gid }) }
+                } else if self.scene.delete_group(&id) {
+                    self.ai_log.log(&actor, "\u{522a}\u{9664}\u{7fa4}\u{7d44}", &id, vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "deleted_group": id }) }
+                } else {
+                    self.scene.delete(&id);
+                    self.ai_log.log(&actor, "\u{522a}\u{9664}\u{7269}\u{4ef6}", &id, vec![id.clone()]);
+                    McpResult { success: true, data: json!({ "deleted": id }) }
+                }
             }
             McpCommand::MoveObject { id, position } => {
                 self.scene.snapshot();

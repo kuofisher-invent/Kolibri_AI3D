@@ -58,21 +58,38 @@ impl KolibriApp {
                         }
                     }
                     DrawState::MoveFrom { from, obj_ids, original_positions } => {
-                        // 第二次點擊：確認移動終點（ground plane XZ 差值）
-                        if let Some(to) = self.ground_snapped() {
-                            let dx = to[0] - from[0];
-                            let dz = to[2] - from[2];
+                        // 第二次點擊：確認移動終點
+                        // Y 軸鎖定時用垂直投影，否則用 ground plane XZ
+                        let delta = if self.editor.locked_axis == Some(1) {
+                            let y = self.current_vertical_y(*from);
+                            Some([0.0f32, y - from[1], 0.0])
+                        } else {
+                            self.ground_snapped().map(|to| {
+                                let mut dx = to[0] - from[0];
+                                let mut dz = to[2] - from[2];
+                                match self.editor.locked_axis {
+                                    Some(0) => { dz = 0.0; }
+                                    Some(2) => { dx = 0.0; }
+                                    _ => {}
+                                }
+                                [dx, 0.0, dz]
+                            })
+                        };
+                        if let Some([dx, dy, dz]) = delta {
                             for (i, id) in obj_ids.iter().enumerate() {
                                 if let Some(obj) = self.scene.objects.get_mut(id) {
                                     let orig = original_positions[i];
-                                    obj.position = [orig[0] + dx, orig[1], orig[2] + dz];
+                                    obj.position = [orig[0] + dx, orig[1] + dy, orig[2] + dz];
                                     obj.obj_version += 1;
                                 }
                             }
                             self.scene.version += 1;
-                            self.editor.last_move_delta = Some([dx, 0.0, dz]);
+                            self.editor.last_move_delta = Some([dx, dy, dz]);
                             self.editor.draw_state = DrawState::Idle;
                             self.editor.drag_snapshot_taken = false;
+                            self.editor.locked_axis = None;
+                            self.editor.ctrl_was_down = false;
+                            self.editor.axis_locked_by_ctrl = false;
                         }
                     }
                     _ => {}

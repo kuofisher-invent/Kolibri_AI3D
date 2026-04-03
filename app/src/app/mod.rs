@@ -326,6 +326,7 @@ impl KolibriApp {
                 rubber_band: None,
                 shift_held: false,
                 ctrl_was_down: false,
+                axis_locked_by_ctrl: false,
                 mouse_ground: None,
                 mouse_screen: [0.0; 2],
                 measure_input: String::new(),
@@ -482,6 +483,8 @@ impl KolibriApp {
                 debug_trace_last_sample: std::time::Instant::now(),
                 debug_trace_records: Vec::new(),
                 debug_trace_path: None,
+                debug_trace_last_fingerprint: (String::new(), String::new(), 0, 0, [0; 3]),
+                debug_trace_start: std::time::Instant::now(),
             },
 
             right_tab: RightTab::Properties,
