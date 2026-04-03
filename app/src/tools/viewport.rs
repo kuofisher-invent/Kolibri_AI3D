@@ -570,6 +570,25 @@ impl KolibriApp {
                 let cos_d = delta.cos();
                 let sin_d = delta.sin();
 
+                // 先算群組幾何中心（所有被旋轉物件的平均中心）
+                let mut group_center = [0.0_f32; 3];
+                let mut group_count = 0u32;
+                for (i, id) in obj_ids.iter().enumerate() {
+                    let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
+                    if let Some(obj) = self.scene.objects.get(id) {
+                        let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
+                        group_center[0] += orig_pos[0] + half[0];
+                        group_center[1] += orig_pos[1] + half[1];
+                        group_center[2] += orig_pos[2] + half[2];
+                        group_count += 1;
+                    }
+                }
+                if group_count > 0 {
+                    group_center[0] /= group_count as f32;
+                    group_center[1] /= group_count as f32;
+                    group_center[2] /= group_count as f32;
+                }
+
                 for (i, id) in obj_ids.iter().enumerate() {
                     let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                     let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
@@ -577,37 +596,33 @@ impl KolibriApp {
                         obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
                         if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
 
-                        // 繞璇盤中心軸公轉
-                        // Y軸: 繞 (center_x, *, center_z) 在 XZ 平面公轉
-                        // X軸: 繞 (*, obj_center_y, center_z) 在 YZ 平面公轉
-                        //       用物件自身 Y 作為 orbit center Y，避免 ground Y=0 產生巨大半徑
-                        // Z軸: 繞 (center_x, obj_center_y, *) 在 XY 平面公轉
                         let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                        let obj_cy = orig_pos[1] + half[1]; // 物件幾何中心 Y
+                        let oc = [orig_pos[0]+half[0], orig_pos[1]+half[1], orig_pos[2]+half[2]];
 
+                        // 繞璇盤中心軸公轉，X/Z 軸的 Y 用群組中心（避免 ground Y=0）
                         match rotate_axis {
                             0 => {
-                                // X 軸：orbit 在 YZ 平面，center Y 用物件自身 Y
-                                let pa = obj_cy - obj_cy;        // = 0（Y 不偏移）
-                                let pb = (orig_pos[2] + half[2]) - center[2];
+                                // X 軸：YZ 平面，Y 相對群組中心偏移
+                                let pa = oc[1] - group_center[1];
+                                let pb = oc[2] - center[2];
                                 let na = pa * cos_d - pb * sin_d;
                                 let nb = pa * sin_d + pb * cos_d;
-                                obj.position[1] = obj_cy + na - half[1];
+                                obj.position[1] = group_center[1] + na - half[1];
                                 obj.position[2] = center[2] + nb - half[2];
                             }
                             2 => {
-                                // Z 軸：orbit 在 XY 平面，center Y 用物件自身 Y
-                                let pa = (orig_pos[0] + half[0]) - center[0];
-                                let pb = obj_cy - obj_cy;        // = 0（Y 不偏移）
+                                // Z 軸：XY 平面，Y 相對群組中心偏移
+                                let pa = oc[0] - center[0];
+                                let pb = oc[1] - group_center[1];
                                 let na = pa * cos_d - pb * sin_d;
                                 let nb = pa * sin_d + pb * cos_d;
                                 obj.position[0] = center[0] + na - half[0];
-                                obj.position[1] = obj_cy + nb - half[1];
+                                obj.position[1] = group_center[1] + nb - half[1];
                             }
                             _ => {
-                                // Y 軸：orbit 在 XZ 平面（原本正確的邏輯）
-                                let pa = (orig_pos[0] + half[0]) - center[0];
-                                let pb = (orig_pos[2] + half[2]) - center[2];
+                                // Y 軸：XZ 平面
+                                let pa = oc[0] - center[0];
+                                let pb = oc[2] - center[2];
                                 let na = pa * cos_d - pb * sin_d;
                                 let nb = pa * sin_d + pb * cos_d;
                                 obj.position[0] = center[0] + na - half[0];

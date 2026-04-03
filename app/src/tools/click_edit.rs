@@ -163,6 +163,19 @@ impl KolibriApp {
                         let cos_d = delta.cos();
                         let sin_d = delta.sin();
 
+                        // 群組幾何中心
+                        let mut gc = [0.0_f32; 3];
+                        let mut gc_n = 0u32;
+                        for (i, id) in obj_ids.iter().enumerate() {
+                            let op = original_positions.get(i).copied().unwrap_or([0.0; 3]);
+                            if let Some(obj) = self.scene.objects.get(id) {
+                                let h = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
+                                gc[0] += op[0]+h[0]; gc[1] += op[1]+h[1]; gc[2] += op[2]+h[2];
+                                gc_n += 1;
+                            }
+                        }
+                        if gc_n > 0 { gc[0]/=gc_n as f32; gc[1]/=gc_n as f32; gc[2]/=gc_n as f32; }
+
                         for (i, id) in obj_ids.iter().enumerate() {
                             let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                             let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
@@ -171,26 +184,28 @@ impl KolibriApp {
                                 if axis == 1 { obj.rotation_y = orig_rot + delta; }
 
                                 let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
-                                let obj_cy = orig_pos[1] + half[1];
+                                let oc = [orig_pos[0]+half[0], orig_pos[1]+half[1], orig_pos[2]+half[2]];
 
                                 match axis {
                                     0 => {
-                                        let pb = (orig_pos[2] + half[2]) - center[2];
-                                        let na = -pb * sin_d;
-                                        let nb = pb * cos_d;
-                                        obj.position[1] = obj_cy + na - half[1];
+                                        let pa = oc[1] - gc[1];
+                                        let pb = oc[2] - center[2];
+                                        let na = pa * cos_d - pb * sin_d;
+                                        let nb = pa * sin_d + pb * cos_d;
+                                        obj.position[1] = gc[1] + na - half[1];
                                         obj.position[2] = center[2] + nb - half[2];
                                     }
                                     2 => {
-                                        let pa = (orig_pos[0] + half[0]) - center[0];
-                                        let na = pa * cos_d;
-                                        let nb = pa * sin_d;
+                                        let pa = oc[0] - center[0];
+                                        let pb = oc[1] - gc[1];
+                                        let na = pa * cos_d - pb * sin_d;
+                                        let nb = pa * sin_d + pb * cos_d;
                                         obj.position[0] = center[0] + na - half[0];
-                                        obj.position[1] = obj_cy + nb - half[1];
+                                        obj.position[1] = gc[1] + nb - half[1];
                                     }
                                     _ => {
-                                        let pa = (orig_pos[0] + half[0]) - center[0];
-                                        let pb = (orig_pos[2] + half[2]) - center[2];
+                                        let pa = oc[0] - center[0];
+                                        let pb = oc[2] - center[2];
                                         let na = pa * cos_d - pb * sin_d;
                                         let nb = pa * sin_d + pb * cos_d;
                                         obj.position[0] = center[0] + na - half[0];
