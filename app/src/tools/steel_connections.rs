@@ -515,40 +515,59 @@ impl KolibriApp {
 
     /// 取得構件的 H 截面參數 (H, B, tw, tf)
     pub(crate) fn get_member_section(&self, id: &str) -> (f32, f32, f32, f32) {
-        // 查找群組子物件來推斷截面
+        // 查找群組子物件來推斷截面（H 型鋼 = 2 翼板 + 1 腹板）
         let child_ids = self.get_group_member_ids(id);
         if child_ids.len() >= 3 {
-            // H 型鋼 = 2 翼板 + 1 腹板
-            let mut flanges = Vec::new();
-            let mut web = None;
+            // 收集所有子物件的 shape 尺寸
+            let mut shapes: Vec<(f32, f32, f32)> = Vec::new();
             for cid in &child_ids {
                 if let Some(obj) = self.scene.objects.get(cid) {
                     if let crate::scene::Shape::Box { width, height, depth } = &obj.shape {
-                        // 翼板較寬，腹板較窄
-                        if *width > *depth * 2.0 || *depth > *width * 2.0 {
-                            // 可能是翼板或腹板
-                            let min_dim = width.min(*depth);
-                            let max_dim = width.max(*depth);
-                            if min_dim < 30.0 { // 薄的 = 翼板或腹板
-                                if flanges.len() < 2 && max_dim > min_dim * 3.0 {
-                                    flanges.push((*width, *height, *depth));
-                                } else {
-                                    web = Some((*width, *height, *depth));
-                                }
-                            }
-                        } else {
-                            web = Some((*width, *height, *depth));
-                        }
+                        shapes.push((*width, *height, *depth));
                     }
                 }
             }
-            if let (Some((ww, _wh, wd)), true) = (web, flanges.len() >= 1) {
-                let (fw, _fh, fd) = flanges[0];
-                let b = fw.max(fd); // 翼板寬
-                let tf = fw.min(fd); // 翼板厚
-                let tw = ww.min(wd); // 腹板厚
-                let h = wd.max(ww) + 2.0 * tf; // 截面高 ≈ 腹板深 + 2×翼板厚
-                return (h, b, tw, tf);
+            if shapes.len() >= 3 {
+                // 找構件長度方向：取所有子物件中最大尺寸的軸
+                // 柱：height 最大（Y 方向）
+                // 梁：width 或 depth 最大（X 或 Z 方向）
+                let max_val = shapes.iter()
+                    .flat_map(|(w,h,d)| [*w, *h, *d])
+                    .fold(0.0_f32, f32::max);
+
+                // 收集各子物件的截面尺寸（去掉長度方向）
+                let mut flanges: Vec<(f32, f32)> = Vec::new(); // (截面寬, 截面厚)
+                let mut web: Option<(f32, f32)> = None;        // (截面高, 截面厚)
+
+                for (w, h, d) in &shapes {
+                    // 找出哪個軸是長度方向（≈ max_val）
+                    let cross = if (*w - max_val).abs() < 1.0 {
+                        (*h, *d) // 長度在 X → 截面在 YZ
+                    } else if (*h - max_val).abs() < 1.0 {
+                        (*w, *d) // 長度在 Y → 截面在 XZ（柱）
+                    } else {
+                        (*w, *h) // 長度在 Z → 截面在 XY
+                    };
+                    let (a, b) = (cross.0.max(cross.1), cross.0.min(cross.1));
+                    // a=較大截面尺寸, b=較小截面尺寸
+                    // 翼板：a > b*3 且 b < 30（薄且寬）
+                    // 腹板：a > b*3 且 a > 50（高且薄）
+                    if b < 30.0 && a > b * 3.0 {
+                        if flanges.len() < 2 {
+                            flanges.push((a, b)); // (翼板寬, 翼板厚)
+                        } else {
+                            web = Some((a, b)); // 多的當腹板
+                        }
+                    } else {
+                        web = Some((a, b)); // (腹板高, 腹板厚)
+                    }
+                }
+
+                if let (Some((wh, wt)), true) = (web, !flanges.is_empty()) {
+                    let (fb, ft) = flanges[0];
+                    let h_sec = wh + 2.0 * ft; // 截面高 = 腹板高 + 2×翼板厚
+                    return (h_sec, fb, wt, ft);
+                }
             }
         }
 
