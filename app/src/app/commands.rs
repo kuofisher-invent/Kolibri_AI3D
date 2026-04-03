@@ -220,4 +220,124 @@ impl KolibriApp {
         self.viewer.camera.distance = extent * 1.5;
         self.editor.tool = Tool::Select;
     }
+
+    // ── Debug Trace（運動軌跡記錄）──────────────────────────────────
+
+    /// 啟動 debug trace 記錄
+    pub(crate) fn start_debug_trace(&mut self) {
+        let ts = {
+            let d = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+            format!("{}", d.as_secs())
+        };
+        let path = format!("logs/debug_trace_{}.json", ts);
+        // 確保 logs 目錄存在
+        let _ = std::fs::create_dir_all("logs");
+        self.editor.debug_trace_active = true;
+        self.editor.debug_trace_last_sample = std::time::Instant::now();
+        self.editor.debug_trace_records.clear();
+        self.editor.debug_trace_path = Some(path.clone());
+        self.console_push("TRACE", format!("Debug Trace 啟動（{}ms 間隔）→ {}", self.editor.debug_trace_interval_ms, path));
+    }
+
+    /// 停止 debug trace 並寫入 JSON 檔
+    pub(crate) fn stop_debug_trace(&mut self) {
+        self.editor.debug_trace_active = false;
+        let count = self.editor.debug_trace_records.len();
+        if count == 0 {
+            self.console_push("TRACE", "Debug Trace 停止（無記錄）".into());
+            return;
+        }
+        // 寫檔
+        if let Some(path) = &self.editor.debug_trace_path {
+            let data = serde_json::json!({
+                "version": "1.0",
+                "interval_ms": self.editor.debug_trace_interval_ms,
+                "total_records": count,
+                "records": &self.editor.debug_trace_records,
+            });
+            match std::fs::write(path, serde_json::to_string_pretty(&data).unwrap_or_default()) {
+                Ok(_) => {
+                    self.console_push("TRACE", format!("Debug Trace 已儲存: {} ({} 筆)", path, count));
+                }
+                Err(e) => {
+                    self.console_push("ERROR", format!("Debug Trace 寫入失敗: {}", e));
+                }
+            }
+        }
+        self.editor.debug_trace_records.clear();
+        self.editor.debug_trace_path = None;
+    }
+
+    /// 每幀呼叫：根據時間間隔採樣
+    pub(crate) fn sample_debug_trace(&mut self) {
+        if !self.editor.debug_trace_active { return; }
+
+        let now = std::time::Instant::now();
+        let elapsed = now.duration_since(self.editor.debug_trace_last_sample);
+        let interval = std::time::Duration::from_millis(self.editor.debug_trace_interval_ms as u64);
+        if elapsed < interval { return; }
+
+        self.editor.debug_trace_last_sample = now;
+
+        // 計算自啟動後的毫秒數
+        let t_ms = if let Some(first) = self.editor.debug_trace_records.first() {
+            // 從第一筆的 t_ms 推算
+            let base = self.editor.debug_trace_records.len() as u64
+                * self.editor.debug_trace_interval_ms as u64;
+            base
+        } else {
+            0
+        };
+
+        // 工具名稱
+        let tool = format!("{:?}", self.editor.tool);
+
+        // DrawState 名稱
+        let draw_state = match &self.editor.draw_state {
+            DrawState::Idle => "Idle".into(),
+            DrawState::LineFrom { .. } => "LineFrom".into(),
+            DrawState::MoveFrom { .. } => "MoveFrom".into(),
+            DrawState::RotateRef { .. } => "RotateRef".into(),
+            DrawState::RotateAngle { .. } => "RotateAngle".into(),
+            _ => format!("{:?}", std::mem::discriminant(&self.editor.draw_state)),
+        };
+
+        // 採樣被選取的物件（或所有正在被操作的物件）
+        let target_ids: Vec<String> = if !self.editor.selected_ids.is_empty() {
+            self.editor.selected_ids.clone()
+        } else {
+            // 沒有選取時不記錄物件
+            Vec::new()
+        };
+
+        let objects: Vec<crate::editor::DebugTraceObject> = target_ids.iter()
+            .filter_map(|id| {
+                self.scene.objects.get(id).map(|obj| {
+                    crate::editor::DebugTraceObject {
+                        id: id.clone(),
+                        name: obj.name.clone(),
+                        position: obj.position,
+                        rotation_xyz: obj.rotation_xyz,
+                    }
+                })
+            })
+            .collect();
+
+        let record = crate::editor::DebugTraceRecord {
+            t_ms,
+            tool,
+            draw_state,
+            mouse_screen: self.editor.mouse_screen,
+            mouse_ground: self.editor.mouse_ground,
+            objects,
+        };
+
+        self.editor.debug_trace_records.push(record);
+
+        // 安全限制：超過 100,000 筆自動停止
+        if self.editor.debug_trace_records.len() >= 100_000 {
+            self.console_push("WARN", "Debug Trace 達到 100,000 筆上限，自動停止".into());
+            self.stop_debug_trace();
+        }
+    }
 }

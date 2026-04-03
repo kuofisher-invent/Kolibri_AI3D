@@ -4,6 +4,7 @@
 use crate::mcp_server::{McpCommand, McpResult};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use eframe::egui;
 
 type CmdSender = Sender<(McpCommand, std::sync::mpsc::Sender<McpResult>)>;
 
@@ -14,7 +15,7 @@ pub fn start_bridged_http(port: u16) -> CmdSender {
     let cmd_tx_clone = cmd_tx.clone();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-        rt.block_on(run_bridged_server(port, cmd_tx_clone));
+        rt.block_on(run_bridged_server(port, cmd_tx_clone, None));
     });
 
     // 回傳 bridge 讓 APP 接收指令
@@ -27,18 +28,19 @@ pub fn start_bridged_http(port: u16) -> CmdSender {
 }
 
 /// 建立 bridge 並回傳 (bridge 給 APP, cmd_tx 給 HTTP server)
-pub fn create_bridge_and_start_http(port: u16) -> crate::mcp_server::McpBridge {
+/// egui_ctx 用來在收到 MCP 命令時觸發 repaint，確保 GUI thread 即時處理
+pub fn create_bridge_and_start_http(port: u16, egui_ctx: Option<egui::Context>) -> crate::mcp_server::McpBridge {
     let (bridge, cmd_tx) = crate::mcp_server::McpBridge::new();
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-        rt.block_on(run_bridged_server(port, cmd_tx));
+        rt.block_on(run_bridged_server(port, cmd_tx, egui_ctx));
     });
 
     bridge
 }
 
-async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
+async fn run_bridged_server(port: u16, cmd_tx: CmdSender, egui_ctx: Option<egui::Context>) {
     use axum::{extract::State, routing::{get, post}, Json, Router};
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
@@ -75,13 +77,16 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
     }
 
     let tx = Arc::new(std::sync::Mutex::new(cmd_tx));
+    let gui_ctx: Arc<Option<egui::Context>> = Arc::new(egui_ctx);
 
     let app = Router::new()
         .route("/", get(|| async { axum::response::Html(kolibri_mcp::dashboard::DASHBOARD_HTML) }))
         .route("/mcp", post({
             let tx = tx.clone();
+            let gui_ctx = gui_ctx.clone();
             move |Json(req): Json<JsonRpcRequest>| {
                 let tx = tx.clone();
+                let gui_ctx = gui_ctx.clone();
                 async move {
                     let id = req.id.clone();
                     let response = match req.method.as_str() {
@@ -113,11 +118,11 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
                         }
                         "tools/call" => {
                             let params = req.params.unwrap_or(json!({}));
-                            let tool = params["name"].as_str().unwrap_or("");
+                            let tool = params["name"].as_str().unwrap_or("").to_string();
                             let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
                             // 轉成 McpCommand 送到 GUI thread
-                            match tool_to_command(tool, &args) {
+                            match tool_to_command(&tool, &args) {
                                 Some(cmd) => {
                                     let (result_tx, result_rx) = std::sync::mpsc::channel();
                                     let send_ok = {
@@ -127,14 +132,21 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
                                     if !send_ok {
                                         return Json(JsonRpcResponse::err(id, -32603, "GUI not responding"));
                                     }
-                                    match result_rx.recv_timeout(std::time::Duration::from_secs(120)) {
-                                        Ok(result) => {
+                                    // 觸發 GUI repaint 確保命令被即時處理
+                                    if let Some(ctx) = gui_ctx.as_ref() {
+                                        ctx.request_repaint();
+                                    }
+                                    // 用 spawn_blocking 避免阻塞 async runtime
+                                    match tokio::task::spawn_blocking(move || {
+                                        result_rx.recv_timeout(std::time::Duration::from_secs(30))
+                                    }).await {
+                                        Ok(Ok(result)) => {
                                             let text = serde_json::to_string_pretty(&result.data).unwrap_or_default();
                                             JsonRpcResponse::ok(id, json!({
                                                 "content": [{"type": "text", "text": text}]
                                             }))
                                         }
-                                        Err(_) => JsonRpcResponse::err(id, -32603, "Timeout waiting for GUI (10s)"),
+                                        _ => JsonRpcResponse::err(id, -32603, "Timeout waiting for GUI (30s)"),
                                     }
                                 }
                                 None => {
@@ -156,14 +168,19 @@ async fn run_bridged_server(port: u16, cmd_tx: CmdSender) {
         }))
         .route("/health", get({
             let tx = tx.clone();
+            let gui_ctx = gui_ctx.clone();
             move || {
                 let tx = tx.clone();
+                let gui_ctx = gui_ctx.clone();
                 async move {
                     // 送 GetSceneState 取得物件數
                     let count = {
                         let (result_tx, result_rx) = std::sync::mpsc::channel();
                         let send_ok = tx.lock().unwrap().send((McpCommand::GetSceneState, result_tx)).is_ok();
                         if send_ok {
+                            if let Some(ctx) = gui_ctx.as_ref() {
+                                ctx.request_repaint();
+                            }
                             result_rx.recv_timeout(std::time::Duration::from_secs(2))
                                 .ok()
                                 .and_then(|r| r.data["count"].as_u64())

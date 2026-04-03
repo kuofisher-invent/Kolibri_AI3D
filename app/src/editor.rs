@@ -2,6 +2,35 @@
 //! 從 app.rs 拆分出來，減少 god module 耦合
 
 use eframe::egui;
+use serde::Serialize;
+
+// ── Debug Trace Record ──────────────────────────────────────────────────────
+
+/// 單次採樣記錄：物件位置 + 旋轉 + 工具狀態 + 滑鼠座標
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct DebugTraceRecord {
+    /// 自 debug 啟動後的毫秒數
+    pub(crate) t_ms: u64,
+    /// 當前工具名稱
+    pub(crate) tool: String,
+    /// DrawState 名稱（Idle/MoveFrom/RotateRef 等）
+    pub(crate) draw_state: String,
+    /// 滑鼠螢幕座標 [x, y]
+    pub(crate) mouse_screen: [f32; 2],
+    /// 滑鼠 ground 座標 [x, y, z]（若有）
+    pub(crate) mouse_ground: Option<[f32; 3]>,
+    /// 被操作物件的快照
+    pub(crate) objects: Vec<DebugTraceObject>,
+}
+
+/// 物件位置/旋轉快照
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct DebugTraceObject {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) position: [f32; 3],
+    pub(crate) rotation_xyz: [f32; 3],
+}
 
 // ─── Tool ────────────────────────────────────────────────────────────────────
 
@@ -612,6 +641,18 @@ pub(crate) struct EditorState {
     pub(crate) grip_hot_idx: Option<usize>,   // 被拖曳的 grip 點 index
     #[cfg(feature = "drafting")]
     pub(crate) grip_base_point: Option<[f64; 2]>,  // grip editing 基準點
+
+    // ── Debug Trace（運動軌跡記錄）──
+    /// Debug 模式開關（Console 面板按鈕控制）
+    pub(crate) debug_trace_active: bool,
+    /// 採樣間隔（ms），10~1500，步進 10
+    pub(crate) debug_trace_interval_ms: u32,
+    /// 上次採樣時間
+    pub(crate) debug_trace_last_sample: std::time::Instant,
+    /// 當前 session 的 trace 記錄（記憶體中暫存）
+    pub(crate) debug_trace_records: Vec<DebugTraceRecord>,
+    /// 當前 session 的輸出檔路徑
+    pub(crate) debug_trace_path: Option<String>,
 }
 
 // ─── Drafting draw state ────────────────────────────────────────────────────

@@ -5,6 +5,20 @@ use glam::Mat4;
 use super::shaders::*;
 use super::primitives::*;
 
+/// 計算 Shape 的半尺寸（幾何中心 = position + half_size）
+pub fn shape_half_size(shape: &Shape) -> [f32; 3] {
+    match shape {
+        Shape::Box { width, height, depth } => [*width / 2.0, *height / 2.0, *depth / 2.0],
+        Shape::Cylinder { radius, height, .. } => [*radius, *height / 2.0, *radius],
+        Shape::Sphere { radius, .. } => [*radius, *radius, *radius],
+        Shape::Line { .. } => [0.0, 0.0, 0.0],
+        Shape::Mesh(ref mesh) => {
+            let (min, max) = mesh.aabb();
+            [(max[0]-min[0])/2.0, (max[1]-min[1])/2.0, (max[2]-min[2])/2.0]
+        }
+    }
+}
+
 /// 單一物件的快取資料（面 + 邊線分離）
 pub(crate) struct ObjMeshCache {
     pub obj_version: u64,

@@ -197,6 +197,10 @@ impl KolibriApp {
                     (Tool::Move, "移動 (M)\nSU-style 兩點移動"),
                 ]);
                 self.tool_row(ui, bsz, &[
+                    (Tool::Orbit, "環繞 (O)\n拖曳旋轉視角"),
+                    (Tool::Pan, "平移 (H)\n手拿抓取移動視角"),
+                ]);
+                self.tool_row(ui, bsz, &[
                     (Tool::Eraser, "刪除 (E)\n點擊刪除構件"),
                     (Tool::TapeMeasure, "量測 (T)\n量測距離"),
                 ]);

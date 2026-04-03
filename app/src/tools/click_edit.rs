@@ -83,8 +83,8 @@ impl KolibriApp {
             Tool::Rotate => {
                 match &self.editor.draw_state {
                     DrawState::Idle => {
-                        // Step 1: place rotation center
-                        // 預設軸: Y(1), 可用方向鍵切換: ↑=Y(1) →=X(0) ←=Z(2)
+                        // Step 1: place rotation center (璇盤定位)
+                        // 預設軸: Y(1), 可用方向鍵或 Ctrl 切換: ↑=Y(1) →=X(0) ←=Z(2)
                         let axis = self.editor.locked_axis.unwrap_or(1); // 預設 Y 軸
                         let ids = if self.editor.selected_ids.is_empty() {
                             let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
@@ -99,6 +99,9 @@ impl KolibriApp {
                         };
                         if !ids.is_empty() {
                             self.editor.selected_ids = ids.clone();
+                            // 展開群組 ID → 子物件 ID（避免 group ID 不在 scene.objects 中）
+                            self.expand_selection_to_groups();
+                            let ids = self.editor.selected_ids.clone();
                             if let Some(pt) = self.editor.mouse_ground {
                                 let axis_name = ["X","Y","Z"][axis.min(2) as usize];
                                 self.file_message = Some((
@@ -114,16 +117,22 @@ impl KolibriApp {
                         }
                     }
                     DrawState::RotateRef { obj_ids, center, rotate_axis } => {
-                        // Step 2: set reference direction
+                        // Step 2: set reference direction — 統一螢幕空間角度
                         let obj_ids = obj_ids.clone();
                         let center = *center;
                         let axis = *rotate_axis;
-                        if let Some(pt) = self.editor.mouse_ground {
-                            let ref_angle = match axis {
-                                0 => { let dy = pt[1] - center[1]; let dz = pt[2] - center[2]; dz.atan2(dy) } // X軸: YZ平面
-                                2 => { let dx = pt[0] - center[0]; let dy = pt[1] - center[1]; dx.atan2(dy) } // Z軸: XY平面
-                                _ => { let dx = pt[0] - center[0]; let dz = pt[2] - center[2]; dz.atan2(dx) } // Y軸: XZ平面
-                            };
+                        let aspect = self.viewer.viewport_size[0] / self.viewer.viewport_size[1].max(1.0);
+                        let vp_mat = self.viewer.camera.view_proj(aspect);
+                        let vp_rect = eframe::egui::Rect::from_min_size(
+                            eframe::egui::pos2(0.0, 0.0),
+                            eframe::egui::vec2(self.viewer.viewport_size[0], self.viewer.viewport_size[1]),
+                        );
+                        let ref_angle_opt = Self::world_to_screen_vp(center, &vp_mat, &vp_rect).map(|c_scr| {
+                            let dx = self.editor.mouse_screen[0] - c_scr.x;
+                            let dy = -(self.editor.mouse_screen[1] - c_scr.y);
+                            dy.atan2(dx)
+                        });
+                        if let Some(ref_angle) = ref_angle_opt {
                             let original_rotations: Vec<f32> = obj_ids.iter().map(|id| {
                                 self.scene.objects.get(id).map_or(0.0, |o| o.rotation_xyz[axis.min(2) as usize])
                             }).collect();
@@ -145,7 +154,10 @@ impl KolibriApp {
                     }
                     DrawState::RotateAngle { obj_ids, center, ref_angle, current_angle, original_rotations, original_positions, rotate_axis } => {
                         // Step 3: 確認旋轉 — 從原始位置計算最終位置
-                        let delta = *current_angle - *ref_angle;
+                        let mut delta = *current_angle - *ref_angle;
+                        // 角度正規化到 [-π, π]
+                        while delta > std::f32::consts::PI { delta -= 2.0 * std::f32::consts::PI; }
+                        while delta < -std::f32::consts::PI { delta += 2.0 * std::f32::consts::PI; }
                         let center = *center;
                         let axis = *rotate_axis;
                         let cos_d = delta.cos();
@@ -155,22 +167,35 @@ impl KolibriApp {
                             let orig_rot = original_rotations.get(i).copied().unwrap_or(0.0);
                             let orig_pos = original_positions.get(i).copied().unwrap_or([0.0; 3]);
                             if let Some(obj) = self.scene.objects.get_mut(id) {
-                                // 設定旋轉角度到對應軸
                                 obj.rotation_xyz[axis.min(2) as usize] = orig_rot + delta;
-                                if axis == 1 { obj.rotation_y = orig_rot + delta; } // 同步 legacy
+                                if axis == 1 { obj.rotation_y = orig_rot + delta; }
 
-                                // 繞中心旋轉位置
-                                let (pa, pb) = match axis {
-                                    0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]), // X軸: 旋轉 YZ
-                                    2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]), // Z軸: 旋轉 XY
-                                    _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]), // Y軸: 旋轉 XZ
-                                };
-                                let na = pa * cos_d - pb * sin_d;
-                                let nb = pa * sin_d + pb * cos_d;
+                                let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
+                                let obj_cy = orig_pos[1] + half[1];
+
                                 match axis {
-                                    0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
-                                    2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
-                                    _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
+                                    0 => {
+                                        let pb = (orig_pos[2] + half[2]) - center[2];
+                                        let na = -pb * sin_d;
+                                        let nb = pb * cos_d;
+                                        obj.position[1] = obj_cy + na - half[1];
+                                        obj.position[2] = center[2] + nb - half[2];
+                                    }
+                                    2 => {
+                                        let pa = (orig_pos[0] + half[0]) - center[0];
+                                        let na = pa * cos_d;
+                                        let nb = pa * sin_d;
+                                        obj.position[0] = center[0] + na - half[0];
+                                        obj.position[1] = obj_cy + nb - half[1];
+                                    }
+                                    _ => {
+                                        let pa = (orig_pos[0] + half[0]) - center[0];
+                                        let pb = (orig_pos[2] + half[2]) - center[2];
+                                        let na = pa * cos_d - pb * sin_d;
+                                        let nb = pa * sin_d + pb * cos_d;
+                                        obj.position[0] = center[0] + na - half[0];
+                                        obj.position[2] = center[2] + nb - half[2];
+                                    }
                                 }
                                 obj.obj_version += 1;
                             }

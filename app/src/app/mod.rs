@@ -475,6 +475,13 @@ impl KolibriApp {
                 grip_hot_idx: None,
                 #[cfg(feature = "drafting")]
                 grip_base_point: None,
+
+                // ── Debug Trace ──
+                debug_trace_active: false,
+                debug_trace_interval_ms: 50,
+                debug_trace_last_sample: std::time::Instant::now(),
+                debug_trace_records: Vec::new(),
+                debug_trace_path: None,
             },
 
             right_tab: RightTab::Properties,

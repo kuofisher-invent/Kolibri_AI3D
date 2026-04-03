@@ -63,6 +63,7 @@ impl KolibriApp {
                 self.scene.snapshot();
                 if let Some(obj) = self.scene.objects.get_mut(&id) {
                     obj.position = position;
+                    obj.obj_version += 1;
                     self.scene.version += 1;
                     self.ai_log.log(&actor, "\u{79fb}\u{52d5}\u{7269}\u{4ef6}", &format!("{:?}", position), vec![id.clone()]);
                     McpResult { success: true, data: json!({ "moved": id }) }
@@ -96,6 +97,7 @@ impl KolibriApp {
                 self.scene.snapshot_ids(&[&id], "MCP旋轉");
                 if let Some(obj) = self.scene.objects.get_mut(&id) {
                     obj.rotation_y += angle_deg.to_radians();
+                    obj.obj_version += 1;
                     self.scene.version += 1;
                     self.ai_log.log(&actor, "旋轉物件", &format!("{} {:.0}°", id, angle_deg), vec![id.clone()]);
                     McpResult { success: true, data: json!({ "rotated": id, "angle_deg": angle_deg }) }
@@ -118,6 +120,7 @@ impl KolibriApp {
                         }
                         _ => {}
                     }
+                    obj.obj_version += 1;
                     self.scene.version += 1;
                     self.ai_log.log(&actor, "縮放物件", &format!("{} x[{:.2},{:.2},{:.2}]", id, factor[0], factor[1], factor[2]), vec![id.clone()]);
                     McpResult { success: true, data: json!({ "scaled": id }) }

@@ -329,6 +329,14 @@ impl KolibriApp {
                     if i.key_pressed(egui::Key::E) { set(Tool::Eraser, self); }
                     if i.key_pressed(egui::Key::W) && !ctrl { set(Tool::Wall, self); }
 
+                    // ── 鋼構工具快捷鍵 ──
+                    #[cfg(feature = "steel")]
+                    {
+                        if i.key_pressed(egui::Key::Num1) && !shift && !ctrl { set(Tool::SteelColumn, self); }
+                        if i.key_pressed(egui::Key::Num2) && !shift && !ctrl { set(Tool::SteelBeam, self); }
+                        if i.key_pressed(egui::Key::Num3) && !shift && !ctrl { set(Tool::SteelBrace, self); }
+                    }
+
                     // ── 鋼構接頭快捷鍵（Shift+數字）──
                     #[cfg(feature = "steel")]
                     if shift {

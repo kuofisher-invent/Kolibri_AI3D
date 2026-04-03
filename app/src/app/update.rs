@@ -75,7 +75,7 @@ impl eframe::App for KolibriApp {
         // Auto-start MCP HTTP bridge（永遠啟動，讓 Claude Code 能操控 APP）
         if !self.mcp_http_running {
             let port = self.mcp_http_port;
-            let bridge = crate::mcp_http_bridge::create_bridge_and_start_http(port);
+            let bridge = crate::mcp_http_bridge::create_bridge_and_start_http(port, Some(ctx.clone()));
             self.mcp_bridge = Some(bridge);
             self.mcp_http_running = true;
             eprintln!("[kolibri-mcp] HTTP server on http://localhost:{}", port);
@@ -237,6 +237,9 @@ impl eframe::App for KolibriApp {
             }
             self.mcp_bridge = Some(bridge);
         }
+
+        // ── Debug Trace 採樣 ──
+        self.sample_debug_trace();
 
         // ── UI panels (top bar, left toolbar, right panel, console, status bar) ──
         let _t0 = std::time::Instant::now();

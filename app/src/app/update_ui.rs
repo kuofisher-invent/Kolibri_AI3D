@@ -567,6 +567,46 @@ impl KolibriApp {
                             if ui.small_button("清除").clicked() {
                                 self.viewer.console_log.clear();
                             }
+                            // ── Debug Trace 按鈕 ──
+                            let trace_on = self.editor.debug_trace_active;
+                            let btn_text = if trace_on { "⏹ TRACE" } else { "⏺ TRACE" };
+                            let btn_color = if trace_on {
+                                egui::Color32::from_rgb(255, 60, 60)
+                            } else {
+                                egui::Color32::from_gray(140)
+                            };
+                            if ui.small_button(egui::RichText::new(btn_text).color(btn_color).size(10.0))
+                                .on_hover_text(if trace_on {
+                                    format!("停止 Debug Trace（{} 筆記錄）", self.editor.debug_trace_records.len())
+                                } else {
+                                    format!("啟動 Debug Trace（{}ms 間隔）", self.editor.debug_trace_interval_ms)
+                                })
+                                .clicked()
+                            {
+                                if trace_on {
+                                    // 停止 → 寫檔
+                                    self.stop_debug_trace();
+                                } else {
+                                    // 啟動
+                                    self.start_debug_trace();
+                                }
+                            }
+                            // 頻率調整（10~1500ms，步進 10）
+                            if !trace_on {
+                                let mut interval = self.editor.debug_trace_interval_ms as f32;
+                                let slider = egui::Slider::new(&mut interval, 10.0..=1500.0)
+                                    .step_by(10.0)
+                                    .suffix("ms")
+                                    .text_color(egui::Color32::from_gray(160));
+                                if ui.add_sized([120.0, 16.0], slider).changed() {
+                                    self.editor.debug_trace_interval_ms = interval as u32;
+                                }
+                            } else {
+                                // 錄製中：顯示記錄數
+                                ui.label(egui::RichText::new(
+                                    format!("REC {} 筆", self.editor.debug_trace_records.len())
+                                ).color(egui::Color32::from_rgb(255, 80, 80)).size(10.0));
+                            }
                         });
                     });
                     ui.separator();

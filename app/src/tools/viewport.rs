@@ -516,16 +516,53 @@ impl KolibriApp {
             }
         }
 
-        // D1: Rotate — live preview (支援 XYZ 軸)
-        if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations, ref original_positions, rotate_axis } = self.editor.draw_state.clone() {
-            if let Some(pt) = self.editor.mouse_ground {
-                let mouse_angle = match rotate_axis {
-                    0 => { let dy = pt[1] - center[1]; let dz = pt[2] - center[2]; dz.atan2(dy) }
-                    2 => { let dx = pt[0] - center[0]; let dy = pt[1] - center[1]; dx.atan2(dy) }
-                    _ => { let dx = pt[0] - center[0]; let dz = pt[2] - center[2]; dz.atan2(dx) }
-                };
-                let mut delta = mouse_angle - ref_angle;
+        // ── Ctrl 切換旋轉軸（璇盤定位階段 RotateRef）──
+        // 按 Ctrl 循環: Y(1,綠) → X(0,紅) → Z(2,藍) → Y
+        if matches!(self.editor.draw_state, DrawState::RotateRef { .. }) {
+            let ctrl_now = ui.input(|i| i.modifiers.ctrl || i.modifiers.mac_cmd);
+            if ctrl_now && !self.editor.ctrl_was_down {
+                if let DrawState::RotateRef { ref mut rotate_axis, .. } = self.editor.draw_state {
+                    *rotate_axis = match *rotate_axis {
+                        1 => 0, // Y→X
+                        0 => 2, // X→Z
+                        2 => 1, // Z→Y
+                        _ => 1,
+                    };
+                    let axis_name = ["X (紅)","Y (綠)","Z (藍)"][(*rotate_axis).min(2) as usize];
+                    self.file_message = Some((
+                        format!("旋轉軸: {} — Ctrl 切換", axis_name),
+                        std::time::Instant::now(),
+                    ));
+                }
+            }
+            self.editor.ctrl_was_down = ctrl_now;
+        }
 
+        // D1: Rotate — live preview (支援 XYZ 軸)
+        // 統一用螢幕空間角度：把 3D 璇盤中心投影到螢幕，用滑鼠到投影中心的角度
+        // 修正：A) 正確公轉 B) 方向一致 C) 角度連續化避免閃爍
+        if let DrawState::RotateAngle { ref obj_ids, center, ref_angle, ref mut current_angle, ref original_rotations, ref original_positions, rotate_axis } = self.editor.draw_state.clone() {
+            // 統一用螢幕空間角度（所有軸都一致）
+            let aspect = self.viewer.viewport_size[0] / self.viewer.viewport_size[1].max(1.0);
+            let vp_mat = self.viewer.camera.view_proj(aspect);
+            let vp_rect = eframe::egui::Rect::from_min_size(
+                eframe::egui::pos2(0.0, 0.0),
+                eframe::egui::vec2(self.viewer.viewport_size[0], self.viewer.viewport_size[1]),
+            );
+            let mouse_angle_opt = KolibriApp::world_to_screen_vp(center, &vp_mat, &vp_rect).map(|c_scr| {
+                let mx = self.editor.mouse_screen[0];
+                let my = self.editor.mouse_screen[1];
+                let dx = mx - c_scr.x;
+                let dy = -(my - c_scr.y); // 螢幕 Y 向上
+                dy.atan2(dx)
+            });
+            if let Some(mouse_angle) = mouse_angle_opt {
+                // 角度連續化：把 delta 正規化到 [-π, π]，避免 atan2 邊界跳 2π (修 C 閃爍)
+                let mut delta = mouse_angle - ref_angle;
+                while delta > std::f32::consts::PI { delta -= 2.0 * std::f32::consts::PI; }
+                while delta < -std::f32::consts::PI { delta += 2.0 * std::f32::consts::PI; }
+
+                // 15° snap
                 let snap_angle = 15.0_f32.to_radians();
                 let snapped = (delta / snap_angle).round() * snap_angle;
                 if (delta - snapped).abs() < 3.0_f32.to_radians() { delta = snapped; }
@@ -540,17 +577,42 @@ impl KolibriApp {
                         obj.rotation_xyz[rotate_axis.min(2) as usize] = orig_rot + delta;
                         if rotate_axis == 1 { obj.rotation_y = orig_rot + delta; }
 
-                        let (pa, pb) = match rotate_axis {
-                            0 => (orig_pos[1] - center[1], orig_pos[2] - center[2]),
-                            2 => (orig_pos[0] - center[0], orig_pos[1] - center[1]),
-                            _ => (orig_pos[0] - center[0], orig_pos[2] - center[2]),
-                        };
-                        let na = pa * cos_d - pb * sin_d;
-                        let nb = pa * sin_d + pb * cos_d;
+                        // 繞璇盤中心軸公轉
+                        // Y軸: 繞 (center_x, *, center_z) 在 XZ 平面公轉
+                        // X軸: 繞 (*, obj_center_y, center_z) 在 YZ 平面公轉
+                        //       用物件自身 Y 作為 orbit center Y，避免 ground Y=0 產生巨大半徑
+                        // Z軸: 繞 (center_x, obj_center_y, *) 在 XY 平面公轉
+                        let half = crate::renderer::mesh_builder::shape_half_size(&obj.shape);
+                        let obj_cy = orig_pos[1] + half[1]; // 物件幾何中心 Y
+
                         match rotate_axis {
-                            0 => { obj.position[1] = center[1] + na; obj.position[2] = center[2] + nb; }
-                            2 => { obj.position[0] = center[0] + na; obj.position[1] = center[1] + nb; }
-                            _ => { obj.position[0] = center[0] + na; obj.position[2] = center[2] + nb; }
+                            0 => {
+                                // X 軸：orbit 在 YZ 平面，center Y 用物件自身 Y
+                                let pa = obj_cy - obj_cy;        // = 0（Y 不偏移）
+                                let pb = (orig_pos[2] + half[2]) - center[2];
+                                let na = pa * cos_d - pb * sin_d;
+                                let nb = pa * sin_d + pb * cos_d;
+                                obj.position[1] = obj_cy + na - half[1];
+                                obj.position[2] = center[2] + nb - half[2];
+                            }
+                            2 => {
+                                // Z 軸：orbit 在 XY 平面，center Y 用物件自身 Y
+                                let pa = (orig_pos[0] + half[0]) - center[0];
+                                let pb = obj_cy - obj_cy;        // = 0（Y 不偏移）
+                                let na = pa * cos_d - pb * sin_d;
+                                let nb = pa * sin_d + pb * cos_d;
+                                obj.position[0] = center[0] + na - half[0];
+                                obj.position[1] = obj_cy + nb - half[1];
+                            }
+                            _ => {
+                                // Y 軸：orbit 在 XZ 平面（原本正確的邏輯）
+                                let pa = (orig_pos[0] + half[0]) - center[0];
+                                let pb = (orig_pos[2] + half[2]) - center[2];
+                                let na = pa * cos_d - pb * sin_d;
+                                let nb = pa * sin_d + pb * cos_d;
+                                obj.position[0] = center[0] + na - half[0];
+                                obj.position[2] = center[2] + nb - half[2];
+                            }
                         }
                         obj.obj_version += 1;
                     }
@@ -567,7 +629,7 @@ impl KolibriApp {
                     rotate_axis,
                 };
                 self.scene.version += 1;
-            }
+            } // if let Some(mouse_angle)
         }
 
         // Offset drag — face edge inset/outset with live preview (SketchUp-style)
