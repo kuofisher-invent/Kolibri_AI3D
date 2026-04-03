@@ -115,8 +115,8 @@ impl KolibriApp {
                                 let dash_stroke = egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(200, 100, 100, 150));
                                 for i in 0..8 {
                                     if let (Some(s1), Some(s2)) = (
-                                        Self::world_to_screen_vp(orig_corners[i], &vp, &rect),
-                                        Self::world_to_screen_vp(curr_corners[i], &vp, &rect),
+                                        Self::world_to_screen_unclipped(orig_corners[i], &vp, &rect),
+                                        Self::world_to_screen_unclipped(curr_corners[i], &vp, &rect),
                                     ) {
                                         let dist = ((s2.x-s1.x).powi(2) + (s2.y-s1.y).powi(2)).sqrt();
                                         if dist > 3.0 {
@@ -150,8 +150,8 @@ impl KolibriApp {
                         let p0 = protractor_3d_point(*center, world_r, a0, axis);
                         let p1 = protractor_3d_point(*center, world_r, a1, axis);
                         if let (Some(s0), Some(s1)) = (
-                            Self::world_to_screen_vp(p0, &vp, &rect),
-                            Self::world_to_screen_vp(p1, &vp, &rect),
+                            Self::world_to_screen_unclipped(p0, &vp, &rect),
+                            Self::world_to_screen_unclipped(p1, &vp, &rect),
                         ) {
                             ui.painter().line_segment([s0, s1], egui::Stroke::new(1.5, axis_color));
                         }
@@ -162,8 +162,8 @@ impl KolibriApp {
                         let inner = protractor_3d_point(*center, world_r * 0.92, angle, axis);
                         let outer = protractor_3d_point(*center, world_r * (if tick % 6 == 0 { 1.08 } else { 1.04 }), angle, axis);
                         if let (Some(si), Some(so)) = (
-                            Self::world_to_screen_vp(inner, &vp, &rect),
-                            Self::world_to_screen_vp(outer, &vp, &rect),
+                            Self::world_to_screen_unclipped(inner, &vp, &rect),
+                            Self::world_to_screen_unclipped(outer, &vp, &rect),
                         ) {
                             let tc = if tick % 6 == 0 { axis_color } else {
                                 egui::Color32::from_rgba_unmultiplied(axis_color.r(), axis_color.g(), axis_color.b(), 60)
@@ -172,7 +172,7 @@ impl KolibriApp {
                         }
                     }
                     // 中心十字
-                    if let Some(sc) = Self::world_to_screen_vp(*center, &vp, &rect) {
+                    if let Some(sc) = Self::world_to_screen_unclipped(*center, &vp, &rect) {
                         let cs = 6.0;
                         ui.painter().line_segment([egui::pos2(sc.x-cs,sc.y),egui::pos2(sc.x+cs,sc.y)], egui::Stroke::new(2.0, axis_color));
                         ui.painter().line_segment([egui::pos2(sc.x,sc.y-cs),egui::pos2(sc.x,sc.y+cs)], egui::Stroke::new(2.0, axis_color));
@@ -206,8 +206,8 @@ impl KolibriApp {
                         let p0 = protractor_3d_point(*center, world_r, a0, axis);
                         let p1 = protractor_3d_point(*center, world_r, a1, axis);
                         if let (Some(s0), Some(s1)) = (
-                            Self::world_to_screen_vp(p0, &vp, &rect),
-                            Self::world_to_screen_vp(p1, &vp, &rect),
+                            Self::world_to_screen_unclipped(p0, &vp, &rect),
+                            Self::world_to_screen_unclipped(p1, &vp, &rect),
                         ) {
                             ui.painter().line_segment([s0, s1], egui::Stroke::new(1.5, axis_color));
                         }
@@ -215,7 +215,7 @@ impl KolibriApp {
                     // 掃過弧（填色）
                     let arc_segments = (delta.abs() / std::f32::consts::TAU * 48.0).max(2.0) as usize;
                     let arc_color = egui::Color32::from_rgba_unmultiplied(axis_color.r(), axis_color.g(), axis_color.b(), 60);
-                    if let Some(sc) = Self::world_to_screen_vp(*center, &vp, &rect) {
+                    if let Some(sc) = Self::world_to_screen_unclipped(*center, &vp, &rect) {
                         for i in 0..arc_segments {
                             let t0 = i as f32 / arc_segments as f32;
                             let t1 = (i + 1) as f32 / arc_segments as f32;
@@ -224,8 +224,8 @@ impl KolibriApp {
                             let p0 = protractor_3d_point(*center, world_r, a0, axis);
                             let p1 = protractor_3d_point(*center, world_r, a1, axis);
                             if let (Some(s0), Some(s1)) = (
-                                Self::world_to_screen_vp(p0, &vp, &rect),
-                                Self::world_to_screen_vp(p1, &vp, &rect),
+                                Self::world_to_screen_unclipped(p0, &vp, &rect),
+                                Self::world_to_screen_unclipped(p1, &vp, &rect),
                             ) {
                                 // 三角形扇形
                                 ui.painter().add(egui::Shape::convex_polygon(
@@ -238,7 +238,7 @@ impl KolibriApp {
                         }
                         // 參考線（灰白）
                         let ref_end = protractor_3d_point(*center, world_r, *ref_angle, axis);
-                        if let Some(sr) = Self::world_to_screen_vp(ref_end, &vp, &rect) {
+                        if let Some(sr) = Self::world_to_screen_unclipped(ref_end, &vp, &rect) {
                             ui.painter().line_segment([sc, sr],
                                 egui::Stroke::new(1.5, egui::Color32::from_rgba_unmultiplied(200, 200, 200, 180)));
                         }

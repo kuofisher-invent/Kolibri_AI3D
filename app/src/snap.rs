@@ -663,6 +663,16 @@ impl KolibriApp {
         Some(egui::pos2(x, y))
     }
 
+    /// 不裁切 NDC 範圍的投影（給旋轉盤等需要畫到視口外的 overlay 用）
+    pub(crate) fn world_to_screen_unclipped(world_pos: [f32; 3], vp: &glam::Mat4, rect: &egui::Rect) -> Option<egui::Pos2> {
+        let clip = *vp * glam::Vec4::new(world_pos[0], world_pos[1], world_pos[2], 1.0);
+        if clip.w <= 0.0 { return None; } // 相機後方仍然要裁
+        let ndc = clip.truncate() / clip.w;
+        let x = rect.min.x + (ndc.x * 0.5 + 0.5) * rect.width();
+        let y = rect.min.y + (0.5 - ndc.y * 0.5) * rect.height();
+        Some(egui::pos2(x, y))
+    }
+
     pub(crate) fn world_to_screen(&self, world_pos: [f32; 3], rect: &egui::Rect) -> Option<egui::Pos2> {
         let aspect = rect.width() / rect.height();
         let vp = if self.viewer.use_ortho {
