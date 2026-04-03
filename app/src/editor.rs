@@ -103,6 +103,10 @@ pub enum Tool {
     SteelWeld,         // 焊接標記
     #[cfg(feature = "steel")]
     SteelStiffener,    // 肋板
+    #[cfg(feature = "steel")]
+    SteelDoubler,      // 腹板加厚板（Web Doubler）
+    #[cfg(feature = "steel")]
+    SteelDoubleAngle,  // 雙角鋼接頭（Double Angle）
     // ── Piping（管線外掛，feature gate）──
     #[cfg(feature = "piping")]
     PipeDraw,

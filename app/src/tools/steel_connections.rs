@@ -552,6 +552,327 @@ impl KolibriApp {
 
 
 
+    /// 腹板加厚板（Web Doubler Plate）— AISC J10.6
+    /// 焊接於柱腹板面板區，增加抗剪強度
+    pub(crate) fn create_web_doubler_connection(&mut self) {
+        let ids = self.editor.selected_ids.clone();
+        if ids.len() < 2 {
+            self.file_message = Some(("請選取梁和柱（兩個構件）".into(), std::time::Instant::now()));
+            return;
+        }
+
+        let (beam_id, col_id) = match self.identify_beam_column(&ids) {
+            Some(pair) => pair,
+            None => {
+                self.file_message = Some(("未偵測到梁+柱組合".into(), std::time::Instant::now()));
+                return;
+            }
+        };
+
+        let beam_section = self.get_member_section(&beam_id);
+        let col_section = self.get_member_section(&col_id);
+        let conn = kolibri_core::steel_connection::calc_web_doubler(
+            beam_section, col_section, None,
+        );
+
+        // 加厚板位置：柱腹板中心，Y = 梁中心高度
+        let (col_min, col_max) = self.get_group_bounds(&col_id);
+        let beam_center = self.get_group_center(&beam_id);
+        let col_center = self.get_group_center(&col_id);
+        let (is_x_dir, _sign) = self.beam_direction(&beam_id, &col_id);
+
+        self.scene.snapshot();
+        let mut child_ids = Vec::new();
+        let name_base = self.next_name("WD");
+
+        let plate = &conn.plates[0];
+        let plate_w = plate.width;   // panel zone 寬度
+        let plate_h = plate.height;  // 柱翼板間淨高
+        let plate_t = plate.thickness;
+
+        // 加厚板貼在柱腹板側面
+        // 梁沿 X 方向時：加厚板在 XY 平面，Z = 柱腹板中心 + 偏移
+        // 梁沿 Z 方向時：加厚板在 ZY 平面，X = 柱腹板中心 + 偏移
+        let ctw = col_section.2; // 柱腹板厚
+        let pos = if is_x_dir {
+            // 加厚板在柱腹板 Z 方向外側
+            [
+                col_center[0] - plate_w / 2.0,
+                beam_center[1] - plate_h / 2.0,
+                col_center[2] + ctw / 2.0,
+            ]
+        } else {
+            [
+                col_center[0] + ctw / 2.0,
+                beam_center[1] - plate_h / 2.0,
+                col_center[2] - plate_w / 2.0,
+            ]
+        };
+
+        let (bw, bh, bd) = if is_x_dir {
+            (plate_w, plate_h, plate_t)
+        } else {
+            (plate_t, plate_h, plate_w)
+        };
+
+        let id = self.scene.insert_box_raw(
+            format!("{}_doubler", name_base), pos, bw, bh, bd, MaterialKind::Metal,
+        );
+        if let Some(obj) = self.scene.objects.get_mut(&id) {
+            obj.component_kind = ComponentKind::Plate;
+        }
+        child_ids.push(id);
+
+        // 焊接標記（四邊角焊）
+        for (i, weld) in conn.welds.iter().enumerate() {
+            let weld_name = format!("{}_weld_{}", name_base, i);
+            let w_start = if is_x_dir {
+                [pos[0] + plate_w / 2.0 + weld.start[0], pos[1] + plate_h / 2.0 + weld.start[1], pos[2]]
+            } else {
+                [pos[0], pos[1] + plate_h / 2.0 + weld.start[1], pos[2] + plate_w / 2.0 + weld.start[0]]
+            };
+            let w_end = if is_x_dir {
+                [pos[0] + plate_w / 2.0 + weld.end[0], pos[1] + plate_h / 2.0 + weld.end[1], pos[2]]
+            } else {
+                [pos[0], pos[1] + plate_h / 2.0 + weld.end[1], pos[2] + plate_w / 2.0 + weld.end[0]]
+            };
+            let wid = self.scene.insert_weld_line(weld_name, w_start, w_end, weld.size);
+            if let Some(obj) = self.scene.objects.get_mut(&wid) {
+                obj.component_kind = ComponentKind::Weld;
+            }
+            child_ids.push(wid);
+        }
+
+        self.scene.create_group(format!("{} 腹板加厚板", name_base), child_ids.clone());
+        self.scene.version += 1;
+        self.editor.selected_ids = child_ids.clone();
+        self.console_push("CONN", format!(
+            "腹板加厚板: {:.0}×{:.0}×{:.0}mm | 四邊角焊 {}mm",
+            plate_w, plate_h, plate_t, conn.welds.first().map_or(0.0, |w| w.size),
+        ));
+        self.file_message = Some(("腹板加厚板已建立 (AISC J10.6)".into(), std::time::Instant::now()));
+        self.check_and_report_connection(&conn, &self.editor.steel_material.clone());
+    }
+
+    /// 雙角鋼接頭（Double Angle / Framed Connection）
+    /// 兩片角鋼夾住梁腹板，螺栓穿過梁腹板+角鋼，另一肢鎖柱翼板
+    pub(crate) fn create_double_angle_connection(&mut self) {
+        let ids = self.editor.selected_ids.clone();
+        if ids.len() < 2 {
+            self.file_message = Some(("請選取梁和柱（兩個構件）".into(), std::time::Instant::now()));
+            return;
+        }
+
+        let (beam_id, col_id) = match self.identify_beam_column(&ids) {
+            Some(pair) => pair,
+            None => {
+                self.file_message = Some(("未偵測到梁+柱組合".into(), std::time::Instant::now()));
+                return;
+            }
+        };
+
+        let beam_section = self.get_member_section(&beam_id);
+        let col_section = self.get_member_section(&col_id);
+        let params = kolibri_core::steel_connection::DoubleAngleParams {
+            beam_section,
+            col_section,
+            bolt_size: self.editor.conn_bolt_size,
+            bolt_grade: self.editor.conn_bolt_grade,
+            angle_leg: None,
+            angle_thickness: None,
+        };
+        let conn = kolibri_core::steel_connection::calc_double_angle(&params);
+
+        let (col_min, col_max) = self.get_group_bounds(&col_id);
+        let beam_center = self.get_group_center(&beam_id);
+        let (beam_min, beam_max) = self.get_group_bounds(&beam_id);
+        let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
+
+        self.scene.snapshot();
+        let mut child_ids = Vec::new();
+        let name_base = self.next_name("DA");
+
+        let btw = beam_section.2; // 梁腹板厚
+        let beam_web_z = (beam_min[2] + beam_max[2]) / 2.0;
+        let beam_web_x = (beam_min[0] + beam_max[0]) / 2.0;
+
+        // 角鋼尺寸（從 conn.plates 取）
+        let angle_h = conn.plates[0].height;
+        let angle_leg = conn.plates[0].width;
+        let angle_t = conn.plates[0].thickness;
+
+        // 角鋼垂直肢：貼在梁腹板兩側，從柱翼板面延伸
+        // 水平肢：垂直於垂直肢，貼在柱翼板上
+        let col_face = if is_x_dir {
+            if sign > 0.0 { col_max[0] } else { col_min[0] }
+        } else {
+            if sign > 0.0 { col_max[2] } else { col_min[2] }
+        };
+
+        // ── 生成 4 片角鋼板件 ──
+        // 垂直肢（左/右各一片，夾住梁腹板）
+        for side in [-1.0_f32, 1.0] {
+            let vert_name = format!("{}_vert_{}", name_base, if side < 0.0 { "L" } else { "R" });
+
+            let pos = if is_x_dir {
+                let x_start = if sign > 0.0 { col_face } else { col_face - angle_leg };
+                let z = beam_web_z + side * (btw / 2.0);
+                [x_start, beam_center[1] - angle_h / 2.0, z]
+            } else {
+                let z_start = if sign > 0.0 { col_face } else { col_face - angle_leg };
+                let x = beam_web_x + side * (btw / 2.0);
+                [x, beam_center[1] - angle_h / 2.0, z_start]
+            };
+
+            let (bw, bh, bd) = if is_x_dir {
+                (angle_leg, angle_h, angle_t) // X=肢寬, Y=高, Z=厚
+            } else {
+                (angle_t, angle_h, angle_leg) // X=厚, Y=高, Z=肢寬
+            };
+
+            let id = self.scene.insert_box_raw(vert_name, pos, bw, bh, bd, MaterialKind::Metal);
+            if let Some(obj) = self.scene.objects.get_mut(&id) {
+                obj.component_kind = ComponentKind::Plate;
+            }
+            child_ids.push(id);
+        }
+
+        // 水平肢（左/右各一片，貼柱翼板面）
+        for side in [-1.0_f32, 1.0] {
+            let horiz_name = format!("{}_horiz_{}", name_base, if side < 0.0 { "L" } else { "R" });
+
+            let pos = if is_x_dir {
+                let x = col_face - if sign > 0.0 { 0.0 } else { angle_t };
+                let z = beam_web_z + side * (btw / 2.0 + angle_t);
+                let z_start = if side < 0.0 { z - angle_leg + angle_t } else { z };
+                [x, beam_center[1] - angle_h / 2.0, z_start]
+            } else {
+                let z = col_face - if sign > 0.0 { 0.0 } else { angle_t };
+                let x = beam_web_x + side * (btw / 2.0 + angle_t);
+                let x_start = if side < 0.0 { x - angle_leg + angle_t } else { x };
+                [x_start, beam_center[1] - angle_h / 2.0, z]
+            };
+
+            let (bw, bh, bd) = if is_x_dir {
+                (angle_t, angle_h, angle_leg) // X=厚, Y=高, Z=肢寬
+            } else {
+                (angle_leg, angle_h, angle_t) // X=肢寬, Y=高, Z=厚
+            };
+
+            let id = self.scene.insert_box_raw(horiz_name, pos, bw, bh, bd, MaterialKind::Metal);
+            if let Some(obj) = self.scene.objects.get_mut(&id) {
+                obj.component_kind = ComponentKind::Plate;
+            }
+            child_ids.push(id);
+        }
+
+        // ── 生成螺栓（梁腹板側 — 穿過角鋼+梁腹板）──
+        let web_bg = &conn.bolts[0];
+        let bolt_r = web_bg.bolt_size.diameter() / 2.0;
+        let head_r = web_bg.bolt_size.head_across_flats() / 2.0;
+        let head_t = web_bg.bolt_size.head_thickness();
+        let grip = angle_t * 2.0 + btw + 5.0; // 左角鋼 + 梁腹板 + 右角鋼 + 餘量
+
+        let bolt_rot = if is_x_dir {
+            [std::f32::consts::FRAC_PI_2, 0.0, 0.0] // 螺栓沿 Z
+        } else {
+            [0.0, 0.0, std::f32::consts::FRAC_PI_2] // 螺栓沿 X
+        };
+
+        for (j, bp) in web_bg.positions.iter().enumerate() {
+            let bolt_name = format!("{}_wb_{}", name_base, j + 1);
+
+            let bolt_center = if is_x_dir {
+                [col_face + sign * bp[0], beam_center[1] + bp[1], beam_web_z]
+            } else {
+                [beam_web_x, beam_center[1] + bp[1], col_face + sign * bp[0]]
+            };
+
+            // 螺栓桿
+            let shank_pos = [bolt_center[0], bolt_center[1] - bolt_r, bolt_center[2]];
+            let shank_id = self.scene.insert_cylinder_raw(
+                format!("{}_shank", bolt_name), shank_pos,
+                bolt_r, grip, 8, MaterialKind::Metal,
+            );
+            if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
+                obj.component_kind = ComponentKind::Bolt;
+                obj.rotation_xyz = bolt_rot;
+            }
+            child_ids.push(shank_id);
+
+            // 螺栓頭
+            let head_pos = [bolt_center[0], bolt_center[1] - head_r, bolt_center[2]];
+            let head_id = self.scene.insert_cylinder_raw(
+                format!("{}_head", bolt_name), head_pos,
+                head_r, head_t, 6, MaterialKind::Metal,
+            );
+            if let Some(obj) = self.scene.objects.get_mut(&head_id) {
+                obj.component_kind = ComponentKind::Bolt;
+                obj.rotation_xyz = bolt_rot;
+            }
+            child_ids.push(head_id);
+        }
+
+        // ── 柱翼板側螺栓 ──
+        if conn.bolts.len() > 1 {
+            let col_bg = &conn.bolts[1];
+            let col_grip = angle_t + col_section.3 + 5.0; // 角鋼水平肢 + 柱翼板 + 餘量
+
+            for (j, bp) in col_bg.positions.iter().enumerate() {
+                let bolt_name = format!("{}_cb_{}", name_base, j + 1);
+
+                // 柱側螺栓沿梁方向（穿過水平肢+柱翼板）
+                let bolt_center = if is_x_dir {
+                    [col_face, beam_center[1] + bp[1], beam_web_z + bp[2]]
+                } else {
+                    [beam_web_x + bp[2], beam_center[1] + bp[1], col_face]
+                };
+
+                let col_bolt_rot = if is_x_dir {
+                    [0.0, 0.0, std::f32::consts::FRAC_PI_2] // 沿 X
+                } else {
+                    [std::f32::consts::FRAC_PI_2, 0.0, 0.0] // 沿 Z
+                };
+
+                let shank_pos = [bolt_center[0], bolt_center[1] - bolt_r, bolt_center[2]];
+                let shank_id = self.scene.insert_cylinder_raw(
+                    format!("{}_shank", bolt_name), shank_pos,
+                    bolt_r, col_grip, 8, MaterialKind::Metal,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&shank_id) {
+                    obj.component_kind = ComponentKind::Bolt;
+                    obj.rotation_xyz = col_bolt_rot;
+                }
+                child_ids.push(shank_id);
+
+                let head_pos = [bolt_center[0], bolt_center[1] - head_r, bolt_center[2]];
+                let head_id = self.scene.insert_cylinder_raw(
+                    format!("{}_head", bolt_name), head_pos,
+                    head_r, head_t, 6, MaterialKind::Metal,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&head_id) {
+                    obj.component_kind = ComponentKind::Bolt;
+                    obj.rotation_xyz = col_bolt_rot;
+                }
+                child_ids.push(head_id);
+            }
+        }
+
+        self.scene.create_group(format!("{} 雙角鋼接頭", name_base), child_ids.clone());
+        self.scene.version += 1;
+        self.editor.selected_ids = child_ids.clone();
+
+        let total_bolts = conn.bolts.iter().map(|b| b.positions.len()).sum::<usize>();
+        self.console_push("CONN", format!(
+            "雙角鋼接頭: L{:.0}×{:.0}×{:.0} h={:.0}mm | 螺栓 {} 顆（梁側{}+柱側{}）",
+            angle_leg, angle_leg, angle_t, angle_h,
+            total_bolts, conn.bolts[0].positions.len(),
+            conn.bolts.get(1).map_or(0, |b| b.positions.len()),
+        ));
+        self.file_message = Some(("雙角鋼接頭已建立 (AISC Table 10-1)".into(), std::time::Instant::now()));
+        self.check_and_report_connection(&conn, &self.editor.steel_material.clone());
+    }
+
     // ─── AISC 接頭對話框流程 ──────────────────────────────────────────────────
 
     /// 開啟 AISC 接頭確認對話框（選取兩構件後觸發）
@@ -632,6 +953,8 @@ impl KolibriApp {
                 match conn_type {
                     ConnectionType::EndPlate => self.create_end_plate_connection(),
                     ConnectionType::ShearTab => self.create_shear_tab_connection(),
+                    ConnectionType::WebDoubler => self.create_web_doubler_connection(),
+                    ConnectionType::DoubleAngle => self.create_double_angle_connection(),
                     _ => self.create_end_plate_connection(),
                 }
             }

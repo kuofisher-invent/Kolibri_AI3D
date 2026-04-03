@@ -36,6 +36,10 @@ pub enum ConnectionType {
     BracePlate,
     /// 拼接板（梁/柱 接續）
     SplicePlate,
+    /// 柱腹板加厚板（panel zone doubler）
+    WebDoubler,
+    /// 雙角鋼接頭（double angle, framed connection）
+    DoubleAngle,
 }
 
 impl ConnectionType {
@@ -47,6 +51,8 @@ impl ConnectionType {
             Self::BasePlate => "底板接頭",
             Self::BracePlate => "斜撐接合板",
             Self::SplicePlate => "拼接板",
+            Self::WebDoubler => "腹板加厚板",
+            Self::DoubleAngle => "雙角鋼接頭",
         }
     }
 }
@@ -76,6 +82,8 @@ pub enum PlateType {
     GussetPlate, // 接合板
     ShearTab,    // 剪力板
     SplicePlate, // 拼接板
+    WebDoubler,  // 腹板加厚板
+    AngleLeg,    // 角鋼肢板
 }
 
 // ─── 螺栓 ───────────────────────────────────────────────────────────────────────
@@ -592,6 +600,242 @@ pub fn calc_shear_tab(
     }
 }
 
+/// 計算腹板加厚板（Web Doubler Plate）— AISC 360-22 J10.6
+/// 柱腹板剪力不足時，焊接加厚板於柱腹板以增加面板區抗剪
+pub fn calc_web_doubler(
+    beam_section: (f32, f32, f32, f32),
+    col_section: (f32, f32, f32, f32),
+    doubler_thickness: Option<f32>,
+) -> SteelConnection {
+    let (bh, _bb, _btw, btf) = beam_section;
+    let (ch, _cb, ctw, ctf) = col_section;
+
+    // 加厚板高度 = 柱翼板間淨高（panel zone 高度）
+    let col_clear = ch - 2.0 * ctf;
+    // 加厚板寬度 = 梁深 - 2×梁翼板厚（panel zone 寬度）
+    let panel_w = (bh - 2.0 * btf).max(100.0);
+
+    // 加厚板厚度：預設 = 柱腹板厚（AISC J10.6 建議 ≥ 柱腹板厚的一半）
+    let doubler_t = doubler_thickness.unwrap_or(ctw).max(6.0);
+
+    // 加厚板：焊在柱腹板一側
+    let doubler_plate = ConnectionPlate {
+        width: panel_w,
+        height: col_clear,
+        thickness: doubler_t,
+        position: [0.0; 3], // 相對於接頭中心
+        rotation_y: 0.0,
+        material: "SS400".into(),
+        plate_type: PlateType::WebDoubler,
+    };
+
+    // 四邊角焊（上下左右各一條）
+    let weld_size = minimum_fillet_weld_size(doubler_t);
+    let welds = vec![
+        // 上邊（水平）
+        WeldLine {
+            weld_type: WeldType::Fillet,
+            size: weld_size,
+            length: panel_w,
+            start: [-panel_w / 2.0, col_clear / 2.0, 0.0],
+            end: [panel_w / 2.0, col_clear / 2.0, 0.0],
+        },
+        // 下邊（水平）
+        WeldLine {
+            weld_type: WeldType::Fillet,
+            size: weld_size,
+            length: panel_w,
+            start: [-panel_w / 2.0, -col_clear / 2.0, 0.0],
+            end: [panel_w / 2.0, -col_clear / 2.0, 0.0],
+        },
+        // 左邊（垂直）
+        WeldLine {
+            weld_type: WeldType::Fillet,
+            size: weld_size,
+            length: col_clear,
+            start: [-panel_w / 2.0, -col_clear / 2.0, 0.0],
+            end: [-panel_w / 2.0, col_clear / 2.0, 0.0],
+        },
+        // 右邊（垂直）
+        WeldLine {
+            weld_type: WeldType::Fillet,
+            size: weld_size,
+            length: col_clear,
+            start: [panel_w / 2.0, -col_clear / 2.0, 0.0],
+            end: [panel_w / 2.0, col_clear / 2.0, 0.0],
+        },
+    ];
+
+    SteelConnection {
+        id: String::new(),
+        conn_type: ConnectionType::WebDoubler,
+        member_ids: Vec::new(),
+        plates: vec![doubler_plate],
+        bolts: vec![], // 加厚板用焊接，不用螺栓
+        welds,
+        position: [0.0; 3],
+        group_id: None,
+    }
+}
+
+/// 雙角鋼接頭參數（梁-柱鉸接 framed connection）
+#[derive(Debug, Clone)]
+pub struct DoubleAngleParams {
+    /// 梁截面: (H, B, tw, tf) mm
+    pub beam_section: (f32, f32, f32, f32),
+    /// 柱截面: (H, B, tw, tf) mm
+    pub col_section: (f32, f32, f32, f32),
+    /// 螺栓尺寸
+    pub bolt_size: BoltSize,
+    /// 螺栓等級
+    pub bolt_grade: BoltGrade,
+    /// 角鋼肢寬 (mm)，None = 自動選擇
+    pub angle_leg: Option<f32>,
+    /// 角鋼厚度 (mm)，None = 自動選擇
+    pub angle_thickness: Option<f32>,
+}
+
+/// 計算雙角鋼接頭（Double Angle / Framed Connection）
+/// AISC Manual Part 10, Table 10-1
+/// 兩片角鋼夾住梁腹板，螺栓穿過梁腹板，另一肢螺栓/焊接於柱翼板
+pub fn calc_double_angle(params: &DoubleAngleParams) -> SteelConnection {
+    let (bh, _bb, btw, btf) = params.beam_section;
+    let web_clear = bh - 2.0 * btf; // 梁腹板淨高
+
+    // 角鋼尺寸自動選擇（依梁深）
+    // AISC Manual Table 10-1 常用: L76×76×6, L89×89×8, L102×102×10
+    let angle_leg = params.angle_leg.unwrap_or_else(|| {
+        if bh <= 300.0 { 75.0 }
+        else if bh <= 500.0 { 90.0 }
+        else { 100.0 }
+    });
+    let angle_t = params.angle_thickness.unwrap_or_else(|| {
+        if bh <= 300.0 { 6.0 }
+        else if bh <= 500.0 { 8.0 }
+        else { 10.0 }
+    });
+
+    // 角鋼高度 = 腹板淨高 × 0.7（與 shear tab 類似）
+    let angle_h = (web_clear * 0.7).max(150.0);
+
+    // 螺栓配置（梁腹板側）：單列螺栓穿過角鋼+梁腹板
+    let bolt_edge = params.bolt_size.min_edge();
+    let bolt_rows = ((angle_h - 2.0 * bolt_edge) / params.bolt_size.min_spacing()).floor() as u32 + 1;
+    let bolt_rows = bolt_rows.max(2).min(6);
+
+    let spacing = if bolt_rows > 1 {
+        (angle_h - 2.0 * bolt_edge) / (bolt_rows - 1) as f32
+    } else {
+        0.0
+    };
+
+    // 梁腹板側螺栓位置（穿過兩片角鋼+梁腹板）
+    let mut web_bolt_positions = Vec::new();
+    for r in 0..bolt_rows {
+        let y = -angle_h / 2.0 + bolt_edge + r as f32 * spacing;
+        // X = 角鋼肢上的螺栓位置（從角鋼根部算起 = gauge 距離）
+        let gauge = bolt_edge.max(angle_leg * 0.4); // 慣用 gauge
+        web_bolt_positions.push([gauge, y, 0.0]);
+    }
+
+    let web_bolt_group = BoltGroup {
+        bolt_size: params.bolt_size,
+        bolt_grade: params.bolt_grade,
+        rows: bolt_rows,
+        cols: 1,
+        row_spacing: spacing,
+        col_spacing: 0.0,
+        edge_dist: bolt_edge,
+        hole_diameter: params.bolt_size.hole_diameter(),
+        positions: web_bolt_positions,
+    };
+
+    // 柱翼板側螺栓（穿過角鋼另一肢+柱翼板）
+    let mut col_bolt_positions = Vec::new();
+    let col_bolt_rows = bolt_rows.min(4); // 柱側螺栓數可以較少
+    let col_spacing = if col_bolt_rows > 1 {
+        (angle_h - 2.0 * bolt_edge) / (col_bolt_rows - 1) as f32
+    } else {
+        0.0
+    };
+    for r in 0..col_bolt_rows {
+        let y = -angle_h / 2.0 + bolt_edge + r as f32 * col_spacing;
+        let gauge = bolt_edge.max(angle_leg * 0.4);
+        col_bolt_positions.push([0.0, y, gauge]);
+    }
+
+    let col_bolt_group = BoltGroup {
+        bolt_size: params.bolt_size,
+        bolt_grade: params.bolt_grade,
+        rows: col_bolt_rows,
+        cols: 1,
+        row_spacing: col_spacing,
+        col_spacing: 0.0,
+        edge_dist: bolt_edge,
+        hole_diameter: params.bolt_size.hole_diameter(),
+        positions: col_bolt_positions,
+    };
+
+    // 兩片角鋼板件（左右對稱夾住梁腹板）
+    // 角鋼近似為兩個正交的板：水平肢（貼柱翼板）+ 垂直肢（貼梁腹板）
+    // 這裡簡化為一片 L 型的兩個板件表示
+
+    // 垂直肢（貼梁腹板的那一肢）— 左側角鋼
+    let vert_leg_left = ConnectionPlate {
+        width: angle_leg,
+        height: angle_h,
+        thickness: angle_t,
+        position: [0.0, 0.0, -(btw / 2.0 + angle_t / 2.0)], // 梁腹板左側
+        rotation_y: 0.0,
+        material: "SS400".into(),
+        plate_type: PlateType::AngleLeg,
+    };
+
+    // 垂直肢（貼梁腹板的那一肢）— 右側角鋼
+    let vert_leg_right = ConnectionPlate {
+        width: angle_leg,
+        height: angle_h,
+        thickness: angle_t,
+        position: [0.0, 0.0, btw / 2.0 + angle_t / 2.0], // 梁腹板右側
+        rotation_y: 0.0,
+        material: "SS400".into(),
+        plate_type: PlateType::AngleLeg,
+    };
+
+    // 水平肢（貼柱翼板的那一肢）— 左側角鋼
+    let horiz_leg_left = ConnectionPlate {
+        width: angle_t,    // 水平肢厚度方向
+        height: angle_h,
+        thickness: angle_leg, // 水平肢寬度方向（沿 Z）
+        position: [0.0, 0.0, -(btw / 2.0 + angle_t + angle_leg / 2.0)],
+        rotation_y: 0.0,
+        material: "SS400".into(),
+        plate_type: PlateType::AngleLeg,
+    };
+
+    // 水平肢（貼柱翼板的那一肢）— 右側角鋼
+    let horiz_leg_right = ConnectionPlate {
+        width: angle_t,
+        height: angle_h,
+        thickness: angle_leg,
+        position: [0.0, 0.0, btw / 2.0 + angle_t + angle_leg / 2.0],
+        rotation_y: 0.0,
+        material: "SS400".into(),
+        plate_type: PlateType::AngleLeg,
+    };
+
+    SteelConnection {
+        id: String::new(),
+        conn_type: ConnectionType::DoubleAngle,
+        member_ids: Vec::new(),
+        plates: vec![vert_leg_left, vert_leg_right, horiz_leg_left, horiz_leg_right],
+        bolts: vec![web_bolt_group, col_bolt_group],
+        welds: vec![], // 全螺栓連接（也可改焊接於柱側）
+        position: [0.0; 3],
+        group_id: None,
+    }
+}
+
 // ─── AISC 360-22 強度驗算 ────────────────────────────────────────────────────
 // 參考: AISC 360-22 Specification for Structural Steel Buildings
 //       AISC Steel Construction Manual, 16th Edition
@@ -911,6 +1155,14 @@ pub fn check_connection(
         if plate.plate_type == PlateType::BasePlate && plate.thickness < 20.0 {
             warnings.push("底板厚度 < 20mm，建議加厚".into());
         }
+        // 加厚板厚度
+        if plate.plate_type == PlateType::WebDoubler && plate.thickness < 6.0 {
+            warnings.push("加厚板厚度 < 6mm，建議加厚".into());
+        }
+        // 角鋼厚度
+        if plate.plate_type == PlateType::AngleLeg && plate.thickness < 6.0 {
+            warnings.push("角鋼厚度 < 6mm，建議加厚".into());
+        }
     }
 
     ConnectionCheck {
@@ -1031,6 +1283,57 @@ pub fn suggest_connection(
                 aisc_ref: "AISC 360-22 J3 + Manual Part 10 (PR/Simple Connection)".into(),
                 estimated_capacity: st_check,
             });
+
+            // 3. 雙角鋼（鉸接替代方案）— 傳統 framed connection
+            let bolt_size_da = suggest_bolt_size_shear(bh, btw);
+            let da_params = DoubleAngleParams {
+                beam_section, col_section,
+                bolt_size: bolt_size_da,
+                bolt_grade: BoltGrade::F10T,
+                angle_leg: None,
+                angle_thickness: None,
+            };
+            let da_conn = calc_double_angle(&da_params);
+            let da_check = check_connection(&da_conn, &mat, DesignMethod::LRFD);
+            let angle_leg = if bh <= 300.0 { 75.0 } else if bh <= 500.0 { 90.0 } else { 100.0 };
+            let angle_t = if bh <= 300.0 { 6.0 } else if bh <= 500.0 { 8.0 } else { 10.0 };
+
+            suggestions.push(ConnectionSuggestion {
+                conn_type: ConnectionType::DoubleAngle,
+                reason: format!(
+                    "雙角鋼鉸接：L{:.0}×{:.0}×{:.0} 夾梁腹板，適用於標準重力接頭",
+                    angle_leg, angle_leg, angle_t
+                ),
+                bolt_size: bolt_size_da,
+                bolt_grade: BoltGrade::F10T,
+                plate_thickness: angle_t,
+                need_stiffeners: false,
+                stiffener_reason: "雙角鋼鉸接不需加勁板".into(),
+                aisc_ref: "AISC Manual Part 10, Table 10-1 (All-Bolted Double-Angle)".into(),
+                estimated_capacity: da_check,
+            });
+
+            // 4. 腹板加厚板（柱腹板剪力不足時建議）— AISC J10.6
+            if need_stiff.0 || ctw < btf * 0.8 {
+                let doubler_t = ctw.max(6.0);
+                let wd_conn = calc_web_doubler(beam_section, col_section, None);
+                let wd_check = check_connection(&wd_conn, &mat, DesignMethod::LRFD);
+
+                suggestions.push(ConnectionSuggestion {
+                    conn_type: ConnectionType::WebDoubler,
+                    reason: format!(
+                        "柱腹板加厚板：tw={:.0}mm 不足，加 {:.0}mm 加厚板強化面板區抗剪",
+                        ctw, doubler_t
+                    ),
+                    bolt_size: bolt_size_ep, // 加厚板無螺栓，沿用端板螺栓
+                    bolt_grade: BoltGrade::F10T,
+                    plate_thickness: doubler_t,
+                    need_stiffeners: false,
+                    stiffener_reason: "加厚板為輔助板件，搭配端板/角鋼使用".into(),
+                    aisc_ref: "AISC 360-22 J10.6 (Web Panel-Zone Shear)".into(),
+                    estimated_capacity: wd_check,
+                });
+            }
         }
 
         ConnectionIntent::ColumnBase => {
@@ -1534,5 +1837,64 @@ mod tests {
                 "Edge distance mismatch for {}: ours={}, AISC={}",
                 bs.label(), our_edge, aisc_edge);
         }
+    }
+
+    #[test]
+    fn test_web_doubler_generation() {
+        let conn = calc_web_doubler(
+            (400.0, 200.0, 8.0, 13.0),  // 梁
+            (300.0, 300.0, 10.0, 15.0),  // 柱
+            None,
+        );
+        assert_eq!(conn.conn_type, ConnectionType::WebDoubler);
+        assert_eq!(conn.plates.len(), 1);
+        assert_eq!(conn.plates[0].plate_type, PlateType::WebDoubler);
+        // 加厚板厚度 = 柱腹板厚 = 10mm
+        assert!((conn.plates[0].thickness - 10.0).abs() < 0.1);
+        // 加厚板高度 = 柱淨高 = 300 - 2×15 = 270
+        assert!((conn.plates[0].height - 270.0).abs() < 0.1);
+        // 四邊焊接
+        assert_eq!(conn.welds.len(), 4);
+        // 無螺栓
+        assert!(conn.bolts.is_empty());
+    }
+
+    #[test]
+    fn test_double_angle_generation() {
+        let params = DoubleAngleParams {
+            beam_section: (400.0, 200.0, 8.0, 13.0),
+            col_section: (300.0, 300.0, 10.0, 15.0),
+            bolt_size: BoltSize::M20,
+            bolt_grade: BoltGrade::F10T,
+            angle_leg: None,
+            angle_thickness: None,
+        };
+        let conn = calc_double_angle(&params);
+        assert_eq!(conn.conn_type, ConnectionType::DoubleAngle);
+        // 4 片板件：左右各一垂直肢+水平肢
+        assert_eq!(conn.plates.len(), 4);
+        assert!(conn.plates.iter().all(|p| p.plate_type == PlateType::AngleLeg));
+        // 2 組螺栓群：梁腹板側 + 柱翼板側
+        assert_eq!(conn.bolts.len(), 2);
+        // 梁腹板側螺栓 ≥ 2 顆
+        assert!(conn.bolts[0].rows >= 2);
+        // 角鋼肢寬 = 90mm（梁深 400 自動選擇）
+        assert!((conn.plates[0].width - 90.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_suggest_includes_new_types() {
+        let suggestions = suggest_connection(
+            (400.0, 200.0, 8.0, 13.0),
+            (300.0, 300.0, 10.0, 15.0),
+            ConnectionIntent::BeamToColumn,
+            "SS400",
+        );
+        // 至少有 EndPlate + ShearTab + DoubleAngle = 3 種
+        assert!(suggestions.len() >= 3);
+        let types: Vec<_> = suggestions.iter().map(|s| s.conn_type).collect();
+        assert!(types.contains(&ConnectionType::EndPlate));
+        assert!(types.contains(&ConnectionType::ShearTab));
+        assert!(types.contains(&ConnectionType::DoubleAngle));
     }
 }

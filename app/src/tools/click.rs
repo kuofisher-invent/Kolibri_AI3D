@@ -306,7 +306,8 @@ impl KolibriApp {
             Tool::SteelColumn | Tool::SteelBeam | Tool::SteelBrace
             | Tool::SteelPlate | Tool::SteelGrid | Tool::SteelConnection
             | Tool::SteelEndPlate | Tool::SteelShearTab | Tool::SteelBasePlate
-            | Tool::SteelBolt | Tool::SteelWeld | Tool::SteelStiffener => {
+            | Tool::SteelBolt | Tool::SteelWeld | Tool::SteelStiffener
+            | Tool::SteelDoubler | Tool::SteelDoubleAngle => {
                 self.on_click_edit();
             }
 

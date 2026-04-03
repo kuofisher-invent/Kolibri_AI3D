@@ -724,7 +724,8 @@ impl KolibriApp {
                 }
             }
 
-            Tool::SteelConnection | Tool::SteelEndPlate | Tool::SteelShearTab => {
+            Tool::SteelConnection | Tool::SteelEndPlate | Tool::SteelShearTab
+            | Tool::SteelDoubler | Tool::SteelDoubleAngle => {
                 // 已選 ≥2 構件 → 開啟 AISC 對話框
                 if self.editor.selected_ids.len() >= 2 {
                     self.open_connection_dialog();

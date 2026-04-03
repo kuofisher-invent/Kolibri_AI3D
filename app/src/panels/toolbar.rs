@@ -230,6 +230,10 @@ impl KolibriApp {
                     (Tool::SteelStiffener, "肋板\n加勁板 J10.1~J10.5"),
                 ]);
                 self.tool_row(ui, bsz, &[
+                    (Tool::SteelDoubler, "加厚板\n柱腹板 Doubler Plate\nAISC J10.6"),
+                    (Tool::SteelDoubleAngle, "雙角鋼\n梁-柱鉸接 Framed\nAISC Table 10-1"),
+                ]);
+                self.tool_row(ui, bsz, &[
                     (Tool::SteelBolt, "螺栓\n手動放置螺栓\n含孔位+孔徑"),
                     (Tool::SteelWeld, "焊接\n兩點標記焊接線\n角焊/全滲透"),
                 ]);

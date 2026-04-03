@@ -706,6 +706,10 @@ pub fn draw_tool_icon(p: &Painter, r: Rect, tool: Tool, color: Color32) {
         Tool::SteelWeld       => steel_weld(p, r, color),
         #[cfg(feature = "steel")]
         Tool::SteelStiffener  => steel_stiffener(p, r, color),
+        #[cfg(feature = "steel")]
+        Tool::SteelDoubler    => steel_stiffener(p, r, color), // 暫用肋板圖示
+        #[cfg(feature = "steel")]
+        Tool::SteelDoubleAngle => steel_shear_tab(p, r, color), // 暫用剪力板圖示
         Tool::Wall => { // 牆圖示：矩形 + 門洞
             p.line_segment([egui::pos2(r.left()+2.0, r.bottom()-2.0), egui::pos2(r.left()+2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));
             p.line_segment([egui::pos2(r.left()+2.0, r.top()+2.0), egui::pos2(r.right()-2.0, r.top()+2.0)], egui::Stroke::new(2.0, color));

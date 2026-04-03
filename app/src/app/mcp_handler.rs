@@ -303,6 +303,12 @@ impl KolibriApp {
                     "base_plate" | "baseplate" => {
                         self.create_base_plate_connection();
                     }
+                    "web_doubler" | "doubler" => {
+                        self.create_web_doubler_connection();
+                    }
+                    "double_angle" | "framed" => {
+                        self.create_double_angle_connection();
+                    }
                     _ => {
                         self.create_end_plate_connection(); // 預設端板
                     }
