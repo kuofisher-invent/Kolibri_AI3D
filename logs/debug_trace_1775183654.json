@@ -1,0 +1,10552 @@
+{
+  "interval_ms": 50,
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 0,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 50,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 1950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 2950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 3950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 4950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 5950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 6950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 7950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 8950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 9950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 10950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 11950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 12950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 13950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 14950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 15950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 16950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 17950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 18950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 19950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 20950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 21950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 22950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 23950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 24950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 25950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 26950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 27950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 28950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 29950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 30950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 31950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 32950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 33950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        760.6666870117188,
+        598.0
+      ],
+      "objects": [],
+      "t_ms": 34000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -17000.0
+      ],
+      "mouse_screen": [
+        566.6666870117188,
+        -0.6666679382324219
+      ],
+      "objects": [],
+      "t_ms": 34450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2500.0,
+        0.0,
+        -3000.0
+      ],
+      "mouse_screen": [
+        728.0,
+        357.3333435058594
+      ],
+      "objects": [],
+      "t_ms": 34500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        825.3333129882812,
+        541.3333129882812
+      ],
+      "objects": [],
+      "t_ms": 34550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        848.6666870117188,
+        594.0
+      ],
+      "objects": [],
+      "t_ms": 34600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        849.3333129882812,
+        595.3333129882812
+      ],
+      "objects": [],
+      "t_ms": 34650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 34950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 35000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 35050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        3000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        850.0,
+        596.6666870117188
+      ],
+      "objects": [],
+      "t_ms": 35100,
+      "tool": "Select"
+    }
+  ],
+  "total_records": 703,
+  "version": "1.0"
+}

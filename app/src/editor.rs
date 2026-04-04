@@ -513,6 +513,7 @@ pub(crate) struct EditorState {
     pub(crate) cursor_hint_fade: Option<std::time::Instant>,
     pub(crate) prev_tool_for_hint: Tool,
     pub(crate) work_mode: WorkMode,
+    pub(crate) steel_section_type: crate::tools::geometry_ops::SteelSectionType,
     pub(crate) steel_profile: String,
     pub(crate) steel_material: String,
     pub(crate) steel_height: f32,

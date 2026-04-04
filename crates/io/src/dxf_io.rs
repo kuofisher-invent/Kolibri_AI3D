@@ -241,6 +241,20 @@ pub fn export_dxf(scene: &Scene, path: &str) -> Result<(), String> {
                     }
                 }
             }
+            Shape::SteelProfile { params, length, .. } => {
+                // 以 bounding box (B x length x H) 匯出 6 面 3DFACE
+                let (w, h, d) = (params.b, *length, params.h);
+                let v = [
+                    [p[0],p[1],p[2]], [p[0]+w,p[1],p[2]], [p[0]+w,p[1]+h,p[2]], [p[0],p[1]+h,p[2]],
+                    [p[0],p[1],p[2]+d], [p[0]+w,p[1],p[2]+d], [p[0]+w,p[1]+h,p[2]+d], [p[0],p[1]+h,p[2]+d],
+                ];
+                let faces = [
+                    [0,1,2,3], [5,4,7,6], [3,2,6,7], [4,5,1,0], [4,0,3,7], [1,5,6,2],
+                ];
+                for f in &faces {
+                    write_3dface(&mut file, &obj.name, v[f[0]], v[f[1]], v[f[2]], v[f[3]])?;
+                }
+            }
         }
     }
 

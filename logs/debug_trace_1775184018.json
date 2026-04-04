@@ -1,0 +1,7407 @@
+{
+  "interval_ms": 50,
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 0,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 50,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "4f210b99",
+          "name": "COL_3_F1",
+          "position": [
+            -150.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "3a793fa7",
+          "name": "COL_3_W",
+          "position": [
+            -5.0,
+            0.0,
+            -135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "ad36d127",
+          "name": "BM_4_BF",
+          "position": [
+            0.0,
+            3900.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b730e133",
+          "name": "BM_4_W",
+          "position": [
+            0.0,
+            3915.0,
+            -5.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36554cd4",
+          "name": "BM_4_TF",
+          "position": [
+            0.0,
+            4185.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8188d92f",
+          "name": "COL_3_F2",
+          "position": [
+            -150.0,
+            0.0,
+            135.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 550,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 600,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 650,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 700,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 750,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 800,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 850,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 900,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 950,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1000,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1050,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1100,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1150,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1200,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1250,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1300,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1350,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1400,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1450,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1500,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        610.0,
+        453.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "0a2e92ca",
+          "name": "EP_5_plate",
+          "position": [
+            -9.0,
+            3988.5,
+            -3034.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "68260837",
+          "name": "EP_5_stiff_1",
+          "position": [
+            -6.0,
+            3982.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fc2bf3dc",
+          "name": "EP_5_stiff_2",
+          "position": [
+            -6.0,
+            3967.5,
+            -71.5
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bbbb85fa",
+          "name": "M20_1_hole",
+          "position": [
+            0.0,
+            4059.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "50ca872b",
+          "name": "M20_1_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "37bd011a",
+          "name": "M20_1_head",
+          "position": [
+            31.25,
+            4084.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "da48cef5",
+          "name": "M20_2_hole",
+          "position": [
+            0.0,
+            4059.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "120c84fb",
+          "name": "M20_2_shank",
+          "position": [
+            -25.0,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6367bcdb",
+          "name": "M20_2_head",
+          "position": [
+            31.25,
+            4084.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "f6741655",
+          "name": "M20_3_hole",
+          "position": [
+            0.0,
+            3990.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "859862cc",
+          "name": "M20_3_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "e5de7657",
+          "name": "M20_3_head",
+          "position": [
+            31.25,
+            4015.5,
+            -2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a35e3347",
+          "name": "M20_4_hole",
+          "position": [
+            0.0,
+            3990.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "a233fc00",
+          "name": "M20_4_shank",
+          "position": [
+            -25.0,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "98f86b62",
+          "name": "M20_4_head",
+          "position": [
+            31.25,
+            4015.5,
+            2966.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "63aa2c98",
+          "name": "EP_5_weld_0",
+          "position": [
+            0.0,
+            4057.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2387d17a",
+          "name": "EP_5_weld_1",
+          "position": [
+            0.0,
+            4042.5,
+            -3000.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "709ccc57",
+          "name": "EP_5_weld_2",
+          "position": [
+            0.0,
+            4054.5,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 1550,
+      "tool": "Select"
+    }
+  ],
+  "total_records": 32,
+  "version": "1.0"
+}

@@ -351,6 +351,243 @@ fn write_fastener(w: &mut IfcWriter, obj: &SceneObject, mark: &str, owner: u64, 
     fastener_id
 }
 
+// ─── IFC4 匯出 ──────────────────────────────────────────────────────────────
+
+/// IFC 版本
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IfcVersion {
+    Ifc2x3,
+    Ifc4,
+}
+
+impl IfcVersion {
+    pub fn schema_id(&self) -> &'static str {
+        match self {
+            Self::Ifc2x3 => "IFC2X3",
+            Self::Ifc4 => "IFC4",
+        }
+    }
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Ifc2x3 => "IFC 2x3",
+            Self::Ifc4 => "IFC4",
+        }
+    }
+}
+
+/// 匯出場景為 IFC4 格式（含材質關聯 + IfcPipeSegment）
+pub fn export_ifc4(
+    scene: &Scene,
+    connections: &[SteelConnection],
+    numbering: &NumberingResult,
+    path: &str,
+) -> Result<usize, String> {
+    let mut w = IfcWriter::new();
+    let mut entity_count = 0;
+
+    // ── Header entities ──
+    let org_id = w.next();
+    w.add(org_id, "IFCORGANIZATION($,'Kolibri Ai3D','CAD/BIM Software',$,$)".into());
+
+    let app_id = w.next();
+    w.add(app_id, format!("IFCAPPLICATION(#{},'0.1.0','Kolibri Ai3D','KolibriAi3D')", org_id));
+
+    let person_id = w.next();
+    w.add(person_id, "IFCPERSON($,'User','Kolibri',$,$,$,$,$)".into());
+
+    let person_org_id = w.next();
+    w.add(person_org_id, format!("IFCPERSONANDORGANIZATION(#{},#{},$)", person_id, org_id));
+
+    let owner_id = w.next();
+    w.add(owner_id, format!("IFCOWNERHISTORY(#{},#{},$,.READWRITE.,$,$,$,0)", person_org_id, app_id));
+
+    // Geometric context
+    let origin_id = w.next();
+    w.add(origin_id, "IFCCARTESIANPOINT((0.,0.,0.))".into());
+    let dir_z_id = w.next();
+    w.add(dir_z_id, "IFCDIRECTION((0.,0.,1.))".into());
+    let dir_x_id = w.next();
+    w.add(dir_x_id, "IFCDIRECTION((1.,0.,0.))".into());
+    let axis_id = w.next();
+    w.add(axis_id, format!("IFCAXIS2PLACEMENT3D(#{},#{},#{})", origin_id, dir_z_id, dir_x_id));
+    let context_id = w.next();
+    w.add(context_id, format!(
+        "IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#{},$)", axis_id
+    ));
+
+    let units_id = write_units(&mut w);
+
+    // Project
+    let project_id = w.next();
+    w.add(project_id, format!(
+        "IFCPROJECT('{}',#{},'Kolibri Steel Project',$,$,$,$,(#{}),#{})",
+        new_guid(), owner_id, context_id, units_id
+    ));
+
+    // Site → Building → Storey
+    let site_place_id = w.next();
+    w.add(site_place_id, format!("IFCLOCALPLACEMENT($,#{})", axis_id));
+    let site_id = w.next();
+    w.add(site_id, format!(
+        "IFCSITE('{}',#{},'Site',$,$,#{},$,$,.ELEMENT.,$,$,$,$,$)",
+        new_guid(), owner_id, site_place_id
+    ));
+    let bldg_id = w.next();
+    w.add(bldg_id, format!(
+        "IFCBUILDING('{}',#{},'Building',$,$,#{},$,$,.ELEMENT.,$,$,$)",
+        new_guid(), owner_id, site_place_id
+    ));
+    let storey_id = w.next();
+    w.add(storey_id, format!(
+        "IFCBUILDINGSTOREY('{}',#{},'Level 1',$,$,#{},$,$,.ELEMENT.,0.)",
+        new_guid(), owner_id, site_place_id
+    ));
+
+    // Aggregation
+    let rel_site = w.next();
+    w.add(rel_site, format!(
+        "IFCRELAGGREGATES('{}',#{},$,$,#{},({}))",
+        new_guid(), owner_id, project_id, format!("#{}", site_id)
+    ));
+    let rel_bldg = w.next();
+    w.add(rel_bldg, format!(
+        "IFCRELAGGREGATES('{}',#{},$,$,#{},({}))",
+        new_guid(), owner_id, site_id, format!("#{}", bldg_id)
+    ));
+    let rel_storey = w.next();
+    w.add(rel_storey, format!(
+        "IFCRELAGGREGATES('{}',#{},$,$,#{},({}))",
+        new_guid(), owner_id, bldg_id, format!("#{}", storey_id)
+    ));
+
+    // ── 材質定義（IFC4 新增 IfcMaterial + IfcRelAssociatesMaterial）──
+    let steel_mat_id = w.next();
+    w.add(steel_mat_id, "IFCMATERIAL('Steel','Steel','$')".into());
+    let concrete_mat_id = w.next();
+    w.add(concrete_mat_id, "IFCMATERIAL('Concrete','Concrete','$')".into());
+
+    // ── 構件實體 ──
+    let mut storey_members = Vec::new();
+    let mut steel_member_ids = Vec::new();
+
+    for (id, obj) in &scene.objects {
+        if !obj.visible { continue; }
+        let mark = numbering.marks.get(id).cloned().unwrap_or_default();
+
+        let eid = match obj.component_kind {
+            ComponentKind::Column => {
+                let eid = write_column(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                steel_member_ids.push(format!("#{}", eid));
+                entity_count += 1;
+                Some(eid)
+            }
+            ComponentKind::Beam => {
+                let eid = write_beam(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                steel_member_ids.push(format!("#{}", eid));
+                entity_count += 1;
+                Some(eid)
+            }
+            ComponentKind::Plate => {
+                let eid = write_plate(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                steel_member_ids.push(format!("#{}", eid));
+                entity_count += 1;
+                Some(eid)
+            }
+            ComponentKind::Bolt => {
+                let eid = write_fastener(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                entity_count += 1;
+                Some(eid)
+            }
+            _ => {
+                // IFC4: 管件用 IfcPipeSegment，其他用 IfcBuildingElementProxy
+                if obj.name.starts_with("PIPE") || obj.name.contains("pipe") {
+                    let eid = write_pipe_segment(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                    entity_count += 1;
+                    Some(eid)
+                } else if obj.component_kind != ComponentKind::Generic {
+                    let eid = write_proxy(&mut w, obj, &mark, owner_id, context_id, site_place_id);
+                    entity_count += 1;
+                    Some(eid)
+                } else {
+                    None
+                }
+            }
+        };
+        if let Some(eid) = eid {
+            storey_members.push(format!("#{}", eid));
+        }
+    }
+
+    // IfcRelAssociatesMaterial（鋼構件 → Steel 材質）
+    if !steel_member_ids.is_empty() {
+        let rel_mat_id = w.next();
+        w.add(rel_mat_id, format!(
+            "IFCRELASSOCIATESMATERIAL('{}',#{},$,$,({}),#{})",
+            new_guid(), owner_id, steel_member_ids.join(","), steel_mat_id
+        ));
+    }
+
+    // IfcRelContainedInSpatialStructure
+    if !storey_members.is_empty() {
+        let rel_id = w.next();
+        w.add(rel_id, format!(
+            "IFCRELCONTAINEDINSPATIALSTRUCTURE('{}',#{},$,$,({}),#{})",
+            new_guid(), owner_id, storey_members.join(","), storey_id
+        ));
+    }
+
+    // ── 輸出檔案 ──
+    let mut f = std::fs::File::create(path).map_err(|e| e.to_string())?;
+    writeln!(f, "ISO-10303-21;").map_err(|e| e.to_string())?;
+    writeln!(f, "HEADER;").map_err(|e| e.to_string())?;
+    writeln!(f, "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');").map_err(|e| e.to_string())?;
+    writeln!(f, "FILE_NAME('{}','2026-04-04',('Kolibri'),('Kolibri Ai3D'),'Kolibri IFC4 Exporter','Kolibri Ai3D 0.1','');", path).map_err(|e| e.to_string())?;
+    writeln!(f, "FILE_SCHEMA(('IFC4'));").map_err(|e| e.to_string())?;
+    writeln!(f, "ENDSEC;").map_err(|e| e.to_string())?;
+    writeln!(f, "DATA;").map_err(|e| e.to_string())?;
+    for line in &w.lines {
+        writeln!(f, "{}", line).map_err(|e| e.to_string())?;
+    }
+    writeln!(f, "ENDSEC;").map_err(|e| e.to_string())?;
+    writeln!(f, "END-ISO-10303-21;").map_err(|e| e.to_string())?;
+
+    Ok(entity_count)
+}
+
+/// IFC4 IfcPipeSegment
+fn write_pipe_segment(w: &mut IfcWriter, obj: &SceneObject, mark: &str, owner: u64, ctx: u64, parent_lp: u64) -> u64 {
+    let (width, height, depth) = match &obj.shape {
+        Shape::Box { width, height, depth } => (*width, *height, *depth),
+        Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+        _ => (100.0, 1000.0, 100.0),
+    };
+    let lp = write_placement(w, obj.position, parent_lp);
+    let shape = write_extruded_box(w, width, height, depth, ctx);
+    let pipe_id = w.next();
+    w.add(pipe_id, format!(
+        "IFCPIPESEGMENT('{}',#{},'{}','Pipe {}',$,#{},#{},$,.RIGIDSEGMENT.)",
+        new_guid(), owner, mark, obj.name, lp, shape
+    ));
+    pipe_id
+}
+
+/// IFC4 IfcBuildingElementProxy（通用元素）
+fn write_proxy(w: &mut IfcWriter, obj: &SceneObject, mark: &str, owner: u64, ctx: u64, parent_lp: u64) -> u64 {
+    let (width, height, depth) = match &obj.shape {
+        Shape::Box { width, height, depth } => (*width, *height, *depth),
+        Shape::Cylinder { radius, height, .. } => (*radius * 2.0, *height, *radius * 2.0),
+        _ => (100.0, 100.0, 100.0),
+    };
+    let lp = write_placement(w, obj.position, parent_lp);
+    let shape = write_extruded_box(w, width, height, depth, ctx);
+    let proxy_id = w.next();
+    w.add(proxy_id, format!(
+        "IFCBUILDINGELEMENTPROXY('{}',#{},'{}','Proxy {}',$,#{},#{},$,.NOTDEFINED.)",
+        new_guid(), owner, mark, obj.name, lp, shape
+    ));
+    proxy_id
+}
+
 /// 產生簡易 GUID（22 字元 base64）
 fn new_guid() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};

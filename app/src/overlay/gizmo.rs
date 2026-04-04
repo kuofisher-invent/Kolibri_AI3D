@@ -62,38 +62,6 @@ impl KolibriApp {
                     }
                 }
 
-                // ── 世界空間角點標記（每個物件 8 個角點 + 3D 座標文字）──
-                {
-                    let corner_colors = [
-                        egui::Color32::from_rgb(255, 80, 80),   // 紅
-                        egui::Color32::from_rgb(80, 255, 80),   // 綠
-                        egui::Color32::from_rgb(80, 120, 255),  // 藍
-                        egui::Color32::from_rgb(255, 200, 40),  // 黃
-                    ];
-                    for (obj_idx, sel_id) in self.editor.selected_ids.iter().enumerate() {
-                        if let Some(obj) = self.scene.objects.get(sel_id) {
-                            let color = corner_colors[obj_idx % corner_colors.len()];
-                            let bg = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180);
-                            let corners = crate::tools::steel_conn_helpers::rotated_obj_corners(obj);
-                            let short_name = obj.name.chars().take(6).collect::<String>();
-                            for (ci, c) in corners.iter().enumerate() {
-                                if let Some(sp) = Self::world_to_screen_vp(*c, &vp, &rect) {
-                                    ui.painter().circle_filled(sp, 4.0, color);
-                                    // 座標文字：物件名_角點編號 (X, Y, Z)
-                                    let label = format!("{}_{} ({:.0},{:.0},{:.0})",
-                                        short_name, ci, c[0], c[1], c[2]);
-                                    let pos = egui::pos2(sp.x + 6.0, sp.y - 2.0);
-                                    let galley = ui.painter().layout_no_wrap(
-                                        label, egui::FontId::monospace(9.0), color);
-                                    let text_rect = egui::Rect::from_min_size(pos, galley.size()).expand(1.0);
-                                    ui.painter().rect_filled(text_rect, 2.0, bg);
-                                    ui.painter().galley(pos, galley, color);
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // ── Object center pivot（選取物件中心十字）──
                 if self.editor.selected_ids.len() == 1 {
                     if let Some(obj) = self.editor.selected_ids.first()

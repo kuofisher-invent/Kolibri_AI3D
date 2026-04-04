@@ -137,6 +137,8 @@ impl KolibriApp {
                         Shape::Line { points, thickness, .. } =>
                             crate::renderer::push_line_pub(&mut v, &mut idx, points, *thickness, scale_ghost),
                         Shape::Mesh(_) => {} // TODO: mesh ghost preview
+                        Shape::SteelProfile { params, length, .. } =>
+                            crate::renderer::push_box_pub(&mut v, &mut idx, p, params.b, *length, params.h, scale_ghost),
                     }
                 }
             }

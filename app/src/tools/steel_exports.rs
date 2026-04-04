@@ -122,6 +122,33 @@ impl KolibriApp {
         }
     }
 
+    /// Phase D: 匯出 IFC4（含材質關聯 + IfcPipeSegment）
+    pub(crate) fn export_ifc4_file(&mut self) {
+        let file = rfd::FileDialog::new()
+            .set_title("匯出 IFC4 檔案")
+            .add_filter("IFC", &["ifc"])
+            .set_file_name("model_ifc4.ifc")
+            .save_file();
+
+        if let Some(path) = file {
+            let ps = path.to_string_lossy().to_string();
+            let numbering = kolibri_core::steel_numbering::auto_number(&self.scene);
+            let connections = Vec::new();
+
+            match kolibri_io::ifc_export::export_ifc4(&self.scene, &connections, &numbering, &ps) {
+                Ok(count) => {
+                    let msg = format!("IFC4 已匯出: {} 個實體 → {}", count, ps);
+                    self.console_push("ACTION", msg.clone());
+                    self.file_message = Some((msg, std::time::Instant::now()));
+                }
+                Err(e) => {
+                    self.console_push("ERROR", format!("IFC4 匯出失敗: {}", e));
+                    self.file_message = Some((format!("IFC4 匯出失敗: {}", e), std::time::Instant::now()));
+                }
+            }
+        }
+    }
+
     /// Phase D: 碰撞偵測
     pub(crate) fn run_collision_check(&mut self) {
         let config = kolibri_core::collision::CollisionConfig::default();

@@ -474,6 +474,8 @@ impl KolibriApp {
                                 ([min[0]+p[0], min[1]+p[1], min[2]+p[2]],
                                  [max[0]+p[0], max[1]+p[1], max[2]+p[2]])
                             }
+                            Shape::SteelProfile { params, length, .. } =>
+                                (p, [p[0]+params.b, p[1]+length, p[2]+params.h]),
                         };
                         let corners = [
                             [min_p[0], min_p[1], min_p[2]],
@@ -570,6 +572,21 @@ impl KolibriApp {
                         }
                         // Mesh: not yet implemented
                         (Shape::Mesh(_), _) => {}
+                        // SteelProfile: uniform scale on bounding dims
+                        (Shape::SteelProfile { params, length, .. }, ScaleHandle::Uniform) => {
+                            params.b = (params.b * factor).max(10.0);
+                            params.h = (params.h * factor).max(10.0);
+                            *length = (*length * factor).max(10.0);
+                        }
+                        (Shape::SteelProfile { length, .. }, ScaleHandle::AxisY) => {
+                            *length = (*length * factor).max(10.0);
+                        }
+                        (Shape::SteelProfile { params, .. }, ScaleHandle::AxisX) => {
+                            params.b = (params.b * factor).max(10.0);
+                        }
+                        (Shape::SteelProfile { params, .. }, ScaleHandle::AxisZ) => {
+                            params.h = (params.h * factor).max(10.0);
+                        }
                     }
                 }
             }

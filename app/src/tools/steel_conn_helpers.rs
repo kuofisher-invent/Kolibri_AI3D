@@ -305,34 +305,144 @@ impl KolibriApp {
         (min, max)
     }
 
-    /// 計算接頭位置（梁端靠近柱的那一端）
-    pub(crate) fn calc_connection_position(&self, beam_id: &str, col_id: &str) -> [f32; 3] {
+    /// 計算接頭位置（自動對齊：梁端 → 柱翼板面交點）
+    /// 回傳 (conn_pos, beam_needs_trim_to)
+    /// conn_pos = 接頭中心點（在柱翼板面上，梁高度中心）
+    /// beam_needs_trim_to = 梁端應該被裁切到的位置（Some = 需要調整梁長度）
+    pub(crate) fn calc_connection_position_aligned(
+        &self, beam_id: &str, col_id: &str,
+    ) -> ([f32; 3], Option<f32>) {
         let col_center = self.get_group_center(col_id);
+        let (col_min, col_max) = self.get_group_bounds(col_id);
         let (beam_min, beam_max) = self.get_group_bounds(beam_id);
         let beam_center = self.get_group_center(beam_id);
 
-        // 判斷梁沿哪個軸延伸
         let span_x = beam_max[0] - beam_min[0];
         let span_z = beam_max[2] - beam_min[2];
+        let is_x_dir = span_x > span_z;
 
-        if span_x > span_z {
-            // 梁沿 X 方向 — 找最近的 X 端
-            let beam_end_x = if (beam_min[0] - col_center[0]).abs() < (beam_max[0] - col_center[0]).abs() {
-                beam_min[0]
-            } else {
-                beam_max[0]
-            };
-            // 接頭 X = 梁端 X，Y = 梁中心 Y，Z = 梁中心 Z（與柱對齊）
-            [beam_end_x, beam_center[1], beam_center[2]]
+        if is_x_dir {
+            // 梁沿 X 方向
+            let beam_near_min = (beam_min[0] - col_center[0]).abs() < (beam_max[0] - col_center[0]).abs();
+            // 柱翼板面 X 座標（梁靠近的那一面）
+            let col_flange_x = if beam_near_min { col_max[0] } else { col_min[0] };
+            // 接頭位置 = 柱翼板面，Y = 梁中心高度，Z = 柱中心（自動對齊）
+            let conn_pos = [col_flange_x, beam_center[1], col_center[2]];
+            // 梁端應裁切到柱翼板面
+            let trim_to = Some(col_flange_x);
+            (conn_pos, trim_to)
         } else {
             // 梁沿 Z 方向
-            let beam_end_z = if (beam_min[2] - col_center[2]).abs() < (beam_max[2] - col_center[2]).abs() {
-                beam_min[2]
-            } else {
-                beam_max[2]
-            };
-            [beam_center[0], beam_center[1], beam_end_z]
+            let beam_near_min = (beam_min[2] - col_center[2]).abs() < (beam_max[2] - col_center[2]).abs();
+            let col_flange_z = if beam_near_min { col_max[2] } else { col_min[2] };
+            let conn_pos = [col_center[0], beam_center[1], col_flange_z];
+            let trim_to = Some(col_flange_z);
+            (conn_pos, trim_to)
         }
+    }
+
+    /// 自動對齊梁端到柱翼板面（調整梁長度 + 位置）
+    pub(crate) fn auto_align_beam_to_column(
+        &mut self, beam_id: &str, col_id: &str, gap: f32,
+    ) {
+        let col_center = self.get_group_center(col_id);
+        let (col_min, col_max) = self.get_group_bounds(col_id);
+        let (beam_min, beam_max) = self.get_group_bounds(beam_id);
+
+        let span_x = beam_max[0] - beam_min[0];
+        let span_z = beam_max[2] - beam_min[2];
+        let is_x_dir = span_x > span_z;
+
+        // 找梁的子件 ID
+        let child_ids = self.get_group_member_ids(beam_id);
+        let ids = if child_ids.is_empty() { vec![beam_id.to_string()] } else { child_ids };
+
+        if is_x_dir {
+            let beam_near_min = (beam_min[0] - col_center[0]).abs() < (beam_max[0] - col_center[0]).abs();
+            let col_face_x = if beam_near_min { col_max[0] } else { col_min[0] };
+
+            for cid in &ids {
+                if let Some(obj) = self.scene.objects.get_mut(cid) {
+                    if let crate::scene::Shape::Box { ref mut width, .. } = obj.shape {
+                        let obj_min_x = obj.position[0];
+                        let obj_max_x = obj.position[0] + *width;
+
+                        if beam_near_min {
+                            // 梁 min 端靠柱 → 把梁左端裁切到 col_face_x + gap
+                            let new_min_x = col_face_x + gap;
+                            let new_width = obj_max_x - new_min_x;
+                            if new_width > 10.0 {
+                                obj.position[0] = new_min_x;
+                                *width = new_width;
+                            }
+                        } else {
+                            // 梁 max 端靠柱 → 把梁右端裁切到 col_face_x - gap
+                            let new_max_x = col_face_x - gap;
+                            let new_width = new_max_x - obj_min_x;
+                            if new_width > 10.0 {
+                                *width = new_width;
+                            }
+                        }
+                    }
+                }
+            }
+            // 同時對齊梁的 Z 中心到柱中心
+            let beam_z_center = (beam_min[2] + beam_max[2]) / 2.0;
+            let z_offset = col_center[2] - beam_z_center;
+            if z_offset.abs() > 1.0 {
+                for cid in &ids {
+                    if let Some(obj) = self.scene.objects.get_mut(cid) {
+                        obj.position[2] += z_offset;
+                    }
+                }
+            }
+        } else {
+            // 梁沿 Z 方向 — 同理
+            let beam_near_min = (beam_min[2] - col_center[2]).abs() < (beam_max[2] - col_center[2]).abs();
+            let col_face_z = if beam_near_min { col_max[2] } else { col_min[2] };
+
+            for cid in &ids {
+                if let Some(obj) = self.scene.objects.get_mut(cid) {
+                    if let crate::scene::Shape::Box { ref mut depth, .. } = obj.shape {
+                        let obj_min_z = obj.position[2];
+                        let obj_max_z = obj.position[2] + *depth;
+
+                        if beam_near_min {
+                            let new_min_z = col_face_z + gap;
+                            let new_depth = obj_max_z - new_min_z;
+                            if new_depth > 10.0 {
+                                obj.position[2] = new_min_z;
+                                *depth = new_depth;
+                            }
+                        } else {
+                            let new_max_z = col_face_z - gap;
+                            let new_depth = new_max_z - obj_min_z;
+                            if new_depth > 10.0 {
+                                *depth = new_depth;
+                            }
+                        }
+                    }
+                }
+            }
+            // 對齊 X 中心
+            let beam_x_center = (beam_min[0] + beam_max[0]) / 2.0;
+            let x_offset = col_center[0] - beam_x_center;
+            if x_offset.abs() > 1.0 {
+                for cid in &ids {
+                    if let Some(obj) = self.scene.objects.get_mut(cid) {
+                        obj.position[0] += x_offset;
+                    }
+                }
+            }
+        }
+
+        self.scene.version += 1;
+    }
+
+    /// 舊版相容：不帶對齊的接頭位置計算
+    pub(crate) fn calc_connection_position(&self, beam_id: &str, col_id: &str) -> [f32; 3] {
+        let (pos, _) = self.calc_connection_position_aligned(beam_id, col_id);
+        pos
     }
 
     /// 判斷梁相對於柱的方向（回傳 true=X方向, false=Z方向）和方向符號

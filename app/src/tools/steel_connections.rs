@@ -102,6 +102,27 @@ impl KolibriApp {
             self.editor.conn_bolt_grade = s.bolt_grade;
             self.editor.conn_add_stiffeners = s.need_stiffeners;
         }
+
+        // 開啟對話框
+        let (bs, bg, pt, stiff, ws) = if let Some(s) = suggestions.first() {
+            (s.bolt_size, s.bolt_grade, s.plate_thickness, s.need_stiffeners,
+             minimum_fillet_weld_size(s.plate_thickness))
+        } else {
+            (BoltSize::M20, BoltGrade::F10T, 20.0, true, 6.0)
+        };
+        self.editor.conn_dialog = Some(crate::editor::ConnectionDialogState {
+            member_ids: vec![beam_id, col_id],
+            beam_section,
+            col_section,
+            intent: ConnectionIntent::BeamToColumn,
+            suggestions,
+            selected_idx: 0,
+            bolt_size: bs,
+            bolt_grade: bg,
+            plate_thickness: pt,
+            add_stiffeners: stiff,
+            weld_size: ws,
+        });
     }
 
     /// 在 Console 顯示 AISC 建議結果
@@ -202,8 +223,14 @@ impl KolibriApp {
         let beam_section = self.get_member_section(&beam_id);
         let col_section = self.get_member_section(&col_id);
 
-        // 計算接頭位置（梁端與柱的交接處）
-        let conn_pos = self.calc_connection_position(&beam_id, &col_id);
+        // 自動對齊梁端到柱翼板面（端板接頭：gap=0，端板直接貼柱面）
+        self.auto_align_beam_to_column(&beam_id, &col_id, 0.0);
+
+        // 計算對齊後的接頭位置
+        let (conn_pos, _) = self.calc_connection_position_aligned(&beam_id, &col_id);
+        self.console_push("CONN", format!(
+            "端板接頭位置: [{:.0}, {:.0}, {:.0}]", conn_pos[0], conn_pos[1], conn_pos[2]
+        ));
 
         // 計算端板接頭
         let params = EndPlateParams {
@@ -323,8 +350,12 @@ impl KolibriApp {
         let beam_section = self.get_member_section(&beam_id);
         let conn = calc_shear_tab(beam_section, self.editor.conn_bolt_size, self.editor.conn_bolt_grade);
 
-        // 取柱翼板面位置和梁中心
+        // 自動對齊梁端到柱面（剪力板：留 12mm 安裝間隙）
+        self.auto_align_beam_to_column(&beam_id, &col_id, 12.0);
+
+        // 取對齊後的位置
         let (col_min, col_max) = self.get_group_bounds(&col_id);
+        let col_center = self.get_group_center(&col_id);
         let beam_center = self.get_group_center(&beam_id);
         let (beam_min, beam_max) = self.get_group_bounds(&beam_id);
         let (is_x_dir, sign) = self.beam_direction(&beam_id, &col_id);
@@ -339,21 +370,17 @@ impl KolibriApp {
         let tab_t = tab.thickness; // 板厚
 
         // 接合板位置：貼在柱翼板外面，平行梁腹板
-        // 梁沿 X 方向：板在 XY 平面，X=柱翼板面起，Z=梁腹板中心
-        // 梁沿 Z 方向：板在 ZY 平面，Z=柱翼板面起，X=梁腹板中心
-        let beam_web_z = (beam_min[2] + beam_max[2]) / 2.0; // 梁腹板 Z 中心
-        let beam_web_x = (beam_min[0] + beam_max[0]) / 2.0; // 梁腹板 X 中心
-
+        // 用柱中心定位（而不是梁中心），確保對齊
         let (tab_pos, tab_bw, tab_bh, tab_bd) = if is_x_dir {
-            // 梁沿 X：板在 XY 平面
+            // 梁沿 X：板在 XY 平面，Z = 柱中心（梁腹板已對齊柱中心）
             let x_start = if sign > 0.0 { col_max[0] } else { col_min[0] - tab_w };
-            let pos = [x_start, beam_center[1] - tab_h / 2.0, beam_web_z - tab_t / 2.0];
-            (pos, tab_w, tab_h, tab_t) // Box: X=寬, Y=高, Z=厚
+            let pos = [x_start, beam_center[1] - tab_h / 2.0, col_center[2] - tab_t / 2.0];
+            (pos, tab_w, tab_h, tab_t)
         } else {
-            // 梁沿 Z：板在 ZY 平面
+            // 梁沿 Z：板在 ZY 平面，X = 柱中心
             let z_start = if sign > 0.0 { col_max[2] } else { col_min[2] - tab_w };
-            let pos = [beam_web_x - tab_t / 2.0, beam_center[1] - tab_h / 2.0, z_start];
-            (pos, tab_t, tab_h, tab_w) // Box: X=厚, Y=高, Z=寬
+            let pos = [col_center[0] - tab_t / 2.0, beam_center[1] - tab_h / 2.0, z_start];
+            (pos, tab_t, tab_h, tab_w)
         };
 
         // 不穿入檢查
@@ -404,11 +431,11 @@ impl KolibriApp {
             for (j, bp) in bg.positions.iter().enumerate() {
                 let bolt_name = format!("{}_{}", bg.bolt_size.label(), j + 1);
 
-                // 螺栓中心世界座標（在接合板面上）
+                // 螺栓中心世界座標（在接合板面上，用柱中心對齊）
                 let bolt_center = if is_x_dir {
-                    [tab_pos[0] + bp[0], tab_pos[1] + tab_h / 2.0 + bp[1], beam_web_z]
+                    [tab_pos[0] + bp[0], tab_pos[1] + tab_h / 2.0 + bp[1], col_center[2]]
                 } else {
-                    [beam_web_x, tab_pos[1] + tab_h / 2.0 + bp[1], tab_pos[2] + bp[0]]
+                    [col_center[0], tab_pos[1] + tab_h / 2.0 + bp[1], tab_pos[2] + bp[0]]
                 };
 
                 // Cylinder position = 底面圓心，不需 -radius 偏移
@@ -448,8 +475,8 @@ impl KolibriApp {
         // 焊接：接合板焊在柱翼板面上（沿 Y 方向全長角焊）
         let weld_x = if is_x_dir {
             if sign > 0.0 { col_max[0] } else { col_min[0] }
-        } else { beam_web_x };
-        let weld_z = if is_x_dir { beam_web_z } else {
+        } else { col_center[0] };
+        let weld_z = if is_x_dir { col_center[2] } else {
             if sign > 0.0 { col_max[2] } else { col_min[2] }
         };
         let w_start = [weld_x, tab_pos[1], weld_z];
@@ -946,13 +973,29 @@ impl KolibriApp {
             .map(|s| s.conn_type)
             .unwrap_or(ConnectionType::EndPlate);
 
+        self.console_push("CONN", format!(
+            "執行接頭: {} | member_ids={:?} | bolt={} {}",
+            conn_type.label(), &dialog.member_ids,
+            dialog.bolt_size.label(), dialog.bolt_grade.label(),
+        ));
+
         // 用對話框中使用者調整的參數
         self.editor.conn_bolt_size = dialog.bolt_size;
         self.editor.conn_bolt_grade = dialog.bolt_grade;
         self.editor.conn_add_stiffeners = dialog.add_stiffeners;
         self.editor.conn_weld_size = dialog.weld_size;
 
-        self.editor.selected_ids = dialog.member_ids.clone();
+        // 展開群組 → 子件 ID，確保 identify_beam_column 可辨識
+        let mut expanded_ids = Vec::new();
+        for id in &dialog.member_ids {
+            expanded_ids.push(id.clone());
+            for cid in self.get_group_member_ids(id) {
+                if !expanded_ids.contains(&cid) {
+                    expanded_ids.push(cid);
+                }
+            }
+        }
+        self.editor.selected_ids = expanded_ids;
 
         match dialog.intent {
             ConnectionIntent::BeamToColumn => {

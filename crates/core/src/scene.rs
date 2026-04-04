@@ -124,6 +124,70 @@ fn default_visible() -> bool { true }
 fn default_roughness() -> f32 { 0.5 }
 fn default_quat() -> [f32; 4] { [0.0, 0.0, 0.0, 1.0] }
 
+/// 鋼構截面類型（用於 Shape::SteelProfile）
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SteelProfileType {
+    /// H型鋼（寬翼 I 形）— 含填角 r
+    H,
+    /// C型鋼（槽鋼，U 形）
+    C,
+    /// L型鋼（等邊角鋼）
+    L,
+}
+
+/// 鋼構截面參數
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SteelProfileParams {
+    /// 截面高度 H (mm)
+    pub h: f32,
+    /// 翼板寬度 B (mm)（L 型鋼 = 腿長）
+    pub b: f32,
+    /// 腹板厚度 tw (mm)（L 型鋼 = 板厚）
+    pub tw: f32,
+    /// 翼板厚度 tf (mm)（L 型鋼 = 板厚，同 tw）
+    pub tf: f32,
+    /// 填角半徑 r (mm)，預設 0
+    #[serde(default)]
+    pub r: f32,
+}
+
+impl SteelProfileParams {
+    pub fn new_h(h: f32, b: f32, tw: f32, tf: f32, r: f32) -> Self {
+        Self { h, b, tw, tf, r }
+    }
+    pub fn new_c(h: f32, b: f32, tw: f32, tf: f32, r: f32) -> Self {
+        Self { h, b, tw, tf, r }
+    }
+    pub fn new_l(leg: f32, t: f32, r: f32) -> Self {
+        Self { h: leg, b: leg, tw: t, tf: t, r }
+    }
+    /// 截面積 A (mm²)
+    pub fn area(&self) -> f32 {
+        match self.r > 0.0 {
+            true => {
+                // 近似（含填角修正）
+                let web = (self.h - 2.0 * self.tf) * self.tw;
+                let flanges = 2.0 * self.b * self.tf;
+                web + flanges
+            }
+            false => {
+                let web = (self.h - 2.0 * self.tf) * self.tw;
+                let flanges = 2.0 * self.b * self.tf;
+                web + flanges
+            }
+        }
+    }
+    /// 強軸慣性矩 Ix (mm⁴)
+    pub fn ix(&self) -> f32 {
+        let web = self.tw * (self.h - 2.0 * self.tf).powi(3) / 12.0;
+        let flange_d = (self.h - self.tf) / 2.0;
+        let flanges = 2.0 * (self.b * self.tf.powi(3) / 12.0 + self.b * self.tf * flange_d * flange_d);
+        web + flanges
+    }
+    /// 強軸斷面模數 Sx (mm³)
+    pub fn sx(&self) -> f32 { self.ix() / (self.h / 2.0) }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Shape {
@@ -136,6 +200,13 @@ pub enum Shape {
         #[serde(default)] arc_angle_deg: Option<f32>,
     },
     Mesh(crate::halfedge::HeMesh),
+    /// 鋼構斷面擠出實體（沿 Y 軸擠出 length）
+    SteelProfile {
+        profile_type: SteelProfileType,
+        params: SteelProfileParams,
+        /// 擠出長度（構件長度 mm）
+        length: f32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -362,6 +433,23 @@ impl Scene {
         self.objects.insert(id.clone(), SceneObject {
             id: id.clone(), name,
             shape: Shape::Box { width: w, height: h, depth: d },
+            position: pos, material: mat,
+            rotation_y: 0.0, rotation_xyz: [0.0; 3], rotation_quat: default_quat(), tag: default_tag(), visible: true,
+            roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,
+        });
+        id
+    }
+
+    /// Insert a steel profile member (single extruded shape, no group needed).
+    pub fn insert_steel_profile(
+        &mut self, name: String, pos: [f32; 3],
+        profile_type: SteelProfileType, params: SteelProfileParams,
+        length: f32, mat: MaterialKind,
+    ) -> String {
+        let id = self.next_id();
+        self.objects.insert(id.clone(), SceneObject {
+            id: id.clone(), name,
+            shape: Shape::SteelProfile { profile_type, params, length },
             position: pos, material: mat,
             rotation_y: 0.0, rotation_xyz: [0.0; 3], rotation_quat: default_quat(), tag: default_tag(), visible: true,
             roughness: default_roughness(), metallic: 0.0, texture_path: None, component_kind: Default::default(), parent_id: None, component_def_id: None, locked: false, obj_version: 0, base_level_idx: None, top_level_idx: None,

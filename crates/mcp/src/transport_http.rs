@@ -168,6 +168,23 @@ async fn handle_scene_svg(
                 let r_screen = radius * 0.05;
                 lines.push(format!(r#"<ellipse cx="{:.1}" cy="{:.1}" rx="{:.1}" ry="{:.1}" fill="none" stroke="{}" stroke-width="1.5" opacity="0.8"/>"#, px, py, r_screen*0.866, r_screen*0.5, color));
             }
+            kolibri_core::scene::Shape::SteelProfile { params, length, .. } => {
+                // 以 bounding box 繪製線框
+                let (w, d) = (params.b, params.h);
+                let h = *length;
+                let corners = [
+                    (p[0],p[1],p[2]), (p[0]+w,p[1],p[2]),
+                    (p[0]+w,p[1],p[2]+d), (p[0],p[1],p[2]+d),
+                    (p[0],p[1]+h,p[2]), (p[0]+w,p[1]+h,p[2]),
+                    (p[0]+w,p[1]+h,p[2]+d), (p[0],p[1]+h,p[2]+d),
+                ];
+                let edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)];
+                for (a,b) in &edges {
+                    let (x1,y1) = project(corners[*a].0, corners[*a].1, corners[*a].2);
+                    let (x2,y2) = project(corners[*b].0, corners[*b].1, corners[*b].2);
+                    lines.push(format!(r#"<line x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{}" stroke-width="1.5" opacity="0.8"/>"#, x1,y1,x2,y2, color));
+                }
+            }
             _ => {}
         }
     }

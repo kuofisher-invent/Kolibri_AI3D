@@ -383,7 +383,7 @@ impl KolibriApp {
                     for did in &display_ids {
                         if let Some(obj) = self.scene.objects.get(did) {
                             let icon = match &obj.shape {
-                                Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇",
+                                Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇", Shape::SteelProfile{..} => "🔩",
                             };
                             let kind_short = match obj.component_kind {
                                 crate::collision::ComponentKind::Column => " [柱]",
@@ -559,7 +559,7 @@ impl KolibriApp {
         section_frame_full(ui, |ui| {
             ui.horizontal(|ui| {
                 let icon = match &obj.shape {
-                    Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇",
+                    Shape::Box{..} => "⬜", Shape::Cylinder{..} => "○", Shape::Sphere{..} => "◎", Shape::Line{..} => "╱", Shape::Mesh{..} => "◇", Shape::SteelProfile{..} => "H",
                 };
                 ui.label(egui::RichText::new(icon).size(16.0));
                 ui.text_edit_singleline(&mut obj.name);
@@ -593,6 +593,11 @@ impl KolibriApp {
                 Shape::Mesh(ref mesh) => {
                     ui.label(format!("網格: {} 頂點, {} 邊, {} 面",
                         mesh.vertices.len(), mesh.edge_count(), mesh.faces.len()));
+                }
+                Shape::SteelProfile { params, length, profile_type } => {
+                    ui.label(format!("鋼構斷面: {:?}", profile_type));
+                    ui.label(format!("H={:.0} B={:.0} tw={:.1} tf={:.1}", params.h, params.b, params.tw, params.tf));
+                    ui.add(egui::DragValue::new(length).speed(10.0).prefix("長度 L: ").suffix(" mm").range(1.0..=f32::MAX));
                 }
             }
         });

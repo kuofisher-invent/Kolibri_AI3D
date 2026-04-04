@@ -510,7 +510,7 @@ impl KolibriApp {
             let is_wide_mode = matches!(self.editor.work_mode,
                 crate::editor::WorkMode::Piping | crate::editor::WorkMode::Steel);
             let toolbar_w = if self.viewer.show_toolbar {
-                if is_wide_mode { 164.0 } else { 124.0 }
+                if is_wide_mode { 190.0 } else { 124.0 }
             } else { 0.0 };
             egui::SidePanel::left("left_panel")
                 .exact_width(toolbar_w).resizable(false)
@@ -773,6 +773,8 @@ impl KolibriApp {
                                 format!("Line {}pts", points.len()),
                             crate::scene::Shape::Mesh(m) =>
                                 format!("Mesh {}F", m.faces.len()),
+                            crate::scene::Shape::SteelProfile { params, length, .. } =>
+                                format!("Steel H{}×B{} L{:.0}", params.h, params.b, length),
                         };
                         let name = if obj.name.is_empty() { &shape_info } else { &obj.name };
                         ui.separator();

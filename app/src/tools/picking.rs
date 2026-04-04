@@ -23,6 +23,7 @@ impl KolibriApp {
                     (p, mx)
                 }
                 Shape::Mesh(ref mesh) => { let (a,b) = mesh.aabb(); ([p[0]+a[0],p[1]+a[1],p[2]+a[2]], [p[0]+b[0],p[1]+b[1],p[2]+b[2]]) }
+                Shape::SteelProfile { params, length, .. } => (p, [p[0]+params.b, p[1]+length, p[2]+params.h]),
             };
             SpatialEntry { id: obj.id.clone(), min: mn, max: mx }
         }).collect();
@@ -79,6 +80,9 @@ impl KolibriApp {
                 Shape::Mesh(ref mesh) => {
                     let (aabb_min, aabb_max) = mesh.aabb();
                     (pos + glam::Vec3::from(aabb_min), pos + glam::Vec3::from(aabb_max))
+                }
+                Shape::SteelProfile { params, length, .. } => {
+                    (pos, pos + glam::Vec3::new(params.b, *length, params.h))
                 }
             };
             if let Some(t) = camera::ray_aabb(origin, dir, pick_min, pick_max) {

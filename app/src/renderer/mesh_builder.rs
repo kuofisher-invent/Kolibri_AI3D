@@ -16,6 +16,7 @@ pub fn shape_half_size(shape: &Shape) -> [f32; 3] {
             let (min, max) = mesh.aabb();
             [(max[0]-min[0])/2.0, (max[1]-min[1])/2.0, (max[2]-min[2])/2.0]
         }
+        Shape::SteelProfile { params, length, .. } => [params.b / 2.0, *length / 2.0, params.h / 2.0],
     }
 }
 
@@ -307,6 +308,9 @@ fn build_single_object_mesh(
                 }
             }
         }
+        Shape::SteelProfile { profile_type, params, length } => {
+            push_steel_profile(&mut face_verts, &mut face_idx, p, *profile_type, params, *length, color);
+        }
     }
 
     // Triplanar texture sampling
@@ -419,6 +423,7 @@ fn apply_rotation(obj: &SceneObject, start_idx: usize, verts: &mut [Vertex]) {
             let (min, max) = mesh.aabb();
             ((max[0]-min[0])/2.0, (max[1]-min[1])/2.0, (max[2]-min[2])/2.0)
         }
+        Shape::SteelProfile { length, .. } => (0.0, *length / 2.0, 0.0),
     };
     let center = glam::Vec3::new(
         obj.position[0] + coff_x,
@@ -600,6 +605,8 @@ pub(crate) fn build_scene_mesh(
                     push_line_segments(&mut verts, &mut idx, &[ep1, ep2], mesh_edge_thick, mesh_edge_color);
                 }
             }
+            Shape::SteelProfile { params, length, .. } =>
+                push_box(&mut verts, &mut idx, p, params.b, *length, params.h, color),
         }
 
         // ── Per-vertex triplanar texture sampling for textured objects ──

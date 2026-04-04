@@ -168,6 +168,7 @@ impl KolibriApp {
                         Shape::Sphere { radius, segments } => json!({"type":"sphere","radius":radius,"segments":segments}),
                         Shape::Line { points, thickness, .. } => json!({"type":"line","point_count":points.len(),"thickness":thickness}),
                         Shape::Mesh(mesh) => json!({"type":"mesh","vertices":mesh.vertices.len(),"faces":mesh.faces.len(),"edges":mesh.edges.len()}),
+                        Shape::SteelProfile { params, length, profile_type } => json!({"type":"steel_profile","profile_type":format!("{:?}",profile_type),"h":params.h,"b":params.b,"tw":params.tw,"tf":params.tf,"length":length}),
                     };
                     McpResult { success: true, data: json!({
                         "id": obj.id, "name": obj.name, "position": obj.position,
@@ -213,93 +214,60 @@ impl KolibriApp {
             #[cfg(feature = "steel")]
             McpCommand::CreateSteelColumn { position, profile, height } => {
                 self.scene.snapshot();
-                let (h_sec, b_sec, tw, tf) = crate::tools::geometry_ops::parse_h_profile(&profile);
+                let (h_sec, b_sec, tw, tf, r) = crate::tools::geometry_ops::parse_h_profile(&profile);
                 let name_base = self.next_name("COL");
                 let cx = position[0];
                 let cz = position[2];
                 let base_y = position[1];
 
-                let f1_id = self.scene.insert_box_raw(
-                    format!("{}_F1", name_base),
-                    [cx - b_sec / 2.0, base_y, cz - h_sec / 2.0],
-                    b_sec, height, tf, crate::scene::MaterialKind::Steel,
+                use crate::scene::{SteelProfileType, SteelProfileParams};
+                let params = SteelProfileParams::new_h(h_sec, b_sec, tw, tf, r);
+                let pos = [cx - params.b / 2.0, base_y, cz - params.h / 2.0];
+                let col_id = self.scene.insert_steel_profile(
+                    name_base.clone(), pos, SteelProfileType::H, params, height,
+                    crate::scene::MaterialKind::Steel,
                 );
-                let f2_id = self.scene.insert_box_raw(
-                    format!("{}_F2", name_base),
-                    [cx - b_sec / 2.0, base_y, cz + h_sec / 2.0 - tf],
-                    b_sec, height, tf, crate::scene::MaterialKind::Steel,
-                );
-                let web_id = self.scene.insert_box_raw(
-                    format!("{}_W", name_base),
-                    [cx - tw / 2.0, base_y, cz - h_sec / 2.0 + tf],
-                    tw, height, h_sec - 2.0 * tf, crate::scene::MaterialKind::Steel,
-                );
-                for id in [&f1_id, &f2_id, &web_id] {
-                    if let Some(obj) = self.scene.objects.get_mut(id) {
-                        obj.component_kind = crate::collision::ComponentKind::Column;
-                    }
+                if let Some(obj) = self.scene.objects.get_mut(&col_id) {
+                    obj.component_kind = crate::collision::ComponentKind::Column;
                 }
-                let child_ids = vec![f1_id.clone(), f2_id.clone(), web_id.clone()];
-                self.scene.create_group(name_base.clone(), child_ids);
                 self.scene.version += 1;
                 McpResult { success: true, data: json!({ "column": name_base, "profile": profile, "height": height }) }
             }
             #[cfg(feature = "steel")]
             McpCommand::CreateSteelBeam { p1, p2, profile } => {
                 self.scene.snapshot();
-                let (h_sec, b_sec, tw, tf) = crate::tools::geometry_ops::parse_h_profile(&profile);
+                let (h_sec, b_sec, tw, tf, r) = crate::tools::geometry_ops::parse_h_profile(&profile);
                 let name_base = self.next_name("BM");
                 let dx = p2[0] - p1[0];
                 let dz = p2[2] - p1[2];
                 let length = (dx * dx + dz * dz).sqrt();
-                let beam_y = p1[1]; // 梁底 Y
+                let beam_y = p1[1];
                 let is_x_dir = dx.abs() > dz.abs();
 
-                let ids = if is_x_dir {
+                use crate::scene::{SteelProfileType, SteelProfileParams};
+                let params = SteelProfileParams::new_h(h_sec, b_sec, tw, tf, r);
+
+                // 旋轉中心 = (pos[0], pos[1]+length/2, pos[2])
+                let (pos, rot_quat) = if is_x_dir {
                     let min_x = p1[0].min(p2[0]);
                     let cz = p1[2];
-                    let f1 = self.scene.insert_box_raw(
-                        format!("{}_TF", name_base),
-                        [min_x, beam_y + h_sec - tf, cz - b_sec / 2.0],
-                        length, tf, b_sec, crate::scene::MaterialKind::Steel,
-                    );
-                    let f2 = self.scene.insert_box_raw(
-                        format!("{}_BF", name_base),
-                        [min_x, beam_y, cz - b_sec / 2.0],
-                        length, tf, b_sec, crate::scene::MaterialKind::Steel,
-                    );
-                    let w = self.scene.insert_box_raw(
-                        format!("{}_W", name_base),
-                        [min_x, beam_y + tf, cz - tw / 2.0],
-                        length, h_sec - 2.0 * tf, tw, crate::scene::MaterialKind::Steel,
-                    );
-                    vec![f1, f2, w]
+                    let q = glam::Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2);
+                    ([min_x + length / 2.0, beam_y - length / 2.0, cz], q.to_array())
                 } else {
                     let min_z = p1[2].min(p2[2]);
                     let cx = p1[0];
-                    let f1 = self.scene.insert_box_raw(
-                        format!("{}_TF", name_base),
-                        [cx - b_sec / 2.0, beam_y + h_sec - tf, min_z],
-                        b_sec, tf, length, crate::scene::MaterialKind::Steel,
-                    );
-                    let f2 = self.scene.insert_box_raw(
-                        format!("{}_BF", name_base),
-                        [cx - b_sec / 2.0, beam_y, min_z],
-                        b_sec, tf, length, crate::scene::MaterialKind::Steel,
-                    );
-                    let w = self.scene.insert_box_raw(
-                        format!("{}_W", name_base),
-                        [cx - tw / 2.0, beam_y + tf, min_z],
-                        tw, h_sec - 2.0 * tf, length, crate::scene::MaterialKind::Steel,
-                    );
-                    vec![f1, f2, w]
+                    let q = glam::Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
+                    ([cx, beam_y - length / 2.0, min_z + length / 2.0], q.to_array())
                 };
-                for id in &ids {
-                    if let Some(obj) = self.scene.objects.get_mut(id) {
-                        obj.component_kind = crate::collision::ComponentKind::Beam;
-                    }
+
+                let beam_id = self.scene.insert_steel_profile(
+                    name_base.clone(), pos, SteelProfileType::H, params, length,
+                    crate::scene::MaterialKind::Steel,
+                );
+                if let Some(obj) = self.scene.objects.get_mut(&beam_id) {
+                    obj.rotation_quat = rot_quat;
+                    obj.component_kind = crate::collision::ComponentKind::Beam;
                 }
-                self.scene.create_group(name_base.clone(), ids);
                 self.scene.version += 1;
                 McpResult { success: true, data: json!({ "beam": name_base, "profile": profile, "length": length }) }
             }
@@ -516,6 +484,7 @@ impl KolibriApp {
                             "type": "Sphere", "radius": radius
                         }),
                         Shape::Line { .. } => json!({"type": "Line"}),
+                        Shape::SteelProfile { params, length, profile_type } => json!({"type":"SteelProfile","profile_type":format!("{:?}",profile_type),"h":params.h,"b":params.b,"length":length}),
                     };
                     objects.push(json!({
                         "id": obj.id,

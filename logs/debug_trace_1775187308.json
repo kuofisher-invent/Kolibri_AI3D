@@ -1,0 +1,3423 @@
+{
+  "mode": "delta",
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 11,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -24000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        2.6666641235351562,
+        72.66667175292969
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 38207,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateRef",
+      "mouse_ground": [
+        300.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        697.3333129882812,
+        458.66668701171875
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 39917,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        653.3333129882812,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41169,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        653.3333129882812,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41180,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        653.3333129882812,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41191,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        653.3333129882812,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41202,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        652.0,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41212,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        648.6666870117188,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41223,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        646.0,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -15.893035888671875,
+            0.0,
+            -3.711334228515625
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0640256404876709,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41234,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        636.6666870117188,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -34.95367431640625,
+            0.0,
+            -9.619308471679688
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.14231657981872559,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41244,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        630.6666870117188,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -45.91893005371094,
+            0.0,
+            -13.78070068359375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.1883230209350586,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41255,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        617.3333129882812,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -63.00105285644531,
+            0.0,
+            -21.459487915039062
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.2617993950843811,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41266,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        608.0,
+        381.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -82.98724365234375,
+            0.0,
+            -32.48127746582031
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.3513517379760742,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41276,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        599.3333129882812,
+        384.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -96.34451293945312,
+            0.0,
+            -41.23390197753906
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.4139995574951172,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41289,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        586.0,
+        391.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -118.30126953125,
+            0.0,
+            -58.49365234375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.5235987901687622,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41299,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        578.6666870117188,
+        396.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -129.5642852783203,
+            0.0,
+            -69.01194763183594
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.5840537548065186,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41310,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        0.0
+      ],
+      "mouse_screen": [
+        566.0,
+        411.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -152.42237854003906,
+            0.0,
+            -94.99942016601562
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.7199091911315918,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41321,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        560.6666870117188,
+        421.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -162.13201904296875,
+            0.0,
+            -108.57864379882812
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.7853981852531433,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41332,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        556.0,
+        442.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -182.80442810058594,
+            0.0,
+            -146.06686401367188
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.9535114765167236,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41342,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        554.6666870117188,
+        452.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -191.50636291503906,
+            0.0,
+            -168.30128479003906
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.0471975803375244,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41353,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        554.6666870117188,
+        474.66668701171875
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -200.13446044921875,
+            0.0,
+            -200.67709350585938
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.1787128448486328,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41364,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        554.6666870117188,
+        480.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -201.78573608398438,
+            0.0,
+            -209.95079040527344
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.2156615257263184,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41375,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -0.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        558.6666870117188,
+        502.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -204.95022583007812,
+            0.0,
+            -249.37608337402344
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.3709535598754883,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41385,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -0.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        559.3333129882812,
+        505.33331298828125
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -204.89523315429688,
+            0.0,
+            -255.33154296875
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.3943142890930176,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41396,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        0.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        561.3333129882812,
+        514.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -204.0111846923828,
+            0.0,
+            -271.8703918457031
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.4592890739440918,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41408,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        573.3333129882812,
+        532.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -200.0,
+            0.0,
+            -300.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.5707963705062866,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41419,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        577.3333129882812,
+        536.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -195.52479553222656,
+            0.0,
+            -318.6845703125
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.6461739540100098,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41430,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        599.3333129882812,
+        554.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -178.54049682617188,
+            0.0,
+            -363.0010986328125
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.8325958251953125,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41441,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        616.0,
+        564.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -158.17837524414062,
+            0.0,
+            -397.17938232421875
+          ],
+          "rotation_xyz": [
+            0.0,
+            1.9888005256652832,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41452,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        646.6666870117188,
+        580.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -113.04345703125,
+            0.0,
+            -446.00213623046875
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.250337600708008,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41463,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        660.6666870117188,
+        584.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -91.42135620117188,
+            0.0,
+            -462.13201904296875
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.356194496154785,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41474,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1500.0
+      ],
+      "mouse_screen": [
+        687.3333129882812,
+        590.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -31.698745727539062,
+            0.0,
+            -491.50634765625
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.6179938316345215,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41485,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        699.3333129882812,
+        592.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -31.698745727539062,
+            0.0,
+            -491.50634765625
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.6179938316345215,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41495,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        716.6666870117188,
+        592.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            11.98822021484375,
+            0.0,
+            -502.10137939453125
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.7945446968078613,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41506,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        723.3333129882812,
+        592.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            33.591552734375,
+            0.0,
+            -504.42242431640625
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.879793405532837,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41516,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        731.3333129882812,
+        591.3333129882812
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            33.591552734375,
+            0.0,
+            -504.42242431640625
+          ],
+          "rotation_xyz": [
+            0.0,
+            2.879793405532837,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41527,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        756.0,
+        586.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            85.80950927734375,
+            0.0,
+            -502.4236145019531
+          ],
+          "rotation_xyz": [
+            0.0,
+            3.0851194858551025,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41537,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        1000.0
+      ],
+      "mouse_screen": [
+        774.0,
+        579.3333129882812
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            119.45611572265625,
+            0.0,
+            -495.30767822265625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -3.0630712509155273,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41547,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        800.6666870117188,
+        563.3333129882812
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            163.00103759765625,
+            0.0,
+            -478.54052734375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.879793405532837,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41558,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        820.0,
+        548.6666870117188
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            204.04248046875,
+            0.0,
+            -453.1524658203125
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.6902213096618652,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41569,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        -0.0
+      ],
+      "mouse_screen": [
+        846.0,
+        524.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            244.44903564453125,
+            0.0,
+            -414.89263916015625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.4715232849121094,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41580,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        859.3333129882812,
+        506.66668701171875
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            262.13201904296875,
+            0.0,
+            -391.4213562011719
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.356194496154785,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41590,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        875.3333129882812,
+        488.66668701171875
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            278.7647705078125,
+            0.0,
+            -362.5462646484375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.225397825241089,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41602,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        897.3333129882812,
+        460.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            291.50634765625,
+            0.0,
+            -331.69873046875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -2.094395160675049,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41613,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1500.0,
+        0.0,
+        -1500.0
+      ],
+      "mouse_screen": [
+        910.0,
+        438.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            299.9627685546875,
+            0.0,
+            -300.1859436035156
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.9663312435150146,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41623,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        -2500.0
+      ],
+      "mouse_screen": [
+        928.6666259765625,
+        400.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            304.42242431640625,
+            0.0,
+            -266.40850830078125
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.8325958251953125,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41633,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        -2500.0
+      ],
+      "mouse_screen": [
+        934.0,
+        378.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            304.81591796875,
+            0.0,
+            -241.703125
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.7356431484222412,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41645,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        500.0,
+        0.0,
+        -3000.0
+      ],
+      "mouse_screen": [
+        938.6666259765625,
+        355.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            303.3914794921875,
+            0.0,
+            -221.84426879882812
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.6575303077697754,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41655,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        0.0,
+        0.0,
+        -4000.0
+      ],
+      "mouse_screen": [
+        940.0,
+        316.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            300.0,
+            0.0,
+            -200.00001525878906
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.5707963705062866,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41666,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        0.0,
+        0.0,
+        -4500.0
+      ],
+      "mouse_screen": [
+        940.0,
+        304.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            295.53424072265625,
+            0.0,
+            -181.34915161132812
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.495556116104126,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41677,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -500.0,
+        0.0,
+        -5000.0
+      ],
+      "mouse_screen": [
+        930.6666259765625,
+        270.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            286.49072265625,
+            0.0,
+            -154.752197265625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.385312795639038,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41688,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -5500.0
+      ],
+      "mouse_screen": [
+        925.3333740234375,
+        259.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            278.54052734375,
+            0.0,
+            -136.9989471435547
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.3089969158172607,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41700,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -6000.0
+      ],
+      "mouse_screen": [
+        908.6666259765625,
+        238.66665649414062
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            278.54052734375,
+            0.0,
+            -136.9989471435547
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.3089969158172607,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41711,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -6000.0
+      ],
+      "mouse_screen": [
+        900.0,
+        232.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            267.9871826171875,
+            0.0,
+            -117.78207397460938
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.2229775190353394,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41722,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2000.0,
+        0.0,
+        -6500.0
+      ],
+      "mouse_screen": [
+        883.3333129882812,
+        223.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            259.59716796875,
+            0.0,
+            -104.84823608398438
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.1624987125396729,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41733,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2000.0,
+        0.0,
+        -6500.0
+      ],
+      "mouse_screen": [
+        872.6666870117188,
+        220.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            254.37310791015625,
+            0.0,
+            -97.58073425292969
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.1273910999298096,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41744,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2500.0,
+        0.0,
+        -6500.0
+      ],
+      "mouse_screen": [
+        848.0,
+        216.66665649414062
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            241.50634765625,
+            0.0,
+            -81.69873046875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.0471975803375244,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41756,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2500.0,
+        0.0,
+        -6000.0
+      ],
+      "mouse_screen": [
+        837.3333129882812,
+        216.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            241.50634765625,
+            0.0,
+            -81.69873046875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -1.0471975803375244,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41766,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3000.0,
+        0.0,
+        -6000.0
+      ],
+      "mouse_screen": [
+        798.0,
+        216.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            212.4217529296875,
+            0.0,
+            -53.48237609863281
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.888087272644043,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41777,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3500.0,
+        0.0,
+        -5500.0
+      ],
+      "mouse_screen": [
+        776.0,
+        216.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            191.42135620117188,
+            0.0,
+            -37.86798095703125
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.7853981852531433,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41788,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3500.0,
+        0.0,
+        -5000.0
+      ],
+      "mouse_screen": [
+        735.3333129882812,
+        216.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            161.8338623046875,
+            0.0,
+            -20.886077880859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.6514897346496582,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41798,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4000.0,
+        0.0,
+        -5000.0
+      ],
+      "mouse_screen": [
+        716.0,
+        216.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            131.69873046875,
+            0.0,
+            -8.49365234375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.5235987901687622,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41809,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4000.0,
+        0.0,
+        -4500.0
+      ],
+      "mouse_screen": [
+        688.0,
+        216.66665649414062
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            115.85784912109375,
+            0.0,
+            -3.7019195556640625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.45867395401000977,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41820,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4500.0,
+        0.0,
+        -4500.0
+      ],
+      "mouse_screen": [
+        656.0,
+        219.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            82.91864013671875,
+            0.0,
+            2.816864013671875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.3268744945526123,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41831,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4500.0,
+        0.0,
+        -4000.0
+      ],
+      "mouse_screen": [
+        640.6666870117188,
+        224.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            66.40847778320312,
+            0.0,
+            4.4224090576171875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.2617993950843811,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41842,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4500.0,
+        0.0,
+        -3000.0
+      ],
+      "mouse_screen": [
+        608.0,
+        239.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            28.304351806640625,
+            0.0,
+            4.0261688232421875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.11219513416290283,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41853,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4000.0,
+        0.0,
+        -3000.0
+      ],
+      "mouse_screen": [
+        594.6666870117188,
+        249.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41863,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -4000.0,
+        0.0,
+        -2000.0
+      ],
+      "mouse_screen": [
+        574.6666870117188,
+        268.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -17.801422119140625,
+            0.0,
+            -4.229827880859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07178235054016113,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41873,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3500.0,
+        0.0,
+        -2000.0
+      ],
+      "mouse_screen": [
+        568.0,
+        278.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -29.836883544921875,
+            0.0,
+            -7.8717803955078125
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.1211082935333252,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41884,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3000.0,
+        0.0,
+        -1500.0
+      ],
+      "mouse_screen": [
+        557.3333129882812,
+        304.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -63.00105285644531,
+            0.0,
+            -21.459487915039062
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.2617993950843811,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41895,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -3000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        555.3333129882812,
+        316.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -63.00105285644531,
+            0.0,
+            -21.459487915039062
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.2617993950843811,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41905,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        555.3333129882812,
+        325.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -75.0584716796875,
+            0.0,
+            -27.828033447265625
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.3152904510498047,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41917,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        560.0,
+        350.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -93.79388427734375,
+            0.0,
+            -39.46897888183594
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.40183353424072266,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41928,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -2000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        564.6666870117188,
+        359.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -98.64678955078125,
+            0.0,
+            -42.86688232421875
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.42507076263427734,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41939,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        584.6666870117188,
+        379.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -104.28877258300781,
+            0.0,
+            -47.0345458984375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.45258426666259766,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41950,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        602.0,
+        389.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -100.84506225585938,
+            0.0,
+            -44.462249755859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.43572449684143066,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41960,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -90.4273681640625,
+        500.0,
+        362.79132080078125
+      ],
+      "mouse_screen": [
+        630.0,
+        399.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -80.33451843261719,
+            0.0,
+            -30.881500244140625
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.3392012119293213,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41972,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -47.2142333984375,
+        500.0,
+        185.68917846679688
+      ],
+      "mouse_screen": [
+        651.3333129882812,
+        404.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -47.2142333984375,
+            0.0,
+            -14.310821533203125
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.19381260871887207,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41982,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -19.474212646484375,
+        500.0,
+        145.30255126953125
+      ],
+      "mouse_screen": [
+        662.0,
+        406.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -19.474212646484375,
+            0.0,
+            -4.6974639892578125
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07859516143798828,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 41992,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        36.32501220703125,
+        400.0,
+        4.5839691162109375
+      ],
+      "mouse_screen": [
+        677.3333129882812,
+        406.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            36.32501220703125,
+            0.0,
+            4.5839691162109375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.14373207092285156,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42002,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        47.74102783203125,
+        400.0,
+        4.9409637451171875
+      ],
+      "mouse_screen": [
+        680.0,
+        406.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            47.74102783203125,
+            0.0,
+            4.9409637451171875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.18853497505187988,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42014,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        149.535400390625,
+        500.0,
+        4.9505615234375
+      ],
+      "mouse_screen": [
+        680.0,
+        405.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            49.535400390625,
+            0.0,
+            4.9505615234375
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.19557321071624756,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42025,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        101.2515869140625,
+        500.0,
+        4.947906494140625
+      ],
+      "mouse_screen": [
+        680.0,
+        404.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            51.2515869140625,
+            0.0,
+            4.947906494140625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.20230472087860107,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42036,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        48.9716796875,
+        500.0,
+        4.9488983154296875
+      ],
+      "mouse_screen": [
+        671.3333129882812,
+        390.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            35.890289306640625,
+            0.0,
+            4.56024169921875
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.14202439785003662,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42046,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        22.6444091796875,
+        500.0,
+        3.4791412353515625
+      ],
+      "mouse_screen": [
+        664.0,
+        383.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            22.6444091796875,
+            0.0,
+            3.4791412353515625
+          ],
+          "rotation_xyz": [
+            0.0,
+            -0.08989119529724121,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42056,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        658.0,
+        378.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42068,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        644.6666870117188,
+        366.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42078,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        639.3333129882812,
+        362.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42089,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        634.6666870117188,
+        360.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -15.276443481445312,
+            0.0,
+            -3.54718017578125
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0615229606628418,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42100,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        633.3333129882812,
+        359.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -16.8900146484375,
+            0.0,
+            -3.9802398681640625
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.06807589530944824,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42110,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.6666564941406
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -19.608489990234375,
+            0.0,
+            -4.73553466796875
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07914257049560547,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42121,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42132,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42143,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42153,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42163,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42174,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42185,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42196,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42206,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42217,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42229,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42240,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42251,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42263,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42273,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42284,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42295,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42305,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42316,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42327,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "RotateAngle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42338,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -1500.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        631.3333129882812,
+        358.0
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 42349,
+      "tool": "Rotate"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        2000.0,
+        0.0,
+        -1000.0
+      ],
+      "mouse_screen": [
+        922.6666259765625,
+        473.33331298828125
+      ],
+      "objects": [
+        {
+          "id": "388d8f69",
+          "name": "MoveTest",
+          "position": [
+            -18.87542724609375,
+            0.0,
+            -4.528656005859375
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.07615494728088379,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 44040,
+      "tool": "Rotate"
+    }
+  ],
+  "total_records": 114,
+  "version": "2.0"
+}

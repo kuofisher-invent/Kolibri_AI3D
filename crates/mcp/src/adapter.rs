@@ -332,6 +332,7 @@ impl KolibriAdapter {
                         Shape::Sphere{..} => spheres += 1,
                         Shape::Line{..} => lines += 1,
                         Shape::Mesh{..} => meshes += 1,
+                        Shape::SteelProfile{..} => boxes += 1,
                     }
                     total_area += kolibri_core::measure::surface_area(obj);
                     total_vol += kolibri_core::measure::volume(obj);
@@ -357,6 +358,7 @@ impl KolibriAdapter {
                         Shape::Sphere { radius, segments } => json!({"type":"sphere","radius":radius,"segments":segments}),
                         Shape::Line { points, .. } => json!({"type":"line","points":points.len()}),
                         Shape::Mesh(m) => json!({"type":"mesh","vertices":m.vertices.len(),"faces":m.faces.len()}),
+                        Shape::SteelProfile { params, length, profile_type } => json!({"type":"steel_profile","profile_type":format!("{:?}",profile_type),"h":params.h,"b":params.b,"tw":params.tw,"tf":params.tf,"length":length}),
                     };
                     json!({ "id": obj.id, "name": obj.name, "position": obj.position,
                             "rotation_y_deg": obj.rotation_y.to_degrees(), "material": obj.material.label(),

@@ -1,0 +1,183 @@
+{
+  "mode": "delta",
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 11,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -8500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        276.0,
+        221.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 16602,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -3500.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        476.0,
+        321.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 17020,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        0.0,
+        350.0,
+        0.0
+      ],
+      "mouse_screen": [
+        676.0,
+        421.3333435058594
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 17426,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -500.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        576.0,
+        471.33331298828125
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 17827,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        500.0
+      ],
+      "mouse_screen": [
+        726.0,
+        521.3333129882812
+      ],
+      "objects": [
+        {
+          "id": "22aa31b0",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 18233,
+      "tool": "Select"
+    }
+  ],
+  "total_records": 6,
+  "version": "2.0"
+}

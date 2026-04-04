@@ -219,6 +219,7 @@ impl KolibriApp {
                     let (mmin, mmax) = mesh.aabb();
                     glam::Vec3::from(mmax) - glam::Vec3::from(mmin)
                 }
+                Shape::SteelProfile { params, length, .. } => glam::Vec3::new(params.b, *length, params.h),
             };
             min = min.min(p);
             max = max.max(p + s);

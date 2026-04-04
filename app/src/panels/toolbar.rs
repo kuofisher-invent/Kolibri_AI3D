@@ -254,25 +254,79 @@ impl KolibriApp {
                 // ── 截面參數 ──
                 section_header(ui, "截面");
                 figma_group(ui, |ui| {
-                    ui.label(egui::RichText::new("斷面:").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+                    use crate::tools::geometry_ops::SteelSectionType;
+                    let sub = egui::Color32::from_rgb(110, 118, 135);
+
+                    // 截面類型選擇（H / C / L）
+                    ui.label(egui::RichText::new("類型:").size(10.0).color(sub));
+                    ui.horizontal(|ui| {
+                        for st in &[SteelSectionType::H, SteelSectionType::C, SteelSectionType::L] {
+                            if ui.selectable_label(self.editor.steel_section_type == *st, st.label()).clicked() {
+                                self.editor.steel_section_type = *st;
+                                // 切換類型時設定預設 profile
+                                self.editor.steel_profile = match st {
+                                    SteelSectionType::H => "H300x150x6x9".into(),
+                                    SteelSectionType::C => "C200x80x7.5x11".into(),
+                                    SteelSectionType::L => "L100x100x10".into(),
+                                };
+                            }
+                        }
+                    });
+
+                    // 斷面下拉（依類型顯示不同規格表）
+                    ui.label(egui::RichText::new("斷面:").size(10.0).color(sub));
                     egui::ComboBox::from_id_source("steel_profile_combo")
                         .width(ui.available_width() - 4.0)
                         .selected_text(&self.editor.steel_profile)
                         .show_ui(ui, |ui| {
-                            for &(name, _h, _b, _tw, _tf, weight) in crate::tools::geometry_ops::H_PROFILES {
-                                let label = format!("{} ({:.0}kg/m)", name, weight);
-                                if ui.selectable_label(
-                                    self.editor.steel_profile == name,
-                                    &label,
-                                ).clicked() {
-                                    self.editor.steel_profile = name.to_string();
+                            match self.editor.steel_section_type {
+                                SteelSectionType::H => {
+                                    for &(name, _h, _b, _tw, _tf, _r, weight) in crate::tools::geometry_ops::H_PROFILES {
+                                        let label = format!("{} ({:.0}kg/m)", name, weight);
+                                        if ui.selectable_label(self.editor.steel_profile == name, &label).clicked() {
+                                            self.editor.steel_profile = name.to_string();
+                                        }
+                                    }
+                                }
+                                SteelSectionType::C => {
+                                    for &(name, _h, _b, _tw, _tf, _r, weight) in crate::tools::geometry_ops::C_PROFILES {
+                                        let label = format!("{} ({:.1}kg/m)", name, weight);
+                                        if ui.selectable_label(self.editor.steel_profile == name, &label).clicked() {
+                                            self.editor.steel_profile = name.to_string();
+                                        }
+                                    }
+                                }
+                                SteelSectionType::L => {
+                                    for &(name, _leg, _t, _r, weight) in crate::tools::geometry_ops::L_PROFILES {
+                                        let label = format!("{} ({:.1}kg/m)", name, weight);
+                                        if ui.selectable_label(self.editor.steel_profile == name, &label).clicked() {
+                                            self.editor.steel_profile = name.to_string();
+                                        }
+                                    }
                                 }
                             }
                         });
-                    let (h, b, tw, tf) = crate::tools::geometry_ops::parse_h_profile(&self.editor.steel_profile);
-                    ui.label(egui::RichText::new(format!("H{:.0}×B{:.0} tw{:.1} tf{:.1}", h, b, tw, tf))
-                        .size(9.0).color(egui::Color32::from_rgb(110, 118, 135)));
-                    ui.label(egui::RichText::new("材質:").size(10.0).color(egui::Color32::from_rgb(110, 118, 135)));
+
+                    // 截面尺寸摘要
+                    match self.editor.steel_section_type {
+                        SteelSectionType::H => {
+                            let (h, b, tw, tf, r) = crate::tools::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                            ui.label(egui::RichText::new(format!("H{:.0}×B{:.0} tw{:.1} tf{:.1} R{:.0}", h, b, tw, tf, r))
+                                .size(9.0).color(sub));
+                        }
+                        SteelSectionType::C => {
+                            let (h, b, tw, tf, r) = crate::tools::geometry_ops::parse_c_profile(&self.editor.steel_profile);
+                            ui.label(egui::RichText::new(format!("H{:.0}×B{:.0} tw{:.1} tf{:.1} R{:.0}", h, b, tw, tf, r))
+                                .size(9.0).color(sub));
+                        }
+                        SteelSectionType::L => {
+                            let (leg, t, r) = crate::tools::geometry_ops::parse_l_profile(&self.editor.steel_profile);
+                            ui.label(egui::RichText::new(format!("L{:.0}×{:.0}×{:.1} R{:.0}", leg, leg, t, r))
+                                .size(9.0).color(sub));
+                        }
+                    }
+
+                    ui.label(egui::RichText::new("材��:").size(10.0).color(sub));
                     egui::ComboBox::from_id_source("steel_material_combo")
                         .width(ui.available_width() - 4.0)
                         .selected_text(&self.editor.steel_material)
@@ -418,8 +472,11 @@ impl KolibriApp {
                         if ui.button("NC").on_hover_text("DSTV NC1 (CNC)").clicked() {
                             self.export_nc_files();
                         }
-                        if ui.button("IFC").on_hover_text("IFC 2x3 (BIM)").clicked() {
+                        if ui.button("IFC 2x3").on_hover_text("IFC 2x3 (BIM)").clicked() {
                             self.export_ifc_file();
+                        }
+                        if ui.button("IFC4").on_hover_text("IFC4 (含材質+管件)").clicked() {
+                            self.export_ifc4_file();
                         }
                         if ui.button("編號").on_hover_text("自動編號 C1/B1").clicked() {
                             self.run_auto_numbering();

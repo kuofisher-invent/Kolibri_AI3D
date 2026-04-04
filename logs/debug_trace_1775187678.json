@@ -1,0 +1,67 @@
+{
+  "mode": "delta",
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        -3000.0,
+        0.0,
+        -5000.0
+      ],
+      "mouse_screen": [
+        780.0,
+        231.33334350585938
+      ],
+      "objects": [
+        {
+          "id": "67934fb2",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 11,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": [
+        1000.0,
+        0.0,
+        -500.0
+      ],
+      "mouse_screen": [
+        777.3333129882812,
+        465.33331298828125
+      ],
+      "objects": [
+        {
+          "id": "67934fb2",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 56020,
+      "tool": "Move"
+    }
+  ],
+  "total_records": 2,
+  "version": "2.0"
+}

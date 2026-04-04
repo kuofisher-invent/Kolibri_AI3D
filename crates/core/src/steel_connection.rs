@@ -280,7 +280,7 @@ pub struct WeldLine {
     pub end: [f32; 3],
 }
 
-/// 焊接類型（CNS 4435）
+/// 焊接類型（CNS 4435 / ISO 2553）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WeldType {
     /// 角焊（最常用）
@@ -289,6 +289,20 @@ pub enum WeldType {
     FullPenetration,
     /// 半滲透對接焊
     PartialPenetration,
+    /// V 形坡口焊
+    VGroove,
+    /// 單斜坡口焊
+    BevelGroove,
+    /// U 形坡口焊
+    UGroove,
+    /// J 形坡口焊
+    JGroove,
+    /// 塞焊/槽焊
+    PlugSlot,
+    /// 點焊
+    Spot,
+    /// 封底焊
+    BackingRun,
 }
 
 impl WeldType {
@@ -297,10 +311,62 @@ impl WeldType {
             Self::Fillet => "角焊",
             Self::FullPenetration => "全滲透",
             Self::PartialPenetration => "半滲透",
+            Self::VGroove => "V形",
+            Self::BevelGroove => "斜坡口",
+            Self::UGroove => "U形",
+            Self::JGroove => "J形",
+            Self::PlugSlot => "塞焊",
+            Self::Spot => "點焊",
+            Self::BackingRun => "封底焊",
         }
     }
 
-    pub const ALL: &'static [WeldType] = &[Self::Fillet, Self::FullPenetration, Self::PartialPenetration];
+    pub const ALL: &'static [WeldType] = &[
+        Self::Fillet, Self::FullPenetration, Self::PartialPenetration,
+        Self::VGroove, Self::BevelGroove, Self::UGroove, Self::JGroove,
+        Self::PlugSlot, Self::Spot, Self::BackingRun,
+    ];
+
+    /// ISO 2553 符號字元（用於施工圖標註）
+    pub fn iso_symbol(&self) -> &'static str {
+        match self {
+            Self::Fillet => "△",
+            Self::FullPenetration => "V",
+            Self::PartialPenetration => "½V",
+            Self::VGroove => "V",
+            Self::BevelGroove => "Y",
+            Self::UGroove => "U",
+            Self::JGroove => "J",
+            Self::PlugSlot => "⊡",
+            Self::Spot => "○",
+            Self::BackingRun => "⌒",
+        }
+    }
+}
+
+/// ISO 2553 焊接符號標註（完整的焊接標記資訊）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeldSymbolISO2553 {
+    /// 焊接線參考（關聯的 WeldLine）
+    pub weld_line_idx: usize,
+    /// 箭頭側焊接類型
+    pub arrow_side: WeldType,
+    /// 另一側焊接類型（None = 僅單側）
+    pub other_side: Option<WeldType>,
+    /// 箭頭側焊腳/坡口尺寸 (mm)
+    pub arrow_size: f32,
+    /// 另一側尺寸 (mm)
+    pub other_size: Option<f32>,
+    /// 焊接長度 (mm)，None = 全長
+    pub length: Option<f32>,
+    /// 間距 (mm)，斷續焊用
+    pub pitch: Option<f32>,
+    /// 現場焊（工地焊接）
+    pub field_weld: bool,
+    /// 全周焊（環繞符號）
+    pub all_around: bool,
+    /// 尾部補充說明（如工藝要求）
+    pub tail_note: Option<String>,
 }
 
 // ─── 接頭自動計算 ──────────────────────────────────────────────────────────────
@@ -985,8 +1051,10 @@ pub fn weld_capacity(
     // 有效喉厚 — AISC J2.2a
     let te = match weld.weld_type {
         WeldType::Fillet => weld.size / std::f32::consts::SQRT_2, // a/√2
-        WeldType::FullPenetration => weld.size, // CJP = 板厚
-        WeldType::PartialPenetration => weld.size - 3.0, // PJP: S - 3mm (for S ≥ 10mm)
+        WeldType::FullPenetration | WeldType::VGroove | WeldType::UGroove => weld.size, // CJP = 板厚
+        WeldType::PartialPenetration | WeldType::BevelGroove | WeldType::JGroove => weld.size - 3.0, // PJP: S - 3mm
+        WeldType::PlugSlot | WeldType::Spot => weld.size, // 塞焊/點焊以面積計
+        WeldType::BackingRun => weld.size / std::f32::consts::SQRT_2, // 封底焊同角焊
     };
     let te = te.max(1.0);
 
@@ -1667,6 +1735,163 @@ pub fn suggest_base_plate_stiffeners(
         quantity: if cb >= 300.0 { 4 } else { 2 }, // 大柱 4 片
         weld_size,
     }
+}
+
+// ─── AISC 341-22 耐震接頭 ────────────────────────────────────────────────────
+
+/// 耐震抗彎矩框架類型（AISC 341-22）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SeismicFrameType {
+    /// 特殊抗彎矩框架（Special Moment Frame）
+    SMF,
+    /// 中度抗彎矩框架（Intermediate Moment Frame）
+    IMF,
+    /// 普通抗彎矩框架（Ordinary Moment Frame）
+    OMF,
+    /// 特殊集中斜撐框架（Special Concentrically Braced Frame）
+    SCBF,
+    /// 挫屈束制斜撐框架（Buckling-Restrained Braced Frame）
+    BRBF,
+    /// 偏心斜撐框架（Eccentrically Braced Frame）
+    EBF,
+}
+
+impl SeismicFrameType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::SMF  => "SMF 特殊抗彎矩",
+            Self::IMF  => "IMF 中度抗彎矩",
+            Self::OMF  => "OMF 普通抗彎矩",
+            Self::SCBF => "SCBF 特殊集中斜撐",
+            Self::BRBF => "BRBF 挫屈束制斜撐",
+            Self::EBF  => "EBF 偏心斜撐",
+        }
+    }
+
+    pub const ALL: &'static [SeismicFrameType] = &[
+        Self::SMF, Self::IMF, Self::OMF, Self::SCBF, Self::BRBF, Self::EBF,
+    ];
+}
+
+/// AISC 341 預認證接頭類型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PrequalifiedConnection {
+    /// 縮減梁翼板（Reduced Beam Section, 狗骨頭）
+    RBS,
+    /// 加厚翼板焊接（Welded Unreinforced Flange - Welded Web）
+    WufW,
+    /// 螺栓翼板（Bolted Flange Plate）
+    BFP,
+    /// 端板（Extended End Plate）
+    ExtendedEndPlate,
+    /// 自由翼板（Free Flange）
+    FreeFlange,
+    /// Kaiser 螺栓接頭（Kaiser Bolted Bracket）
+    KBB,
+    /// 雙 T 接頭（Double Tee）
+    DoubleTee,
+    /// ConXtech ConXL
+    ConXL,
+    /// SidePlate
+    SidePlate,
+}
+
+impl PrequalifiedConnection {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::RBS => "RBS 狗骨頭（縮減梁翼板）",
+            Self::WufW => "WUF-W 全滲透翼板焊接",
+            Self::BFP => "BFP 螺栓翼板",
+            Self::ExtendedEndPlate => "延伸端板",
+            Self::FreeFlange => "自由翼板",
+            Self::KBB => "Kaiser 螺栓托架",
+            Self::DoubleTee => "雙T接頭",
+            Self::ConXL => "ConXtech ConXL",
+            Self::SidePlate => "SidePlate",
+        }
+    }
+
+    /// 適用的框架類型
+    pub fn applicable_frames(&self) -> &'static [SeismicFrameType] {
+        match self {
+            Self::RBS => &[SeismicFrameType::SMF, SeismicFrameType::IMF],
+            Self::WufW => &[SeismicFrameType::SMF, SeismicFrameType::IMF],
+            Self::BFP => &[SeismicFrameType::SMF, SeismicFrameType::IMF],
+            Self::ExtendedEndPlate => &[SeismicFrameType::SMF, SeismicFrameType::IMF],
+            Self::FreeFlange => &[SeismicFrameType::SMF],
+            Self::KBB => &[SeismicFrameType::SMF],
+            Self::DoubleTee => &[SeismicFrameType::SMF],
+            Self::ConXL => &[SeismicFrameType::SMF],
+            Self::SidePlate => &[SeismicFrameType::SMF],
+        }
+    }
+
+    pub const ALL: &'static [PrequalifiedConnection] = &[
+        Self::RBS, Self::WufW, Self::BFP, Self::ExtendedEndPlate,
+        Self::FreeFlange, Self::KBB, Self::DoubleTee, Self::ConXL, Self::SidePlate,
+    ];
+}
+
+/// 耐震接頭配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SeismicConnectionConfig {
+    pub frame_type: SeismicFrameType,
+    pub prequalified: PrequalifiedConnection,
+    /// 梁 expected plastic rotation (rad)，SMF 需 ≥ 0.04
+    pub story_drift_ratio: f32,
+    /// 梁 Ry 超強係數（SS400/SN490B 依 AISC Table A3.1）
+    pub ry_beam: f32,
+    /// 柱梁強度比 ΣMpc / ΣMpb（AISC 341 E3.4a 要求 > 1.0）
+    pub column_beam_ratio: f32,
+}
+
+/// RBS 狗骨頭切割參數（AISC 358 Section 5.8）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RbsParameters {
+    /// 切割起始距離 a（距柱面），建議 0.5bf ≤ a ≤ 0.75bf
+    pub a: f32,
+    /// 切割長度 b，建議 0.65d ≤ b ≤ 0.85d
+    pub b: f32,
+    /// 切割深度 c（翼板單側），max c ≤ 0.25bf
+    pub c: f32,
+}
+
+/// 根據梁截面自動計算 RBS 參數（AISC 358-22 Section 5.8）
+pub fn calculate_rbs_params(beam_h: f32, beam_bf: f32, beam_tf: f32) -> RbsParameters {
+    let a = 0.625 * beam_bf;       // 0.5bf ~ 0.75bf 中間值
+    let b = 0.75 * beam_h;          // 0.65d ~ 0.85d 中間值
+    let c = 0.20 * beam_bf;         // max 0.25bf，取保守值
+    RbsParameters { a, b, c }
+}
+
+/// 計算柱梁彎矩比 ΣMpc*/ΣMpb*（AISC 341-22 E3.4a）
+/// 回傳 (ratio, pass)，pass = ratio > 1.0
+pub fn check_strong_column_weak_beam(
+    col_zx: f32, col_fy: f32, col_axial: f32, col_ag: f32,
+    beam_zx: f32, beam_fy: f32, ry_beam: f32,
+    rbs_c: Option<f32>, beam_bf: f32, beam_tf: f32,
+) -> (f32, bool) {
+    // ΣMpc* = ΣZc(Fyc - Puc/Ag)
+    let mpc = col_zx * (col_fy - col_axial / col_ag);
+    // ΣMpb* = Σ(Ry × Fy × Ze) + ΣMuv（剪力增量忽略簡化）
+    let ze = if let Some(c) = rbs_c {
+        // RBS 縮減斷面模數: Ze = Zx - 2×c×tf×(d - tf)
+        let d = beam_zx / (beam_fy * 0.001); // 近似
+        beam_zx - 2.0 * c * beam_tf * (beam_bf)
+    } else {
+        beam_zx
+    };
+    let mpb = ry_beam * beam_fy * ze;
+    let ratio = if mpb > 0.0 { mpc / mpb } else { 999.0 };
+    (ratio, ratio > 1.0)
+}
+
+/// 建議耐震接頭：根據框架類型篩選適用的預認證接頭
+pub fn suggest_seismic_connections(frame_type: SeismicFrameType) -> Vec<PrequalifiedConnection> {
+    PrequalifiedConnection::ALL.iter()
+        .filter(|pc| pc.applicable_frames().contains(&frame_type))
+        .copied()
+        .collect()
 }
 
 #[cfg(test)]

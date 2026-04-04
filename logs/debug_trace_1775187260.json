@@ -1,0 +1,112 @@
+{
+  "mode": "delta",
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [],
+      "t_ms": 10,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [
+        {
+          "id": "fe9eebb2",
+          "name": "TestBox",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 15699,
+      "tool": "Select"
+    },
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [
+        {
+          "id": "3f52ee9e",
+          "name": "COL_1_F1",
+          "position": [
+            1925.0,
+            0.0,
+            -150.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fabda340",
+          "name": "COL_1_W",
+          "position": [
+            1996.75,
+            0.0,
+            -141.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "fe9eebb2",
+          "name": "TestBox",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "d928b0fa",
+          "name": "COL_1_F2",
+          "position": [
+            1925.0,
+            0.0,
+            141.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 16992,
+      "tool": "Select"
+    }
+  ],
+  "total_records": 3,
+  "version": "2.0"
+}

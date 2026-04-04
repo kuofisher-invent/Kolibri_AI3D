@@ -15,6 +15,7 @@ pub mod steel_connection;
 pub mod steel_numbering;
 pub mod steel_report;
 pub mod steel_drawing;
+pub mod knowledge;
 
 #[cfg(test)]
 mod tests;

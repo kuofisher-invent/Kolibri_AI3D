@@ -1,0 +1,33 @@
+{
+  "mode": "delta",
+  "records": [
+    {
+      "draw_state": "Idle",
+      "mouse_ground": null,
+      "mouse_screen": [
+        0.0,
+        0.0
+      ],
+      "objects": [
+        {
+          "id": "67934fb2",
+          "name": "MoveTest",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotation_xyz": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "t_ms": 11,
+      "tool": "Select"
+    }
+  ],
+  "total_records": 1,
+  "version": "2.0"
+}

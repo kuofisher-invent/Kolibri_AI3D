@@ -29,7 +29,14 @@ pub fn surface_area(obj: &SceneObject) -> f64 {
             }
             len * t * 4.0 // approximate surface of line-as-tube
         }
-        Shape::Mesh(_) => 0.0, // TODO: compute mesh surface area
+        Shape::Mesh(_) => 0.0,
+        Shape::SteelProfile { params, length, .. } => {
+            // 截面周長 × 長度 + 2 × 截面積（近似）
+            let a = params.area() as f64;
+            let l = *length as f64;
+            let perim = (2.0 * (params.h + params.b)) as f64; // 近似周長
+            perim * l + 2.0 * a
+        }
     }
 }
 
@@ -46,7 +53,10 @@ pub fn volume(obj: &SceneObject) -> f64 {
             (4.0 / 3.0) * std::f64::consts::PI * (*radius as f64).powi(3)
         }
         Shape::Line { .. } => 0.0,
-        Shape::Mesh(_) => 0.0, // TODO: compute mesh volume
+        Shape::Mesh(_) => 0.0,
+        Shape::SteelProfile { params, length, .. } => {
+            params.area() as f64 * *length as f64
+        }
     }
 }
 

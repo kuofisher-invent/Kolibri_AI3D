@@ -307,6 +307,11 @@ fn execute_one(
                         if let Some(v) = width { *thickness = v; }
                     }
                     Shape::Mesh(_) => {}
+                    Shape::SteelProfile { params, length, .. } => {
+                        if let Some(v) = width { params.b = v; }
+                        if let Some(v) = height { *length = v; }
+                        if let Some(v) = depth { params.h = v; }
+                    }
                 }
                 ok("resize", Some(&id), "Resized")
             } else {
@@ -384,6 +389,9 @@ fn execute_one(
                     Shape::Sphere { radius, .. } => *radius *= factor,
                     Shape::Line { thickness, .. } => *thickness *= factor,
                     Shape::Mesh(_) => {}
+                    Shape::SteelProfile { params, length, .. } => {
+                        params.b *= factor; params.h *= factor; *length *= factor;
+                    }
                 }
                 ok("scale_object", Some(&id), &format!("Scaled by {}", factor))
             } else { err("scale_object", &format!("Not found: {}", id)) }
@@ -435,6 +443,8 @@ fn execute_one(
                         ("line", format!("{} pts, {}mm", points.len(), thickness)),
                     Shape::Mesh(ref mesh) =>
                         ("mesh", format!("{} verts, {} faces", mesh.vertices.len(), mesh.faces.len())),
+                    Shape::SteelProfile { params, length, profile_type } =>
+                        ("steel_profile", format!("{:?} H={} B={} L={}", profile_type, params.h, params.b, length)),
                 };
                 ObjectInfo {
                     id: o.id.clone(), name: o.name.clone(),

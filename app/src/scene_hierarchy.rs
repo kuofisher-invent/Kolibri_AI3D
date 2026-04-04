@@ -333,6 +333,7 @@ impl KolibriApp {
             Shape::Sphere { .. } => "[Sph]",
             Shape::Line { .. } => "[Line]",
             Shape::Mesh(_) => "[Mesh]",
+            Shape::SteelProfile { .. } => "[Steel]",
         };
         let label = if let Some(def_id) = &obj.component_def_id {
             format!("{} {} <{}>", icon, obj.name, def_id)
@@ -461,6 +462,7 @@ impl KolibriApp {
                 Shape::Sphere { .. } => sphere_count += 1,
                 Shape::Line { .. } => line_count += 1,
                 Shape::Mesh(_) => mesh_count += 1,
+                Shape::SteelProfile { .. } => box_count += 1,
             }
             materials.insert(obj.material.label().to_string());
         }
@@ -556,6 +558,7 @@ impl KolibriApp {
                     let (mmin, mmax) = mesh.aabb();
                     Vec3::from(mmax) - Vec3::from(mmin)
                 }
+                Shape::SteelProfile { params, length, .. } => Vec3::new(params.b, *length, params.h),
             };
             min = min.min(p);
             max = max.max(p + s);

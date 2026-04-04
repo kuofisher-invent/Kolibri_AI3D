@@ -79,6 +79,10 @@ fn main() {
                 total_mesh_faces += m.faces.len();
                 "Mesh"
             }
+            kolibri_core::scene::Shape::SteelProfile { params, length, profile_type } => {
+                println!("        SteelProfile: {:?} H={} B={} L={}", profile_type, params.h, params.b, length);
+                "SteelProfile"
+            }
         };
         *shape_counts.entry(shape_type).or_insert(0) += 1;
     }

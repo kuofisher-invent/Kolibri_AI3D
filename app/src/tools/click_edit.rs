@@ -395,61 +395,55 @@ impl KolibriApp {
                 if let Some(p) = self.ground_snapped() {
                     self.scene.snapshot();
                     let member_h = self.editor.steel_height;
-                    let (h_sec, b_sec, tw, tf) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
                     let name_base = self.next_name("COL");
-
                     let cx = p[0];
                     let cz = p[2];
-                    // 柱底 = 目前作業樓層標高（地面基準）
                     let base_y = self.editor.floor_levels
                         .get(self.editor.active_floor)
                         .map_or(0.0, |f| f.1)
                         + self.editor.ground_level;
 
-                    // Front flange (Z-)
-                    let f1_id = self.scene.insert_box_raw(
-                        format!("{}_F1", name_base),
-                        [cx - b_sec / 2.0, base_y, cz - h_sec / 2.0],
-                        b_sec, member_h, tf, MaterialKind::Steel,
-                    );
-                    // Back flange (Z+)
-                    let f2_id = self.scene.insert_box_raw(
-                        format!("{}_F2", name_base),
-                        [cx - b_sec / 2.0, base_y, cz + h_sec / 2.0 - tf],
-                        b_sec, member_h, tf, MaterialKind::Steel,
-                    );
-                    // Web (center)
-                    let web_id = self.scene.insert_box_raw(
-                        format!("{}_W", name_base),
-                        [cx - tw / 2.0, base_y, cz - h_sec / 2.0 + tf],
-                        tw, member_h, h_sec - 2.0 * tf, MaterialKind::Steel,
+                    use crate::scene::{SteelProfileType, SteelProfileParams};
+                    let sec_type = super::geometry_ops::detect_section_type(&self.editor.steel_profile);
+                    let (pt, params) = match sec_type {
+                        super::geometry_ops::SteelSectionType::H => {
+                            let (h, b, tw, tf, r) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                            (SteelProfileType::H, SteelProfileParams::new_h(h, b, tw, tf, r))
+                        }
+                        super::geometry_ops::SteelSectionType::C => {
+                            let (h, b, tw, tf, r) = super::geometry_ops::parse_c_profile(&self.editor.steel_profile);
+                            (SteelProfileType::C, SteelProfileParams::new_c(h, b, tw, tf, r))
+                        }
+                        super::geometry_ops::SteelSectionType::L => {
+                            let (leg, t, r) = super::geometry_ops::parse_l_profile(&self.editor.steel_profile);
+                            (SteelProfileType::L, SteelProfileParams::new_l(leg, t, r))
+                        }
+                    };
+
+                    // 位置 = 截面中心在 (cx, base_y, cz)，沿 Y 擠出 member_h
+                    let pos = [cx - params.b / 2.0, base_y, cz - params.h / 2.0];
+                    let col_id = self.scene.insert_steel_profile(
+                        name_base.clone(), pos, pt, params, member_h, MaterialKind::Steel,
                     );
 
-                    // Set component kinds + level binding
                     let active_fl = self.editor.active_floor;
                     let top_fl = if active_fl + 1 < self.editor.floor_levels.len() {
                         Some(active_fl + 1)
                     } else { None };
-                    for id in [&f1_id, &f2_id, &web_id] {
-                        if let Some(obj) = self.scene.objects.get_mut(id) {
-                            obj.component_kind = crate::collision::ComponentKind::Column;
-                            obj.base_level_idx = Some(active_fl);
-                            obj.top_level_idx = top_fl;
-                        }
+                    if let Some(obj) = self.scene.objects.get_mut(&col_id) {
+                        obj.component_kind = crate::collision::ComponentKind::Column;
+                        obj.base_level_idx = Some(active_fl);
+                        obj.top_level_idx = top_fl;
                     }
 
-                    // Group them
-                    let child_ids = vec![f1_id.clone(), f2_id.clone(), web_id.clone()];
-                    self.scene.create_group(name_base.clone(), child_ids.clone());
                     self.scene.version += 1;
-
                     let fl_name = self.editor.floor_levels.get(active_fl)
                         .map_or("GL".into(), |f| f.0.clone());
-                    self.editor.selected_ids = child_ids.clone();
+                    self.editor.selected_ids = vec![col_id.clone()];
                     self.ai_log.log(
                         &self.current_actor, "建立柱",
                         &format!("{} H={:.0} @{}", self.editor.steel_profile, member_h, fl_name),
-                        child_ids,
+                        vec![col_id],
                     );
                     self.file_message = Some((
                         format!("柱已建立: {} @{} [{:.0},{:.0}]", self.editor.steel_profile, fl_name, cx, cz),
@@ -469,83 +463,76 @@ impl KolibriApp {
                         let p1 = *p1;
                         if let Some(p2) = self.ground_snapped() {
                             self.scene.snapshot();
-                            let (h_sec, b_sec, tw, tf) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
-                            // 梁頂 = 柱頂 = 作業樓層標高 + 柱高
                             let base_y = self.editor.floor_levels
                                 .get(self.editor.active_floor)
                                 .map_or(0.0, |f| f.1)
                                 + self.editor.ground_level;
-                            let beam_y = base_y + self.editor.steel_height - h_sec;
 
                             let dx = p2[0] - p1[0];
                             let dz = p2[2] - p1[2];
                             let length = (dx * dx + dz * dz).sqrt();
                             let name_base = self.next_name("BM");
-
                             let is_x_dir = dx.abs() > dz.abs();
 
-                            let ids = if is_x_dir {
+                            use crate::scene::{SteelProfileType, SteelProfileParams};
+                            let sec_type = super::geometry_ops::detect_section_type(&self.editor.steel_profile);
+                            let (pt, params) = match sec_type {
+                                super::geometry_ops::SteelSectionType::H => {
+                                    let (h, b, tw, tf, r) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                                    (SteelProfileType::H, SteelProfileParams::new_h(h, b, tw, tf, r))
+                                }
+                                super::geometry_ops::SteelSectionType::C => {
+                                    let (h, b, tw, tf, r) = super::geometry_ops::parse_c_profile(&self.editor.steel_profile);
+                                    (SteelProfileType::C, SteelProfileParams::new_c(h, b, tw, tf, r))
+                                }
+                                super::geometry_ops::SteelSectionType::L => {
+                                    let (leg, t, r) = super::geometry_ops::parse_l_profile(&self.editor.steel_profile);
+                                    (SteelProfileType::L, SteelProfileParams::new_l(leg, t, r))
+                                }
+                            };
+
+                            // 梁頂 = 柱頂 = base_y + steel_height
+                            let beam_y = base_y + self.editor.steel_height - params.h;
+                            // 梁位置：截面中心對齊起點，沿主軸方向放置
+                            // SteelProfile 沿 Y 擠出，但梁是水平的 → 需要旋轉
+                            // 暫用：沿 Y 擠出 length，position 設在梁起點，旋轉 90° 讓 Y→X 或 Y→Z
+                            // 旋轉中心 = (pos[0], pos[1]+length/2, pos[2])
+                            // position 要反推使旋轉後幾何中心在正確世界座標
+                            let (pos, rot_quat) = if is_x_dir {
                                 let min_x = p1[0].min(p2[0]);
                                 let cz = p1[2];
-                                let f1 = self.scene.insert_box_raw(
-                                    format!("{}_TF", name_base),
-                                    [min_x, beam_y + h_sec - tf, cz - b_sec / 2.0],
-                                    length, tf, b_sec, MaterialKind::Steel,
-                                );
-                                let f2 = self.scene.insert_box_raw(
-                                    format!("{}_BF", name_base),
-                                    [min_x, beam_y, cz - b_sec / 2.0],
-                                    length, tf, b_sec, MaterialKind::Steel,
-                                );
-                                let w = self.scene.insert_box_raw(
-                                    format!("{}_W", name_base),
-                                    [min_x, beam_y + tf, cz - tw / 2.0],
-                                    length, h_sec - 2.0 * tf, tw, MaterialKind::Steel,
-                                );
-                                vec![f1, f2, w]
+                                // rot_z(-90°): Y→+X, X→-Y
+                                let q = glam::Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2);
+                                ([min_x + length / 2.0, beam_y - length / 2.0, cz], q.to_array())
                             } else {
                                 let min_z = p1[2].min(p2[2]);
                                 let cx = p1[0];
-                                let f1 = self.scene.insert_box_raw(
-                                    format!("{}_TF", name_base),
-                                    [cx - b_sec / 2.0, beam_y + h_sec - tf, min_z],
-                                    b_sec, tf, length, MaterialKind::Steel,
-                                );
-                                let f2 = self.scene.insert_box_raw(
-                                    format!("{}_BF", name_base),
-                                    [cx - b_sec / 2.0, beam_y, min_z],
-                                    b_sec, tf, length, MaterialKind::Steel,
-                                );
-                                let w = self.scene.insert_box_raw(
-                                    format!("{}_W", name_base),
-                                    [cx - tw / 2.0, beam_y + tf, min_z],
-                                    tw, h_sec - 2.0 * tf, length, MaterialKind::Steel,
-                                );
-                                vec![f1, f2, w]
+                                // rot_x(90°): Y→-Z, Z→+Y
+                                let q = glam::Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
+                                ([cx, beam_y - length / 2.0, min_z + length / 2.0], q.to_array())
                             };
 
-                            // 梁綁定到上層 Level（梁頂 = 柱頂 = 上層標高）
-                            let active_fl = self.editor.active_floor;
-                            let top_fl = if active_fl + 1 < self.editor.floor_levels.len() {
-                                Some(active_fl + 1)
-                            } else { Some(active_fl) };
-                            for id in &ids {
-                                if let Some(obj) = self.scene.objects.get_mut(id) {
-                                    obj.component_kind = crate::collision::ComponentKind::Beam;
-                                    obj.base_level_idx = top_fl; // 梁在上層
-                                    obj.top_level_idx = top_fl;
-                                }
+                            let beam_id = self.scene.insert_steel_profile(
+                                name_base.clone(), pos, pt, params, length, MaterialKind::Steel,
+                            );
+                            if let Some(obj) = self.scene.objects.get_mut(&beam_id) {
+                                obj.rotation_quat = rot_quat;
+                                obj.component_kind = crate::collision::ComponentKind::Beam;
+                                let active_fl = self.editor.active_floor;
+                                let top_fl = if active_fl + 1 < self.editor.floor_levels.len() {
+                                    Some(active_fl + 1)
+                                } else { Some(active_fl) };
+                                obj.base_level_idx = top_fl;
+                                obj.top_level_idx = top_fl;
                             }
 
-                            self.scene.create_group(name_base.clone(), ids.clone());
                             self.scene.version += 1;
-
-                            self.editor.selected_ids = ids.clone();
+                            self.editor.selected_ids = vec![beam_id.clone()];
                             self.editor.draw_state = DrawState::Idle;
                             self.ai_log.log(
                                 &self.current_actor, "建立梁",
                                 &format!("{} L={:.0}", self.editor.steel_profile, length),
-                                ids,
+                                vec![beam_id],
                             );
                         }
                     }
@@ -571,7 +558,7 @@ impl KolibriApp {
                             if length < 10.0 { return; }
 
                             self.scene.snapshot();
-                            let (h_sec, b_sec, tw, tf) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                            let (h_sec, b_sec, tw, tf, _r) = super::geometry_ops::parse_h_profile(&self.editor.steel_profile);
                             let name_base = self.next_name("BR");
 
                             // 斜撐沿主水平方向放置 H 型鋼（簡化為水平投影方向）
@@ -945,4 +932,5 @@ impl KolibriApp {
             _ => {} // Not an edit tool — handled elsewhere
         }
     }
+
 }

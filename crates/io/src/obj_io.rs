@@ -274,6 +274,37 @@ fn generate_obj_mesh(obj: &SceneObject) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<Ve
 
             (all_verts, all_normals, all_faces)
         }
+        Shape::SteelProfile { params, length, .. } => {
+            // 以 bounding box (B x length x H) 匯出
+            let (w, h, d) = (params.b, *length, params.h);
+            let verts = vec![
+                [p[0],   p[1],   p[2]],     // 0: front-bottom-left
+                [p[0]+w, p[1],   p[2]],     // 1: front-bottom-right
+                [p[0]+w, p[1]+h, p[2]],     // 2: front-top-right
+                [p[0],   p[1]+h, p[2]],     // 3: front-top-left
+                [p[0],   p[1],   p[2]+d],   // 4: back-bottom-left
+                [p[0]+w, p[1],   p[2]+d],   // 5: back-bottom-right
+                [p[0]+w, p[1]+h, p[2]+d],   // 6: back-top-right
+                [p[0],   p[1]+h, p[2]+d],   // 7: back-top-left
+            ];
+            let normals = vec![
+                [0.0, 0.0, -1.0],  // 0: front
+                [0.0, 0.0,  1.0],  // 1: back
+                [0.0,  1.0, 0.0],  // 2: top
+                [0.0, -1.0, 0.0],  // 3: bottom
+                [-1.0, 0.0, 0.0],  // 4: left
+                [ 1.0, 0.0, 0.0],  // 5: right
+            ];
+            let faces = vec![
+                vec![(0,0), (1,0), (2,0), (3,0)],  // front
+                vec![(5,1), (4,1), (7,1), (6,1)],  // back
+                vec![(3,2), (2,2), (6,2), (7,2)],  // top
+                vec![(4,3), (5,3), (1,3), (0,3)],  // bottom
+                vec![(4,4), (0,4), (3,4), (7,4)],  // left
+                vec![(1,5), (5,5), (6,5), (2,5)],  // right
+            ];
+            (verts, normals, faces)
+        }
     }
 }
 

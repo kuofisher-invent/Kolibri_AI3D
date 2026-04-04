@@ -97,6 +97,23 @@ pub fn export_stl_options(scene: &Scene, path: &str, scale: f32, ascii: bool) ->
                 }
             }
             Shape::Line { .. } => {} // STL 不支援線段
+            Shape::SteelProfile { params, length, .. } => {
+                // 以 bounding box (B x length x H) 匯出 12 三角面
+                let (w, h, d) = (params.b, *length, params.h);
+                let v = [
+                    [p[0],p[1],p[2]], [p[0]+w,p[1],p[2]], [p[0]+w,p[1]+h,p[2]], [p[0],p[1]+h,p[2]],
+                    [p[0],p[1],p[2]+d], [p[0]+w,p[1],p[2]+d], [p[0]+w,p[1]+h,p[2]+d], [p[0],p[1]+h,p[2]+d],
+                ];
+                let box_faces: &[([f32;3], [usize;4])] = &[
+                    ([0.0,0.0,-1.0], [0,1,2,3]), ([0.0,0.0,1.0], [5,4,7,6]),
+                    ([0.0,1.0,0.0], [3,2,6,7]), ([0.0,-1.0,0.0], [4,5,1,0]),
+                    ([-1.0,0.0,0.0], [4,0,3,7]), ([1.0,0.0,0.0], [1,5,6,2]),
+                ];
+                for (n, idx) in box_faces {
+                    triangles.push((*n, [v[idx[0]], v[idx[1]], v[idx[2]]]));
+                    triangles.push((*n, [v[idx[0]], v[idx[2]], v[idx[3]]]));
+                }
+            }
         }
     }
 
