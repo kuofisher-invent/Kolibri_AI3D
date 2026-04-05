@@ -395,6 +395,9 @@ impl eframe::App for KolibriApp {
                                     Some((p, p + glam::Vec3::new(*radius * 2.0, *height, *radius * 2.0))),
                                 Shape::Sphere { radius, .. } =>
                                     Some((p, p + glam::Vec3::new(*radius * 2.0, *radius * 2.0, *radius * 2.0))),
+                                Shape::SteelProfile { params, length, .. } =>
+                                    Some((p + glam::Vec3::new(-params.b / 2.0, 0.0, -params.h / 2.0),
+                                          p + glam::Vec3::new(params.b / 2.0, *length, params.h / 2.0))),
                                 _ => None,
                             }
                         }).collect();

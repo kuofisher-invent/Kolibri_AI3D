@@ -23,7 +23,7 @@ impl KolibriApp {
                     (p, mx)
                 }
                 Shape::Mesh(ref mesh) => { let (a,b) = mesh.aabb(); ([p[0]+a[0],p[1]+a[1],p[2]+a[2]], [p[0]+b[0],p[1]+b[1],p[2]+b[2]]) }
-                Shape::SteelProfile { params, length, .. } => (p, [p[0]+params.b, p[1]+length, p[2]+params.h]),
+                Shape::SteelProfile { params, length, .. } => ([p[0]-params.b/2.0, p[1], p[2]-params.h/2.0], [p[0]+params.b/2.0, p[1]+length, p[2]+params.h/2.0]),
             };
             SpatialEntry { id: obj.id.clone(), min: mn, max: mx }
         }).collect();
@@ -82,7 +82,8 @@ impl KolibriApp {
                     (pos + glam::Vec3::from(aabb_min), pos + glam::Vec3::from(aabb_max))
                 }
                 Shape::SteelProfile { params, length, .. } => {
-                    (pos, pos + glam::Vec3::new(params.b, *length, params.h))
+                    (pos + glam::Vec3::new(-params.b / 2.0, 0.0, -params.h / 2.0),
+                     pos + glam::Vec3::new(params.b / 2.0, *length, params.h / 2.0))
                 }
             };
             if let Some(t) = camera::ray_aabb(origin, dir, pick_min, pick_max) {
@@ -188,6 +189,7 @@ impl KolibriApp {
                     (faces, max)
                 }
                 Shape::SteelProfile { params, length, .. } => {
+                    let p = p + glam::Vec3::new(-params.b / 2.0, 0.0, -params.h / 2.0);
                     let max = p + glam::Vec3::new(params.b, *length, params.h);
                     let faces = vec![
                         (PullFace::Top,    glam::Vec3::new(p.x, max.y, p.z), glam::Vec3::new(max.x, max.y, max.z)),

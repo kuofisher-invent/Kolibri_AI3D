@@ -265,7 +265,54 @@ impl KolibriApp {
                     snap_candidates.push(([p[0]+r,     p[1]+r,     p[2]],       SnapType::Endpoint));
                     snap_candidates.push(([p[0]+r,     p[1]+r,     p[2]+r*2.0], SnapType::Endpoint));
                 }
-                _ => {
+                Shape::SteelProfile { params, length, .. } => {
+                    // SteelProfile: position 是截面中心的底面點
+                    // 幾何範圍 X: p[0]-b/2..p[0]+b/2, Y: p[1]..p[1]+length, Z: p[2]-h/2..p[2]+h/2
+                    let bh = params.b / 2.0;
+                    let hh = params.h / 2.0;
+                    let len = *length;
+                    let corners = [
+                        [p[0]-bh, p[1],     p[2]-hh],
+                        [p[0]+bh, p[1],     p[2]-hh],
+                        [p[0]+bh, p[1],     p[2]+hh],
+                        [p[0]-bh, p[1],     p[2]+hh],
+                        [p[0]-bh, p[1]+len, p[2]-hh],
+                        [p[0]+bh, p[1]+len, p[2]-hh],
+                        [p[0]+bh, p[1]+len, p[2]+hh],
+                        [p[0]-bh, p[1]+len, p[2]+hh],
+                    ];
+                    for c in &corners {
+                        snap_candidates.push((*c, SnapType::Endpoint));
+                    }
+                    let edge_pairs: [(usize, usize); 12] = [
+                        (0,1),(1,2),(2,3),(3,0),
+                        (4,5),(5,6),(6,7),(7,4),
+                        (0,4),(1,5),(2,6),(3,7),
+                    ];
+                    for (a, b) in &edge_pairs {
+                        let mid = [
+                            (corners[*a][0] + corners[*b][0]) / 2.0,
+                            (corners[*a][1] + corners[*b][1]) / 2.0,
+                            (corners[*a][2] + corners[*b][2]) / 2.0,
+                        ];
+                        snap_candidates.push((mid, SnapType::Midpoint));
+                    }
+                    let face_centers = [
+                        [p[0],    p[1]+len,     p[2]],       // top
+                        [p[0],    p[1],         p[2]],       // bottom
+                        [p[0],    p[1]+len/2.0, p[2]-hh],    // front
+                        [p[0],    p[1]+len/2.0, p[2]+hh],    // back
+                        [p[0]-bh, p[1]+len/2.0, p[2]],       // left
+                        [p[0]+bh, p[1]+len/2.0, p[2]],       // right
+                    ];
+                    for fc in &face_centers {
+                        snap_candidates.push((*fc, SnapType::FaceCenter));
+                    }
+                    for (a, b) in &edge_pairs {
+                        all_box_edges_3d.push((corners[*a], corners[*b]));
+                    }
+                }
+                Shape::Line { .. } | Shape::Mesh(_) => {
                     snap_candidates.push((p, SnapType::Endpoint));
                 }
             }
