@@ -288,7 +288,7 @@ fn h_profile_outline(p: &SteelProfileParams) -> Vec<[f32; 2]> {
         let web_half = (p.h - 2.0 * tf) / 2.0;
         let flange_overhang = bh - tw;
         let r = p.r.min((web_half - 0.1).max(0.1)).min((flange_overhang - 0.1).max(0.1));
-        let arc_n = 4;
+        let arc_n = 8;
 
         // 整體路徑 CCW（逆時針），從底翼板左下開始
         // 4 個內填角（凹角）用 CW 短弧描述凹入形狀

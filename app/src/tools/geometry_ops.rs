@@ -669,9 +669,10 @@ pub(crate) fn parse_h_profile(profile: &str) -> (f32, f32, f32, f32, f32) {
     for &(name, h, b, tw, tf, r, _w) in H_PROFILES {
         if name == profile { return (h, b, tw, tf, r); }
     }
-    // 解析字串
-    let parts: Vec<f32> = profile
-        .replace("H", "").replace("h", "")
+    // 解析字串（strip 前綴 H/h 和可能的 dash/空格）
+    let stripped = profile
+        .trim_start_matches(|c: char| c == 'H' || c == 'h' || c == '-' || c == ' ');
+    let parts: Vec<f32> = stripped
         .split('x')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
@@ -691,8 +692,9 @@ pub(crate) fn parse_c_profile(profile: &str) -> (f32, f32, f32, f32, f32) {
     for &(name, h, b, tw, tf, r, _w) in C_PROFILES {
         if name == profile { return (h, b, tw, tf, r); }
     }
-    let parts: Vec<f32> = profile
-        .replace("C", "").replace("c", "")
+    let stripped = profile
+        .trim_start_matches(|c: char| c == 'C' || c == 'c' || c == '-' || c == ' ');
+    let parts: Vec<f32> = stripped
         .split('x')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
@@ -712,8 +714,9 @@ pub(crate) fn parse_l_profile(profile: &str) -> (f32, f32, f32) {
     for &(name, leg, t, r, _w) in L_PROFILES {
         if name == profile { return (leg, t, r); }
     }
-    let parts: Vec<f32> = profile
-        .replace("L", "").replace("l", "")
+    let stripped = profile
+        .trim_start_matches(|c: char| c == 'L' || c == 'l' || c == '-' || c == ' ');
+    let parts: Vec<f32> = stripped
         .split('x')
         .filter_map(|s| s.trim().parse().ok())
         .collect();

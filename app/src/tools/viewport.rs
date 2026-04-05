@@ -819,6 +819,15 @@ impl KolibriApp {
                             let amount = (d.x * sn_x + d.y * sn_y) * scale;
 
                             self.editor.last_pull_distance += amount;
+                            // 拖拽模式即時顯示推拉距離
+                            let dist = self.editor.last_pull_distance;
+                            if dist.abs() > 0.5 {
+                                self.editor.cursor_dimension = Some((
+                                    self.editor.mouse_screen[0] + 20.0,
+                                    self.editor.mouse_screen[1] - 20.0,
+                                    format!("推拉 {:.0} mm", dist),
+                                ));
+                            }
 
                             if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
                                 match (&mut obj.shape, face) {

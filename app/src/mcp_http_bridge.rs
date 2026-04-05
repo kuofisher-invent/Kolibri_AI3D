@@ -281,6 +281,11 @@ fn tool_to_command(tool: &str, args: &serde_json::Value) -> Option<McpCommand> {
             id: args["id"].as_str().unwrap_or("").into(),
         }),
         "clear_scene" => Some(McpCommand::ClearScene),
+        "select_object" => Some(McpCommand::SelectObject {
+            ids: args["ids"].as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+        }),
         "undo" => Some(McpCommand::Undo),
         "redo" => Some(McpCommand::Redo),
         "shutdown" => Some(McpCommand::Shutdown),
