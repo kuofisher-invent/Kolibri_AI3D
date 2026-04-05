@@ -68,6 +68,19 @@ impl KolibriApp {
                         self.scene.undo(); // 撤銷 snapshot
                         self.editor.draw_state = DrawState::Idle;
                     }
+                    // Measuring / 繪圖中: ESC cancels — 回到 Idle 保持工具
+                    else if matches!(self.editor.draw_state,
+                        DrawState::Measuring { .. } | DrawState::LineFrom { .. } |
+                        DrawState::ArcP1 { .. } | DrawState::ArcP2 { .. } |
+                        DrawState::BoxBase { .. } | DrawState::BoxHeight { .. } |
+                        DrawState::CylBase { .. } | DrawState::CylHeight { .. } |
+                        DrawState::SphRadius { .. } | DrawState::PieCenter { .. } |
+                        DrawState::PieRadius { .. } | DrawState::WallFrom { .. } |
+                        DrawState::SlabCorner { .. } | DrawState::Scaling { .. } |
+                        DrawState::Offsetting { .. }
+                    ) {
+                        self.editor.draw_state = DrawState::Idle;
+                    }
                     // FollowPath: ESC finishes the path and creates extrusion
                     else if let DrawState::FollowPath { ref source_id, ref path_points } = self.editor.draw_state.clone() {
                         if path_points.len() >= 2 {
