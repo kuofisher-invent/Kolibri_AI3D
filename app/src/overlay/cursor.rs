@@ -130,6 +130,9 @@ impl KolibriApp {
                                 (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
                                 (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
                                 (Shape::Cylinder { height, .. }, _) => *height,
+                                (Shape::SteelProfile { length, .. }, PullFace::Top | PullFace::Bottom) => *length,
+                                (Shape::SteelProfile { params, .. }, PullFace::Front | PullFace::Back) => params.h,
+                                (Shape::SteelProfile { params, .. }, PullFace::Left | PullFace::Right) => params.b,
                                 _ => 0.0,
                             };
                             let delta = current_dim - original_dim;
@@ -146,6 +149,9 @@ impl KolibriApp {
                                 (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
                                 (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
                                 (Shape::Cylinder { height, .. }, _) => *height,
+                                (Shape::SteelProfile { length, .. }, PullFace::Top | PullFace::Bottom) => *length,
+                                (Shape::SteelProfile { params, .. }, PullFace::Front | PullFace::Back) => params.h,
+                                (Shape::SteelProfile { params, .. }, PullFace::Left | PullFace::Right) => params.b,
                                 _ => 0.0,
                             };
                             let delta = current_dim - original_dim;

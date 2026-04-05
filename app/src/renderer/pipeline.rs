@@ -193,7 +193,7 @@ impl ViewportRenderer {
                     topology: topo,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back), // Backface culling 砍 50% fragment
+                    cull_mode: None, // 雙面渲染（SteelProfile 側面 winding 需要）
                     unclipped_depth: false,
                     polygon_mode: wgpu::PolygonMode::Fill,
                     conservative: false,

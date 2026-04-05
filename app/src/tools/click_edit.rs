@@ -814,6 +814,9 @@ impl KolibriApp {
                             (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
                             (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
                             (Shape::Cylinder { height, .. }, _) => *height,
+                            (Shape::SteelProfile { length, .. }, PullFace::Top | PullFace::Bottom) => *length,
+                            (Shape::SteelProfile { params, .. }, PullFace::Front | PullFace::Back) => params.h,
+                            (Shape::SteelProfile { params, .. }, PullFace::Left | PullFace::Right) => params.b,
                             _ => 0.0,
                         }
                     }).unwrap_or(0.0);
@@ -897,6 +900,9 @@ impl KolibriApp {
                                         (Shape::Box { depth, .. }, PullFace::Front | PullFace::Back) => *depth,
                                         (Shape::Box { width, .. }, PullFace::Left | PullFace::Right) => *width,
                                         (Shape::Cylinder { height, .. }, _) => *height,
+                                        (Shape::SteelProfile { length, .. }, PullFace::Top | PullFace::Bottom) => *length,
+                                        (Shape::SteelProfile { params, .. }, PullFace::Front | PullFace::Back) => params.h,
+                                        (Shape::SteelProfile { params, .. }, PullFace::Left | PullFace::Right) => params.b,
                                         _ => 0.0,
                                     }
                                 }).unwrap_or(0.0);
@@ -910,6 +916,7 @@ impl KolibriApp {
                                     match &o.shape {
                                         Shape::Box { width, height, depth } => Some([*width, *height, *depth]),
                                         Shape::Cylinder { radius, height, .. } => Some([*radius * 2.0, *height, *radius * 2.0]),
+                                        Shape::SteelProfile { params, length, .. } => Some([params.b, *length, params.h]),
                                         _ => None,
                                     }
                                 });

@@ -187,6 +187,18 @@ impl KolibriApp {
                     ];
                     (faces, max)
                 }
+                Shape::SteelProfile { params, length, .. } => {
+                    let max = p + glam::Vec3::new(params.b, *length, params.h);
+                    let faces = vec![
+                        (PullFace::Top,    glam::Vec3::new(p.x, max.y, p.z), glam::Vec3::new(max.x, max.y, max.z)),
+                        (PullFace::Bottom, glam::Vec3::new(p.x, p.y, p.z),   glam::Vec3::new(max.x, p.y, max.z)),
+                        (PullFace::Right,  glam::Vec3::new(max.x, p.y, p.z), glam::Vec3::new(max.x, max.y, max.z)),
+                        (PullFace::Left,   glam::Vec3::new(p.x, p.y, p.z),   glam::Vec3::new(p.x, max.y, max.z)),
+                        (PullFace::Back,   glam::Vec3::new(p.x, p.y, max.z), glam::Vec3::new(max.x, max.y, max.z)),
+                        (PullFace::Front,  glam::Vec3::new(p.x, p.y, p.z),   glam::Vec3::new(max.x, max.y, p.z)),
+                    ];
+                    (faces, max)
+                }
                 _ => continue,
             };
 

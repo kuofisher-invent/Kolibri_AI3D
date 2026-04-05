@@ -338,7 +338,44 @@ impl KolibriApp {
                             }
                         });
                     ui.add(egui::DragValue::new(&mut self.editor.steel_height)
-                        .speed(10.0).prefix("柱高: ").suffix(" mm").range(100.0..=50000.0));
+                        .speed(10.0).prefix("柱高: ").suffix(" mm").range(1.0..=50000.0));
+
+                    // ── 產生斷面按鈕（在場景中心放置 10mm 薄片）──
+                    if ui.button(egui::RichText::new("⊞ 產生斷面").size(11.0)).clicked() {
+                        use crate::scene::{SteelProfileType, SteelProfileParams};
+                        let sec_type = crate::tools::geometry_ops::detect_section_type(&self.editor.steel_profile);
+                        let (pt, params) = match sec_type {
+                            crate::tools::geometry_ops::SteelSectionType::H => {
+                                let (h, b, tw, tf, r) = crate::tools::geometry_ops::parse_h_profile(&self.editor.steel_profile);
+                                (SteelProfileType::H, SteelProfileParams::new_h(h, b, tw, tf, r))
+                            }
+                            crate::tools::geometry_ops::SteelSectionType::C => {
+                                let (h, b, tw, tf, r) = crate::tools::geometry_ops::parse_c_profile(&self.editor.steel_profile);
+                                (SteelProfileType::C, SteelProfileParams::new_c(h, b, tw, tf, r))
+                            }
+                            crate::tools::geometry_ops::SteelSectionType::L => {
+                                let (leg, t, r) = crate::tools::geometry_ops::parse_l_profile(&self.editor.steel_profile);
+                                (SteelProfileType::L, SteelProfileParams::new_l(leg, t, r))
+                            }
+                        };
+                        let section_thickness = 10.0; // 10mm 薄片
+                        let base_y = self.editor.floor_levels
+                            .get(self.editor.active_floor)
+                            .map_or(0.0, |f| f.1)
+                            + self.editor.ground_level;
+                        let pos = [-params.b / 2.0, base_y, -params.h / 2.0];
+                        self.scene.snapshot();
+                        let name = format!("SEC-{}", self.editor.steel_profile);
+                        let sec_id = self.scene.insert_steel_profile(
+                            name.clone(), pos, pt, params, section_thickness, MaterialKind::Steel,
+                        );
+                        self.editor.selected_ids = vec![sec_id];
+                        self.scene.version += 1;
+                        self.file_message = Some((
+                            format!("斷面已建立: {} (10mm)", self.editor.steel_profile),
+                            std::time::Instant::now(),
+                        ));
+                    }
                 });
 
                 // ── 樓層標高 ──

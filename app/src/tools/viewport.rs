@@ -766,6 +766,7 @@ impl KolibriApp {
                             self.editor.pull_original_dims = match &obj.shape {
                                 Shape::Box { width, height, depth } => Some([*width, *height, *depth]),
                                 Shape::Cylinder { radius, height, .. } => Some([*radius * 2.0, *height, *radius * 2.0]),
+                                Shape::SteelProfile { params, length, .. } => Some([params.b, *length, params.h]),
                                 _ => None,
                             };
                         }
@@ -849,9 +850,19 @@ impl KolibriApp {
                                         *height = (*height - delta).max(10.0);
                                         obj.position[1] += delta;
                                     }
+                                    // ── SteelProfile 推拉 ──
+                                    (Shape::SteelProfile { length, .. }, PullFace::Top) =>
+                                        *length = (*length + amount).max(1.0),
+                                    (Shape::SteelProfile { length, .. }, PullFace::Bottom) => {
+                                        let delta = amount.min(*length - 1.0);
+                                        *length = (*length - delta).max(1.0);
+                                        obj.position[1] += delta;
+                                    }
                                     _ => {}
                                 }
+                                obj.obj_version += 1;
                             }
+                            self.scene.version += 1; // 推拉後觸發 mesh 重建
                             // Collision check after push/pull resize
                             if let Some(obj) = self.scene.objects.get(obj_id.as_str()) {
                                 let (center, size) = crate::scene::obj_collision_center_size(obj);

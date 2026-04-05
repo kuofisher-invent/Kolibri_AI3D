@@ -393,6 +393,68 @@ impl KolibriApp {
                 self.editor.ctrl_was_down = false;
                 self.editor.axis_locked_by_ctrl = false;
             }
+            // ── PushPull: 鍵盤輸入精確推拉距離 ──
+            DrawState::PullClick { ref obj_id, face, original_dim } => {
+                let val = parts[0]; // 輸入值 = 推拉距離 (mm)
+                let obj_id = obj_id.clone();
+                let face = *face;
+                let original_dim = *original_dim;
+                if val.abs() > 0.0 {
+                    self.scene.snapshot_ids(&[&obj_id], "推拉");
+                    if let Some(obj) = self.scene.objects.get_mut(&obj_id) {
+                        let target_dim = original_dim + val;
+                        match (&mut obj.shape, face) {
+                            (Shape::Box { height, .. }, PullFace::Top) =>
+                                *height = target_dim.max(1.0),
+                            (Shape::Box { height, .. }, PullFace::Bottom) => {
+                                let old_h = *height;
+                                *height = target_dim.max(1.0);
+                                obj.position[1] -= *height - old_h;
+                            }
+                            (Shape::Box { width, .. }, PullFace::Right) =>
+                                *width = target_dim.max(1.0),
+                            (Shape::Box { width, .. }, PullFace::Left) => {
+                                let old_w = *width;
+                                *width = target_dim.max(1.0);
+                                obj.position[0] -= *width - old_w;
+                            }
+                            (Shape::Box { depth, .. }, PullFace::Back) =>
+                                *depth = target_dim.max(1.0),
+                            (Shape::Box { depth, .. }, PullFace::Front) => {
+                                let old_d = *depth;
+                                *depth = target_dim.max(1.0);
+                                obj.position[2] -= *depth - old_d;
+                            }
+                            (Shape::Cylinder { height, .. }, PullFace::Top) =>
+                                *height = target_dim.max(1.0),
+                            (Shape::Cylinder { height, .. }, PullFace::Bottom) => {
+                                let old_h = *height;
+                                *height = target_dim.max(1.0);
+                                obj.position[1] -= *height - old_h;
+                            }
+                            (Shape::SteelProfile { length, .. }, PullFace::Top) =>
+                                *length = target_dim.max(1.0),
+                            (Shape::SteelProfile { length, .. }, PullFace::Bottom) => {
+                                let old_l = *length;
+                                *length = target_dim.max(1.0);
+                                obj.position[1] -= *length - old_l;
+                            }
+                            _ => {}
+                        }
+                        obj.obj_version += 1;
+                    }
+                    self.scene.version += 1;
+                    self.editor.last_pull_distance = val;
+                    self.editor.last_pull_face = Some((obj_id.clone(), face));
+                    self.editor.last_pull_click_time = std::time::Instant::now();
+                    self.file_message = Some((
+                        format!("推拉 {:.0} mm", val),
+                        std::time::Instant::now(),
+                    ));
+                    self.editor.draw_state = DrawState::Idle;
+                    self.editor.selected_face = None;
+                }
+            }
             _ => {}
         }
         self.editor.measure_input.clear();

@@ -714,6 +714,32 @@ pub(crate) fn build_scene_mesh(
                     }
                     push_line_segments(&mut verts, &mut idx, &meridian2, edge_thickness, edge_color);
                 }
+                Shape::SteelProfile { profile_type, params, length, .. } => {
+                    // 用實際斷面輪廓畫邊線（底面+頂面+側邊連線）
+                    let outline = super::primitives::profile_outline(*profile_type, params);
+                    if outline.len() >= 3 {
+                        let h = *length;
+                        // 底面輪廓
+                        let mut bot: Vec<[f32; 3]> = outline.iter()
+                            .map(|pt| [p[0] + pt[0], p[1], p[2] + pt[1]])
+                            .collect();
+                        bot.push(bot[0]); // 閉合
+                        push_line_segments(&mut verts, &mut idx, &bot, edge_thickness, edge_color);
+                        // 頂面輪廓
+                        let mut top: Vec<[f32; 3]> = outline.iter()
+                            .map(|pt| [p[0] + pt[0], p[1] + h, p[2] + pt[1]])
+                            .collect();
+                        top.push(top[0]);
+                        push_line_segments(&mut verts, &mut idx, &top, edge_thickness, edge_color);
+                        // 側邊連線（每個輪廓點底→頂）
+                        for pt in &outline {
+                            push_line_segments(&mut verts, &mut idx,
+                                &[[p[0] + pt[0], p[1], p[2] + pt[1]],
+                                  [p[0] + pt[0], p[1] + h, p[2] + pt[1]]],
+                                edge_thickness, edge_color);
+                        }
+                    }
+                }
                 _ => {} // Line and Mesh shapes handle their own edges
             }
         }
@@ -835,6 +861,29 @@ pub(crate) fn build_scene_mesh(
                         push_line_segments(&mut verts, &mut idx, &[ep1, ep2], edge_thickness, sel_color);
                     }
                 }
+                Shape::SteelProfile { params, length, .. } => {
+                    let (w, h, d) = (params.b, *length, params.h);
+                    let edges: Vec<([f32; 3], [f32; 3])> = vec![
+                        // Bottom
+                        ([p[0],p[1],p[2]], [p[0]+w,p[1],p[2]]),
+                        ([p[0]+w,p[1],p[2]], [p[0]+w,p[1],p[2]+d]),
+                        ([p[0]+w,p[1],p[2]+d], [p[0],p[1],p[2]+d]),
+                        ([p[0],p[1],p[2]+d], [p[0],p[1],p[2]]),
+                        // Top
+                        ([p[0],p[1]+h,p[2]], [p[0]+w,p[1]+h,p[2]]),
+                        ([p[0]+w,p[1]+h,p[2]], [p[0]+w,p[1]+h,p[2]+d]),
+                        ([p[0]+w,p[1]+h,p[2]+d], [p[0],p[1]+h,p[2]+d]),
+                        ([p[0],p[1]+h,p[2]+d], [p[0],p[1]+h,p[2]]),
+                        // Verticals
+                        ([p[0],p[1],p[2]], [p[0],p[1]+h,p[2]]),
+                        ([p[0]+w,p[1],p[2]], [p[0]+w,p[1]+h,p[2]]),
+                        ([p[0]+w,p[1],p[2]+d], [p[0]+w,p[1]+h,p[2]+d]),
+                        ([p[0],p[1],p[2]+d], [p[0],p[1]+h,p[2]+d]),
+                    ];
+                    for (a, b) in &edges {
+                        push_line_segments(&mut verts, &mut idx, &[*a, *b], edge_thickness, sel_color);
+                    }
+                }
                 _ => {}
             }
         }
@@ -916,6 +965,70 @@ pub(crate) fn build_scene_mesh(
                         }
                         push_line_segments(&mut verts, &mut idx, &circle_pts, 6.0, edge_color);
                     }
+                    Shape::SteelProfile { profile_type, params, length, .. } => {
+                        let px = obj.position;
+                        let (w, h, d) = (params.b, *length, params.h);
+
+                        // 面頂點染色（Top/Bottom 用實際斷面頂點）
+                        let outline = super::primitives::profile_outline(*profile_type, params);
+                        let n = outline.len();
+                        match hf_idx {
+                            2 => { // Top — 頂面頂點從 start_idx + n 開始
+                                let top_start = start_idx + n;
+                                let top_end = (start_idx + 2 * n).min(verts.len());
+                                for i in top_start..top_end {
+                                    let c = &mut verts[i].color;
+                                    c[0] = c[0] * 0.25 + axis_tint[0] * 0.75;
+                                    c[1] = c[1] * 0.25 + axis_tint[1] * 0.75;
+                                    c[2] = c[2] * 0.25 + axis_tint[2] * 0.75;
+                                }
+                            }
+                            3 => { // Bottom — 底面頂點從 start_idx 開始
+                                let bot_end = (start_idx + n).min(verts.len());
+                                for i in start_idx..bot_end {
+                                    let c = &mut verts[i].color;
+                                    c[0] = c[0] * 0.25 + axis_tint[0] * 0.75;
+                                    c[1] = c[1] * 0.25 + axis_tint[1] * 0.75;
+                                    c[2] = c[2] * 0.25 + axis_tint[2] * 0.75;
+                                }
+                            }
+                            _ => { /* 側面用 bounding box 邊框表示 */ }
+                        }
+
+                        // 邊框（Top/Bottom 用實際斷面輪廓，側面用 bounding box）
+                        match hf_idx {
+                            2 => { // Top — 頂面輪廓
+                                let mut pts: Vec<[f32; 3]> = outline.iter()
+                                    .map(|pt| [px[0] + pt[0], px[1] + h, px[2] + pt[1]])
+                                    .collect();
+                                pts.push(pts[0]);
+                                push_line_segments(&mut verts, &mut idx, &pts, 6.0, edge_color);
+                            }
+                            3 => { // Bottom — 底面輪廓
+                                let mut pts: Vec<[f32; 3]> = outline.iter()
+                                    .map(|pt| [px[0] + pt[0], px[1], px[2] + pt[1]])
+                                    .collect();
+                                pts.push(pts[0]);
+                                push_line_segments(&mut verts, &mut idx, &pts, 6.0, edge_color);
+                            }
+                            _ => {
+                                // 側面用 bounding box 邊框
+                                let corners: [[f32; 3]; 4] = match hf_idx {
+                                    0 => [[px[0],px[1],px[2]], [px[0]+w,px[1],px[2]],
+                                          [px[0]+w,px[1]+h,px[2]], [px[0],px[1]+h,px[2]]],
+                                    1 => [[px[0]+w,px[1],px[2]+d], [px[0],px[1],px[2]+d],
+                                          [px[0],px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]+d]],
+                                    4 => [[px[0],px[1],px[2]+d], [px[0],px[1],px[2]],
+                                          [px[0],px[1]+h,px[2]], [px[0],px[1]+h,px[2]+d]],
+                                    5 => [[px[0]+w,px[1],px[2]], [px[0]+w,px[1],px[2]+d],
+                                          [px[0]+w,px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]]],
+                                    _ => [[0.0;3];4],
+                                };
+                                let edge_pts = [corners[0], corners[1], corners[2], corners[3], corners[0]];
+                                push_line_segments(&mut verts, &mut idx, &edge_pts, 6.0, edge_color);
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -924,31 +1037,84 @@ pub(crate) fn build_scene_mesh(
         // ── Click-locked face highlight (stronger than hover) ──────────────
         if let Some((sf_id, sf_idx)) = selected_face {
             if obj.id == sf_id {
-                if let Shape::Box { width, height, depth } = &obj.shape {
-                    let face_start = start_idx + (sf_idx as usize) * 4;
-                    if face_start + 4 <= verts.len() {
-                        for i in face_start..face_start + 4 {
-                            let c = &mut verts[i].color;
-                            c[0] = c[0] * 0.2 + 0.2;
-                            c[1] = c[1] * 0.2 + 0.7;
-                            c[2] = c[2] * 0.2 + 1.0;
+                let px = obj.position;
+                let edge_color = [0.2, 1.0, 1.0, 1.0]; // cyan
+
+                match &obj.shape {
+                    Shape::Box { width, height, depth } => {
+                        let (w, h, d) = (*width, *height, *depth);
+                        let face_start = start_idx + (sf_idx as usize) * 4;
+                        if face_start + 4 <= verts.len() {
+                            for i in face_start..face_start + 4 {
+                                let c = &mut verts[i].color;
+                                c[0] = c[0] * 0.2 + 0.2;
+                                c[1] = c[1] * 0.2 + 0.7;
+                                c[2] = c[2] * 0.2 + 1.0;
+                            }
+                        }
+                        let corners: [[f32; 3]; 4] = match sf_idx {
+                            0 => [[px[0],px[1],px[2]], [px[0]+w,px[1],px[2]], [px[0]+w,px[1]+h,px[2]], [px[0],px[1]+h,px[2]]],
+                            1 => [[px[0]+w,px[1],px[2]+d], [px[0],px[1],px[2]+d], [px[0],px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]+d]],
+                            2 => [[px[0],px[1]+h,px[2]], [px[0]+w,px[1]+h,px[2]], [px[0]+w,px[1]+h,px[2]+d], [px[0],px[1]+h,px[2]+d]],
+                            3 => [[px[0],px[1],px[2]+d], [px[0]+w,px[1],px[2]+d], [px[0]+w,px[1],px[2]], [px[0],px[1],px[2]]],
+                            4 => [[px[0],px[1],px[2]+d], [px[0],px[1],px[2]], [px[0],px[1]+h,px[2]], [px[0],px[1]+h,px[2]+d]],
+                            5 => [[px[0]+w,px[1],px[2]], [px[0]+w,px[1],px[2]+d], [px[0]+w,px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]]],
+                            _ => [[0.0;3];4],
+                        };
+                        let edge_pts = [corners[0], corners[1], corners[2], corners[3], corners[0]];
+                        push_line_segments(&mut verts, &mut idx, &edge_pts, 8.0, edge_color);
+                    }
+                    Shape::SteelProfile { profile_type, params, length, .. } => {
+                        let (w, h, d) = (params.b, *length, params.h);
+                        let outline = super::primitives::profile_outline(*profile_type, params);
+                        let n = outline.len();
+                        // 面頂點染色
+                        match sf_idx {
+                            2 => { // Top
+                                let top_start = start_idx + n;
+                                let top_end = (start_idx + 2 * n).min(verts.len());
+                                for i in top_start..top_end {
+                                    let c = &mut verts[i].color;
+                                    c[0] = c[0] * 0.2 + 0.2; c[1] = c[1] * 0.2 + 0.7; c[2] = c[2] * 0.2 + 1.0;
+                                }
+                            }
+                            3 => { // Bottom
+                                let bot_end = (start_idx + n).min(verts.len());
+                                for i in start_idx..bot_end {
+                                    let c = &mut verts[i].color;
+                                    c[0] = c[0] * 0.2 + 0.2; c[1] = c[1] * 0.2 + 0.7; c[2] = c[2] * 0.2 + 1.0;
+                                }
+                            }
+                            _ => {}
+                        }
+                        // 邊框
+                        match sf_idx {
+                            2 => {
+                                let mut pts: Vec<[f32; 3]> = outline.iter()
+                                    .map(|pt| [px[0]+pt[0], px[1]+h, px[2]+pt[1]]).collect();
+                                pts.push(pts[0]);
+                                push_line_segments(&mut verts, &mut idx, &pts, 8.0, edge_color);
+                            }
+                            3 => {
+                                let mut pts: Vec<[f32; 3]> = outline.iter()
+                                    .map(|pt| [px[0]+pt[0], px[1], px[2]+pt[1]]).collect();
+                                pts.push(pts[0]);
+                                push_line_segments(&mut verts, &mut idx, &pts, 8.0, edge_color);
+                            }
+                            _ => {
+                                let corners: [[f32; 3]; 4] = match sf_idx {
+                                    0 => [[px[0],px[1],px[2]], [px[0]+w,px[1],px[2]], [px[0]+w,px[1]+h,px[2]], [px[0],px[1]+h,px[2]]],
+                                    1 => [[px[0]+w,px[1],px[2]+d], [px[0],px[1],px[2]+d], [px[0],px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]+d]],
+                                    4 => [[px[0],px[1],px[2]+d], [px[0],px[1],px[2]], [px[0],px[1]+h,px[2]], [px[0],px[1]+h,px[2]+d]],
+                                    5 => [[px[0]+w,px[1],px[2]], [px[0]+w,px[1],px[2]+d], [px[0]+w,px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]]],
+                                    _ => [[0.0;3];4],
+                                };
+                                let edge_pts = [corners[0], corners[1], corners[2], corners[3], corners[0]];
+                                push_line_segments(&mut verts, &mut idx, &edge_pts, 8.0, edge_color);
+                            }
                         }
                     }
-                    // Bright cyan edge outline
-                    let px = obj.position;
-                    let (w, h, d) = (*width, *height, *depth);
-                    let edge_color = [0.2, 1.0, 1.0, 1.0]; // cyan
-                    let corners: [[f32; 3]; 4] = match sf_idx {
-                        0 => [[px[0],px[1],px[2]], [px[0]+w,px[1],px[2]], [px[0]+w,px[1]+h,px[2]], [px[0],px[1]+h,px[2]]],
-                        1 => [[px[0]+w,px[1],px[2]+d], [px[0],px[1],px[2]+d], [px[0],px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]+d]],
-                        2 => [[px[0],px[1]+h,px[2]], [px[0]+w,px[1]+h,px[2]], [px[0]+w,px[1]+h,px[2]+d], [px[0],px[1]+h,px[2]+d]],
-                        3 => [[px[0],px[1],px[2]+d], [px[0]+w,px[1],px[2]+d], [px[0]+w,px[1],px[2]], [px[0],px[1],px[2]]],
-                        4 => [[px[0],px[1],px[2]+d], [px[0],px[1],px[2]], [px[0],px[1]+h,px[2]], [px[0],px[1]+h,px[2]+d]],
-                        5 => [[px[0]+w,px[1],px[2]], [px[0]+w,px[1],px[2]+d], [px[0]+w,px[1]+h,px[2]+d], [px[0]+w,px[1]+h,px[2]]],
-                        _ => [[0.0;3];4],
-                    };
-                    let edge_pts = [corners[0], corners[1], corners[2], corners[3], corners[0]];
-                    push_line_segments(&mut verts, &mut idx, &edge_pts, 8.0, edge_color);
+                    _ => {}
                 }
             }
         }
