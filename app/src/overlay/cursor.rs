@@ -206,6 +206,111 @@ impl KolibriApp {
                             } else { None }
                         } else { None }
                     }
+                    // SU-style Line: 即時顯示線段長度
+                    DrawState::LineFrom { p1 } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - p1[0];
+                            let dy = end[1] - p1[1];
+                            let dz = end[2] - p1[2];
+                            let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+                            if dist > 1.0 {
+                                let text = if dist >= 1000.0 {
+                                    format!("長度 {:.2} m", dist / 1000.0)
+                                } else {
+                                    format!("長度 {:.0} mm", dist)
+                                };
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
+                            } else { None }
+                        } else { None }
+                    }
+                    // SU-style Arc: 即時顯示弦長/半徑
+                    DrawState::ArcP1 { p1 } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - p1[0];
+                            let dz = end[2] - p1[2];
+                            let chord = (dx * dx + dz * dz).sqrt();
+                            if chord > 1.0 {
+                                let text = if chord >= 1000.0 {
+                                    format!("弦長 {:.2} m", chord / 1000.0)
+                                } else {
+                                    format!("弦長 {:.0} mm", chord)
+                                };
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
+                            } else { None }
+                        } else { None }
+                    }
+                    // SU-style Box: 即時顯示底面尺寸 / 高度
+                    DrawState::BoxBase { p1 } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let w = (end[0] - p1[0]).abs();
+                            let d = (end[2] - p1[2]).abs();
+                            if w > 1.0 || d > 1.0 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("{:.0} × {:.0} mm", w, d)))
+                            } else { None }
+                        } else { None }
+                    }
+                    DrawState::BoxHeight { p1, p2 } => {
+                        let w = (p2[0] - p1[0]).abs();
+                        let d = (p2[2] - p1[2]).abs();
+                        Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                            format!("{:.0} × {:.0} mm（設定高度）", w, d)))
+                    }
+                    // SU-style Cylinder: 即時顯示半徑
+                    DrawState::CylBase { center } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - center[0];
+                            let dz = end[2] - center[2];
+                            let r = (dx * dx + dz * dz).sqrt();
+                            if r > 1.0 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("半徑 {:.0} mm", r)))
+                            } else { None }
+                        } else { None }
+                    }
+                    DrawState::CylHeight { radius, .. } => {
+                        Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                            format!("R={:.0} mm（設定高度）", radius)))
+                    }
+                    // SU-style Sphere: 即時顯示半徑
+                    DrawState::SphRadius { center } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - center[0];
+                            let dz = end[2] - center[2];
+                            let r = (dx * dx + dz * dz).sqrt();
+                            if r > 1.0 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("半徑 {:.0} mm", r)))
+                            } else { None }
+                        } else { None }
+                    }
+                    // Wall: 即時顯示牆長度
+                    DrawState::WallFrom { p1 } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - p1[0];
+                            let dz = end[2] - p1[2];
+                            let dist = (dx * dx + dz * dz).sqrt();
+                            if dist > 1.0 {
+                                let text = if dist >= 1000.0 {
+                                    format!("牆長 {:.2} m", dist / 1000.0)
+                                } else {
+                                    format!("牆長 {:.0} mm", dist)
+                                };
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
+                            } else { None }
+                        } else { None }
+                    }
+                    // Slab: 即時顯示板面積
+                    DrawState::SlabCorner { p1 } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let w = (end[0] - p1[0]).abs();
+                            let d = (end[2] - p1[2]).abs();
+                            if w > 1.0 || d > 1.0 {
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0,
+                                    format!("{:.0} × {:.0} mm", w, d)))
+                            } else { None }
+                        } else { None }
+                    }
                     _ => None,
                 };
 
