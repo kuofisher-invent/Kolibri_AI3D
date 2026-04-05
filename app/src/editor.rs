@@ -11,6 +11,9 @@ use serde::Serialize;
 pub(crate) struct DebugTraceRecord {
     /// 自 debug 啟動後的毫秒數
     pub(crate) t_ms: u64,
+    /// 事件類型：None=定時採樣, Some=事件觸發
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) event: Option<String>,
     /// 當前工具名稱
     pub(crate) tool: String,
     /// DrawState 名稱（Idle/MoveFrom/RotateRef 等）
@@ -19,6 +22,15 @@ pub(crate) struct DebugTraceRecord {
     pub(crate) mouse_screen: [f32; 2],
     /// 滑鼠 ground 座標 [x, y, z]（若有）
     pub(crate) mouse_ground: Option<[f32; 3]>,
+    /// 選取的面（PushPull 時）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) selected_face: Option<String>,
+    /// 選取的物件 ID 列表
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) selected_ids: Option<Vec<String>>,
+    /// hover 的物件 ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) hovered_id: Option<String>,
     /// 旋轉盤中心（世界座標）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) rotate_center: Option<[f32; 3]>,

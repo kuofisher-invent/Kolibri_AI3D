@@ -161,41 +161,45 @@ impl KolibriApp {
             }
 
             // ── SU-style PushPull click-click 即時預覽 ──
-            if let DrawState::PullClick { ref obj_id, face, original_dim } = self.editor.draw_state.clone() {
-                let d = response.drag_delta();
-                let scale = self.viewer.camera.distance * 0.0015;
-                // 用垂直拖曳量計算推拉距離
-                let amount = -d.y * scale;
-                if amount.abs() > 0.01 {
-                    if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
-                        match (&mut obj.shape, face) {
-                            (Shape::Box { height, .. }, PullFace::Top) =>
-                                *height = (*height + amount).max(10.0),
-                            (Shape::Box { height, .. }, PullFace::Bottom) => {
-                                let delta = amount.min(*height - 10.0);
-                                *height = (*height - delta).max(10.0);
-                                obj.position[1] += delta;
+            // 注意：不在 dragged_by 時處理（避免跟下方 PushPull drag 衝突）
+            // PullClick 只處理「無按鍵移動滑鼠」的預覽，拖拽由 PushPull drag 接管
+            if let DrawState::PullClick { ref obj_id, face, .. } = self.editor.draw_state.clone() {
+                if !response.dragged_by(egui::PointerButton::Primary) {
+                    // 只在非拖拽時用滑鼠移動量計算推拉預覽
+                    let d = response.drag_delta();
+                    let scale = self.viewer.camera.distance * 0.0015;
+                    let amount = -d.y * scale;
+                    if amount.abs() > 0.01 {
+                        if let Some(obj) = self.scene.objects.get_mut(obj_id.as_str()) {
+                            match (&mut obj.shape, face) {
+                                (Shape::Box { height, .. }, PullFace::Top) =>
+                                    *height = (*height + amount).max(10.0),
+                                (Shape::Box { height, .. }, PullFace::Bottom) => {
+                                    let delta = amount.min(*height - 10.0);
+                                    *height = (*height - delta).max(10.0);
+                                    obj.position[1] += delta;
+                                }
+                                (Shape::Box { width, .. }, PullFace::Right) =>
+                                    *width = (*width + amount).max(10.0),
+                                (Shape::Box { width, .. }, PullFace::Left) => {
+                                    let delta = amount.min(*width - 10.0);
+                                    *width = (*width - delta).max(10.0);
+                                    obj.position[0] += delta;
+                                }
+                                (Shape::Box { depth, .. }, PullFace::Back) =>
+                                    *depth = (*depth + amount).max(10.0),
+                                (Shape::Box { depth, .. }, PullFace::Front) => {
+                                    let delta = amount.min(*depth - 10.0);
+                                    *depth = (*depth - delta).max(10.0);
+                                    obj.position[2] += delta;
+                                }
+                                (Shape::Cylinder { height, .. }, PullFace::Top) =>
+                                    *height = (*height + amount).max(10.0),
+                                _ => {}
                             }
-                            (Shape::Box { width, .. }, PullFace::Right) =>
-                                *width = (*width + amount).max(10.0),
-                            (Shape::Box { width, .. }, PullFace::Left) => {
-                                let delta = amount.min(*width - 10.0);
-                                *width = (*width - delta).max(10.0);
-                                obj.position[0] += delta;
-                            }
-                            (Shape::Box { depth, .. }, PullFace::Back) =>
-                                *depth = (*depth + amount).max(10.0),
-                            (Shape::Box { depth, .. }, PullFace::Front) => {
-                                let delta = amount.min(*depth - 10.0);
-                                *depth = (*depth - delta).max(10.0);
-                                obj.position[2] += delta;
-                            }
-                            (Shape::Cylinder { height, .. }, PullFace::Top) =>
-                                *height = (*height + amount).max(10.0),
-                            _ => {}
                         }
+                        self.scene.version += 1;
                     }
-                    self.scene.version += 1;
                 }
             }
 
@@ -437,6 +441,7 @@ impl KolibriApp {
             && !shift
             && self.editor.hovered_id.is_none()
         {
+            self.record_trace_event("drag_start_rubber_band");
             if let Some(hp) = response.interact_pointer_pos() {
                 self.editor.rubber_band = Some((hp, hp));
             }
@@ -591,6 +596,7 @@ impl KolibriApp {
                 }
             }
             if response.drag_stopped() || response.clicked() {
+                self.record_trace_event("drag_stop_scale");
                 // 元件同步：縮放完成後同步所有同一元件的實例
                 let oid = obj_id.clone();
                 self.editor.draw_state = DrawState::Idle;
@@ -700,6 +706,7 @@ impl KolibriApp {
                 self.editor.draw_state = DrawState::Offsetting { obj_id: obj_id.clone(), face, distance: new_d };
             }
             if response.drag_stopped() {
+                self.record_trace_event("drag_stop_offset");
                 let d = match &self.editor.draw_state {
                     DrawState::Offsetting { distance, .. } => *distance,
                     _ => 0.0,
@@ -758,6 +765,7 @@ impl KolibriApp {
             if let Some((ref obj_id, face)) = self.editor.selected_face.clone() {
                 if response.dragged_by(egui::PointerButton::Primary) {
                     if !self.editor.drag_snapshot_taken {
+                        self.record_trace_event("drag_start_pushpull");
                         self.scene.snapshot_ids(&[&obj_id], "推拉");
                         self.editor.last_pull_distance = 0.0; // reset accumulator at drag start
                         // C3: Save original position & dims for dashed reference lines
@@ -886,6 +894,7 @@ impl KolibriApp {
                     }
                 }
                 if response.drag_stopped() {
+                    self.record_trace_event("drag_stop_pushpull");
                     // B5: Adjust adjacent objects that were touching the pulled face
                     {
                         let pull_delta = self.editor.last_pull_distance;
@@ -926,6 +935,7 @@ impl KolibriApp {
                 }
             }
             if response.drag_stopped() || response.clicked() {
+                self.record_trace_event("drag_stop_free_mesh");
                 self.editor.draw_state = DrawState::Idle;
                 self.editor.drag_snapshot_taken = false;
                 self.file_message = Some((
@@ -937,6 +947,7 @@ impl KolibriApp {
 
         // Double-click: enter/exit group isolation mode
         if response.double_clicked() {
+            self.record_trace_event("double_click");
             let (mx, my) = (self.editor.mouse_screen[0], self.editor.mouse_screen[1]);
             let (vw, vh) = (self.viewer.viewport_size[0], self.viewer.viewport_size[1]);
             if self.editor.editing_group_id.is_some() {
@@ -966,6 +977,7 @@ impl KolibriApp {
 
         // Click
         if response.clicked() {
+            self.record_trace_event("click");
             self.on_click();
         }
 

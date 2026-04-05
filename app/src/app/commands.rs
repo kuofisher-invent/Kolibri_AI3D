@@ -310,14 +310,7 @@ impl KolibriApp {
         let tool = format!("{:?}", self.editor.tool);
 
         // DrawState 名稱
-        let draw_state = match &self.editor.draw_state {
-            DrawState::Idle => "Idle".into(),
-            DrawState::LineFrom { .. } => "LineFrom".into(),
-            DrawState::MoveFrom { .. } => "MoveFrom".into(),
-            DrawState::RotateRef { .. } => "RotateRef".into(),
-            DrawState::RotateAngle { .. } => "RotateAngle".into(),
-            _ => format!("{:?}", std::mem::discriminant(&self.editor.draw_state)),
-        };
+        let draw_state = Self::draw_state_name(&self.editor.draw_state);
 
         // 差異偵測：tool + draw_state + scene.version + selected + mouse_ground（量化 50mm）
         let mouse_q = self.editor.mouse_ground.map_or([0i32; 3], |g| {
@@ -401,17 +394,124 @@ impl KolibriApp {
             _ => (None, None),
         };
 
+        let selected_face = self.editor.selected_face.as_ref().map(|(id, face)| {
+            format!("{}:{:?}", id, face)
+        });
+        let selected_ids = if !self.editor.selected_ids.is_empty() {
+            Some(self.editor.selected_ids.clone())
+        } else { None };
+        let hovered_id = self.editor.hovered_id.clone();
+
         let record = crate::editor::DebugTraceRecord {
             t_ms,
+            event: None, // 定時採樣無事件
             tool,
             draw_state,
             mouse_screen: self.editor.mouse_screen,
             mouse_ground: self.editor.mouse_ground,
+            selected_face,
+            selected_ids,
+            hovered_id,
             rotate_center,
             rotate_axis,
             objects,
         };
 
+        self.push_trace_record(record);
+    }
+
+    /// 事件觸發式記錄（click/double_click/drag_start/drag_stop）
+    pub(crate) fn record_trace_event(&mut self, event_name: &str) {
+        if !self.editor.debug_trace_active { return; }
+
+        let now = std::time::Instant::now();
+        let t_ms = now.duration_since(self.editor.debug_trace_start).as_millis() as u64;
+        let tool = format!("{:?}", self.editor.tool);
+        let draw_state = Self::draw_state_name(&self.editor.draw_state);
+        let (rotate_center, rotate_axis) = match &self.editor.draw_state {
+            DrawState::RotateRef { center, rotate_axis, .. } => (Some(*center), Some(*rotate_axis)),
+            DrawState::RotateAngle { center, rotate_axis, .. } => (Some(*center), Some(*rotate_axis)),
+            _ => (None, None),
+        };
+        let selected_face = self.editor.selected_face.as_ref().map(|(id, face)| {
+            format!("{}:{:?}", id, face)
+        });
+        let selected_ids = if !self.editor.selected_ids.is_empty() {
+            Some(self.editor.selected_ids.clone())
+        } else { None };
+        let hovered_id = self.editor.hovered_id.clone();
+
+        // 事件記錄不做完整物件快照（避免效能衝擊），只記操作中的物件
+        let objects: Vec<crate::editor::DebugTraceObject> = self.editor.selected_ids.iter()
+            .take(5) // 最多 5 個
+            .filter_map(|id| {
+                self.scene.objects.get(id).map(|obj| {
+                    crate::editor::DebugTraceObject {
+                        id: id.clone(),
+                        name: obj.name.clone(),
+                        position: obj.position,
+                        rotation_xyz: obj.rotation_xyz,
+                        dimensions: match &obj.shape {
+                            kolibri_core::scene::Shape::Box { width, height, depth } => Some([*width, *height, *depth]),
+                            kolibri_core::scene::Shape::Cylinder { radius, height, .. } => Some([*radius * 2.0, *height, 0.0]),
+                            kolibri_core::scene::Shape::SteelProfile { params, length, .. } => Some([params.b, *length, params.h]),
+                            _ => None,
+                        },
+                        world_corners: None,
+                    }
+                })
+            })
+            .collect();
+
+        let record = crate::editor::DebugTraceRecord {
+            t_ms,
+            event: Some(event_name.to_string()),
+            tool,
+            draw_state,
+            mouse_screen: self.editor.mouse_screen,
+            mouse_ground: self.editor.mouse_ground,
+            selected_face,
+            selected_ids,
+            hovered_id,
+            rotate_center,
+            rotate_axis,
+            objects,
+        };
+
+        self.push_trace_record(record);
+    }
+
+    /// DrawState 轉換為可讀名稱
+    fn draw_state_name(state: &DrawState) -> String {
+        match state {
+            DrawState::Idle => "Idle".into(),
+            DrawState::BoxBase { .. } => "BoxBase".into(),
+            DrawState::BoxHeight { .. } => "BoxHeight".into(),
+            DrawState::CylBase { .. } => "CylBase".into(),
+            DrawState::CylHeight { .. } => "CylHeight".into(),
+            DrawState::SphRadius { .. } => "SphRadius".into(),
+            DrawState::Pulling { .. } => "Pulling".into(),
+            DrawState::LineFrom { .. } => "LineFrom".into(),
+            DrawState::ArcP1 { .. } => "ArcP1".into(),
+            DrawState::ArcP2 { .. } => "ArcP2".into(),
+            DrawState::PieCenter { .. } => "PieCenter".into(),
+            DrawState::PieRadius { .. } => "PieRadius".into(),
+            DrawState::RotateRef { .. } => "RotateRef".into(),
+            DrawState::RotateAngle { .. } => "RotateAngle".into(),
+            DrawState::Scaling { .. } => "Scaling".into(),
+            DrawState::Offsetting { .. } => "Offsetting".into(),
+            DrawState::FollowPath { .. } => "FollowPath".into(),
+            DrawState::Measuring { .. } => "Measuring".into(),
+            DrawState::PullingFreeMesh { .. } => "PullingFreeMesh".into(),
+            DrawState::MoveFrom { .. } => "MoveFrom".into(),
+            DrawState::PullClick { .. } => "PullClick".into(),
+            DrawState::WallFrom { .. } => "WallFrom".into(),
+            DrawState::SlabCorner { .. } => "SlabCorner".into(),
+        }
+    }
+
+    /// 將記錄推入 trace buffer 並處理自動 flush / 上限
+    fn push_trace_record(&mut self, record: crate::editor::DebugTraceRecord) {
         self.editor.debug_trace_records.push(record);
 
         // 每 100 筆自動 flush 到檔案（避免資料遺失）
