@@ -189,6 +189,23 @@ impl KolibriApp {
                             Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
                         } else { None }
                     }
+                    // SU-style Measuring: 即時顯示量測距離
+                    DrawState::Measuring { start } => {
+                        if let Some(end) = self.editor.mouse_ground {
+                            let dx = end[0] - start[0];
+                            let dy = end[1] - start[1];
+                            let dz = end[2] - start[2];
+                            let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+                            if dist > 1.0 {
+                                let text = if dist >= 1000.0 {
+                                    format!("距離 {:.2} m", dist / 1000.0)
+                                } else {
+                                    format!("距離 {:.0} mm", dist)
+                                };
+                                Some((self.editor.mouse_screen[0] + 20.0, self.editor.mouse_screen[1] - 20.0, text))
+                            } else { None }
+                        } else { None }
+                    }
                     _ => None,
                 };
 
